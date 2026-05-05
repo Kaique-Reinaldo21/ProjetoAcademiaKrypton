@@ -1,0 +1,22 @@
+{
+  "name": "projetoacademiakripto-main",
+  "version": "1.0.0",
+  "description": "Repositório em nuvem do projeto integrador onde estamos trabalhando numa academia fictícia com Página Inicial, Área do aluno e Formulário de Matrícula.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "bootstrap": "^5.3.8",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "mysql": "^2.18.1",
+    "mysql2": "^3.22.3",
+    "nodemon": "^3.1.14"
+  }
+}

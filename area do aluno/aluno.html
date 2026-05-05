@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/aluno.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+        <!-- Pré-conexão ao Google Fonts para carregar a fonte mais rápido -->
+ 
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;900&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+        <!-- Importa as mesmas fontes do index.html para manter identidade visual consistente -->
+    <title>Area do Aluno</title>
+</head>
+<body>
+    
+<nav>
+        <div class="nav-inner">
+
+            <a href="../index.html" class="logo">
+            <!-- leva de volta para a homepage ao clicar no logo -->
+
+                <svg class="logo-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M13 2L4.5 13.5H11L10 22L19.5 10H13L13 2Z"/>
+                </svg>
+                <span class="logo-text">Academia Kripto</span>
+            </a>
+ 
+            <div class="nav-actions">
+                <a href="../index.html" class="btn-login">
+                <!-- Nesta página o "Login" pode virar um link de "Sair" ou "Início" -->
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                        <polyline points="10 17 15 12 10 7"/>
+                        <line x1="15" y1="12" x2="3" y2="12"/>
+                    </svg>
+                    Início
+                </a>
+            </div>
+ 
+        </div>
+</nav>
+
+<main class="aluno-main">
+        <!-- <main>: tag semântica que marca o conteúdo principal da página. 
+        Bom para SEO e acessibilidade — leitores de tela identificam como área principal -->
+ 
+        <!-- CABEÇALHO DA ÁREA DO ALUNO -->
+        <header class="aluno-header">
+            <!-- <header>: cabeçalho da seção (diferente do <head> — este aparece na tela) -->
+ 
+            <div class="aluno-header-inner">
+ 
+                <div class="aluno-saudacao">
+                <!-- Bloco que exibirá o nome do aluno e informações de boas-vindas -->
+ 
+                    <p class="aluno-label">Bem-vindo de volta</p>
+                    <!-- Pequeno texto acima do nome — será preenchido pelo JavaScript -->
+ 
+                    <h1 class="aluno-nome">Aluno</h1>
+                    <!-- Nome do aluno. O JavaScript poderá trocar "Aluno" pelo nome real -->
+ 
+                </div>
+ 
+                <div class="aluno-avatar">
+                <!-- Círculo com as iniciais ou foto do aluno -->
+ 
+                    <span>AK</span>
+                    <!-- Iniciais placeholder — futuramente pode ser uma <img> com foto do aluno -->
+ 
+                </div>
+ 
+            </div>
+        </header>
+
+        <section class="aluno-cards">
+        <!-- agrupa os cards de informação rápida do aluno -->
+ 
+            <div class="card">
+            <!-- bloco de informação isolado -->
+ 
+                <p class="card-label">Treinos este mês</p>
+                <!-- Rótulo descritivo do card -->
+ 
+                <span class="card-valor">12</span>
+                <!-- Valor principal em destaque — número grande -->
+ 
+            </div>
+ 
+            <div class="card">
+                <p class="card-label">Próximo treino</p>
+                <span class="card-valor">Hoje</span>
+            </div>
+ 
+            <div class="card">
+                <p class="card-label">Plano atual</p>
+                <span class="card-valor">Premium</span>
+            </div>
+ 
+            <div class="card">
+                <p class="card-label">Dias restantes</p>
+                <span class="card-valor">18</span>
+            </div>
+ 
+        </section>
+
+        <section class="aluno-grid">
+            <!-- Divide a área em duas colunas no desktop (via CSS) -->
+ 
+            <!-- COLUNA ESQUERDA: Treino do dia -->
+            <div class="card-treino">
+ 
+                <h2 class="card-titulo">Treino de hoje</h2>
+ 
+                <ul class="lista-exercicios">
+                    <li class="exercicio-item">
+                        <div class="exercicio-info">
+                            <span class="exercicio-nome">Supino Reto</span>
+                            <!-- Nome do exercício -->
+                            <span class="exercicio-detalhe">4 séries × 10 reps</span>
+                            <!-- Quantidade de séries e repetições -->
+                        </div>
+                        <span class="exercicio-status concluido">✓</span>
+                        <!-- Indicador de status. Classe "concluido" muda a cor para verde no CSS -->
+                    </li>
+ 
+                    <li class="exercicio-item">
+                        <div class="exercicio-info">
+                            <span class="exercicio-nome">Desenvolvimento Militar</span>
+                            <span class="exercicio-detalhe">3 séries × 12 reps</span>
+                        </div>
+                        <span class="exercicio-status concluido">✓</span>
+                    </li>
+ 
+                    <li class="exercicio-item">
+                        <div class="exercicio-info">
+                            <span class="exercicio-nome">Rosca Direta</span>
+                            <span class="exercicio-detalhe">3 séries × 15 reps</span>
+                        </div>
+                        <span class="exercicio-status pendente">○</span>
+                        <!-- Classe "pendente" deixa em cinza — ainda não concluído -->
+                    </li>
+ 
+                    <li class="exercicio-item">
+                        <div class="exercicio-info">
+                            <span class="exercicio-nome">Tríceps Pulley</span>
+                            <span class="exercicio-detalhe">4 séries × 12 reps</span>
+                        </div>
+                        <span class="exercicio-status pendente">○</span>
+                    </li>
+ 
+                </ul>
+ 
+                <a href="#" class="btn-treino">Ver treino completo</a>
+                <!-- Botão que levará para a página completa do treino -->
+ 
+            </div>
+ 
+            <!-- COLUNA DIREITA: Histórico recente -->
+            <div class="card-historico">
+ 
+                <h2 class="card-titulo">Histórico recente</h2>
+ 
+                <ul class="lista-historico">
+ 
+                    <li class="historico-item">
+                        <div class="historico-data">
+                            <span class="data-dia">22</span>
+                            <!-- Dia do mês em destaque -->
+                            <span class="data-mes">ABR</span>
+                            <!-- Mês abreviado embaixo -->
+                        </div>
+                        <div class="historico-info">
+                            <span class="historico-nome">Peito + Ombro</span>
+                            <span class="historico-duracao">55 min</span>
+                        </div>
+                        <span class="historico-badge">Concluído</span>
+                        <!-- Badge de status -->
+                    </li>
+ 
+                    <li class="historico-item">
+                        <div class="historico-data">
+                            <span class="data-dia">20</span>
+                            <span class="data-mes">ABR</span>
+                        </div>
+                        <div class="historico-info">
+                            <span class="historico-nome">Costas + Bíceps</span>
+                            <span class="historico-duracao">62 min</span>
+                        </div>
+                        <span class="historico-badge">Concluído</span>
+                    </li>
+ 
+                    <li class="historico-item">
+                        <div class="historico-data">
+                            <span class="data-dia">18</span>
+                            <span class="data-mes">ABR</span>
+                        </div>
+                        <div class="historico-info">
+                            <span class="historico-nome">Pernas</span>
+                            <span class="historico-duracao">70 min</span>
+                        </div>
+                        <span class="historico-badge">Concluído</span>
+                    </li>
+ 
+                </ul>
+ 
+            </div>
+ 
+        </section>
+
+
+</main>  
+</body>
+</html>
