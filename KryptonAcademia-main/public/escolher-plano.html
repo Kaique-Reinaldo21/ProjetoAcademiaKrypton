@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Escolher Plano — Academia Krypton</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@700&family=Nunito+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root { --green: #2dff7a; --green-d: #1ad962; --dark: #0a0a0a; --purple: #8b5cf6; }
+    body { background: var(--dark); color: #fff; font-family: 'Nunito Sans', sans-serif; min-height: 100vh; padding-bottom: 4rem; }
+
+    .navbar { background: rgba(10,10,10,.95); border-bottom: 1px solid rgba(255,255,255,.08); }
+    .navbar-brand { font-family: 'Nunito Sans', sans-serif; font-weight: 800; font-size: 1rem; letter-spacing: 1.5px; text-transform: uppercase; color: #fff !important; }
+    .navbar-brand img { width: 28px; height: 28px; object-fit: contain; }
+
+    .page-title { font-family: 'Oswald', sans-serif; font-size: 2.4rem; font-weight: 700; text-transform: uppercase; }
+    .page-title span { color: var(--green); }
+
+    /* Cards de plano */
+    .plano-card {
+      background: rgba(255,255,255,.04);
+      border: 2px solid rgba(255,255,255,.1);
+      border-radius: 18px;
+      padding: 2rem 1.6rem;
+      cursor: pointer;
+      transition: border-color .25s, background .25s, transform .2s;
+      position: relative;
+      height: 100%;
+    }
+    .plano-card:hover { border-color: rgba(255,255,255,.3); transform: translateY(-3px); }
+    .plano-card.selecionado { border-color: var(--green); background: rgba(45,255,122,.05); }
+    .plano-card.selecionado-elite { border-color: var(--purple); background: rgba(139,92,246,.06); }
+
+    .plano-nome { font-family: 'Oswald', sans-serif; font-size: 2rem; font-weight: 700; text-transform: uppercase; }
+    .plano-nome.basico { color: #94a3b8; }
+    .plano-nome.pro    { color: var(--green); }
+    .plano-nome.elite  { color: #c4b5fd; }
+
+    .plano-preco { font-size: 1.8rem; font-weight: 800; }
+    .plano-preco small { font-size: .85rem; font-weight: 400; color: rgba(255,255,255,.45); }
+
+    .beneficio { display: flex; align-items: flex-start; gap: .5rem; font-size: .86rem; padding: .35rem 0; color: rgba(255,255,255,.8); }
+    .beneficio i { color: var(--green); margin-top: 2px; flex-shrink: 0; }
+    .beneficio i.elite { color: #c4b5fd; }
+
+    .badge-popular { position: absolute; top: -1px; right: 20px; background: var(--green); color: #000; font-size: .68rem; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; padding: .3rem .9rem; border-radius: 0 0 10px 10px; }
+    .badge-elite { position: absolute; top: -1px; right: 20px; background: var(--purple); color: #fff; font-size: .68rem; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; padding: .3rem .9rem; border-radius: 0 0 10px 10px; }
+
+    .check-icon { position: absolute; top: 16px; left: 16px; width: 26px; height: 26px; border-radius: 50%; background: var(--green); display: none; align-items: center; justify-content: center; }
+    .plano-card.selecionado .check-icon { display: flex; }
+    .plano-card.selecionado-elite .check-icon { display: flex; background: var(--purple); }
+
+    /* Seleção de unidade (Basic) */
+    .secao-unidade { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.12); border-radius: 14px; padding: 1.4rem 1.6rem; }
+    .form-label-custom { font-size: .78rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,.5); margin-bottom: .5rem; display: block; }
+    .select-dark { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.15); color: #fff; border-radius: 8px; padding: .7rem 1rem; font-family: 'Nunito Sans', sans-serif; font-size: .9rem; width: 100%; cursor: pointer; }
+    .select-dark:focus { outline: none; border-color: var(--green); }
+    .select-dark option { background: #1a1a2e; color: #fff; }
+
+    /* Botão confirmar */
+    .btn-confirmar { background: var(--green); color: #000; font-family: 'Nunito Sans', sans-serif; font-weight: 800; font-size: .88rem; letter-spacing: 2px; text-transform: uppercase; border: none; border-radius: 10px; padding: 1rem 2rem; width: 100%; max-width: 400px; transition: background .2s, transform .15s; box-shadow: 0 0 30px rgba(45,255,122,.2); cursor: pointer; }
+    .btn-confirmar:hover { background: var(--green-d); transform: translateY(-1px); }
+    .btn-confirmar:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+    .btn-confirmar.elite-btn { background: var(--purple); box-shadow: 0 0 30px rgba(139,92,246,.2); }
+    .btn-confirmar.elite-btn:hover { background: #7c3aed; }
+
+    .alerta { border-radius: 8px; padding: .75rem 1rem; font-size: .85rem; display: none; margin-top: 1rem; }
+    .alerta-erro { background: rgba(220,53,69,.12); border: 1px solid rgba(220,53,69,.35); color: #ff8080; }
+    .alerta-ok   { background: rgba(45,255,122,.1);  border: 1px solid rgba(45,255,122,.3); color: var(--green); }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<nav class="navbar px-3 px-md-5 py-3">
+  <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+    <img src="/logo.png" alt="Logo Kripton"/> Academia Krypton
+  </a>
+  <span id="nav-nome" class="text-secondary ms-auto" style="font-size:.83rem;"></span>
+</nav>
+
+<div class="container py-5">
+
+  <div class="text-center mb-5">
+    <p style="font-size:.75rem;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,.4);" class="mb-2">Bem-vindo!</p>
+    <h1 class="page-title">Escolha seu <span>Plano</span></h1>
+    <p class="text-secondary mt-2" style="font-size:.9rem;">Selecione o plano ideal para começar a treinar na Academia Krypton.</p>
+  </div>
+
+  <!-- Cards de plano -->
+  <div class="row g-4 mb-4">
+
+    <!-- Básico -->
+    <div class="col-12 col-md-4">
+      <div class="plano-card" id="card-basico" onclick="selecionarPlano('basico')">
+        <div class="check-icon"><i class="bi bi-check" style="font-size:.9rem;color:#000;font-weight:900;"></i></div>
+        <div class="plano-nome basico mb-1">Básico</div>
+        <div class="plano-preco mb-3">R$ 89 <small>/mês</small></div>
+        <div class="beneficio"><i class="bi bi-check-circle-fill"></i> 1 unidade exclusiva</div>
+        <div class="beneficio"><i class="bi bi-check-circle-fill"></i> Musculação completa</div>
+        <div class="beneficio"><i class="bi bi-check-circle-fill"></i> Área de cardio</div>
+      </div>
+    </div>
+
+    <!-- Pro -->
+    <div class="col-12 col-md-4">
+      <div class="plano-card" id="card-pro" onclick="selecionarPlano('pro')">
+        <div class="badge-popular">Mais popular</div>
+        <div class="check-icon"><i class="bi bi-check" style="font-size:.9rem;color:#000;font-weight:900;"></i></div>
+        <div class="plano-nome pro mb-1">Pro</div>
+        <div class="plano-preco mb-3">R$ 149 <small>/mês</small></div>
+        <div class="beneficio"><i class="bi bi-check-circle-fill"></i> Todas as unidades</div>
+        <div class="beneficio"><i class="bi bi-check-circle-fill"></i> Musculação e cardio ilimitados</div>
+        <div class="beneficio"><i class="bi bi-check-circle-fill"></i> Lutas e artes marciais</div>
+        <div class="beneficio"><i class="bi bi-check-circle-fill"></i> Quadras esportivas</div>
+      </div>
+    </div>
+
+    <!-- Elite -->
+    <div class="col-12 col-md-4">
+      <div class="plano-card" id="card-elite" onclick="selecionarPlano('elite')">
+        <div class="badge-elite">Elite</div>
+        <div class="check-icon"><i class="bi bi-check" style="font-size:.9rem;color:#fff;font-weight:900;"></i></div>
+        <div class="plano-nome elite mb-1">Elite</div>
+        <div class="plano-preco mb-3">R$ 249 <small>/mês</small></div>
+        <div class="beneficio"><i class="bi bi-check-circle-fill elite"></i> Todas as unidades</div>
+        <div class="beneficio"><i class="bi bi-check-circle-fill elite"></i> Musculação, cardio e lutas</div>
+        <div class="beneficio"><i class="bi bi-check-circle-fill elite"></i> Quadras esportivas</div>
+        <div class="beneficio"><i class="bi bi-check-circle-fill elite"></i> <strong>Nutricionista incluso</strong></div>
+        <div class="beneficio"><i class="bi bi-check-circle-fill elite"></i> <strong>Personal Trainer incluso</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Seleção de unidade (Basic) -->
+  <div id="secao-unidade" class="secao-unidade mb-4" style="display:none">
+    <p class="form-label-custom"><i class="bi bi-geo-alt-fill me-1" style="color:var(--green)"></i>Selecione sua unidade</p>
+    <p class="text-secondary mb-3" style="font-size:.83rem;">O plano Básico dá acesso a 1 unidade. Escolha a mais próxima de você.</p>
+    <select id="select-unidade" class="select-dark">
+      <option value="">Carregando unidades...</option>
+    </select>
+  </div>
+
+  <!-- Alerta -->
+  <div id="alerta-erro" class="alerta alerta-erro"></div>
+  <div id="alerta-ok"   class="alerta alerta-ok"></div>
+
+  <!-- Botão confirmar -->
+  <div class="text-center mt-4">
+    <button class="btn-confirmar" id="btn-confirmar" disabled onclick="confirmar()">
+      <span id="btn-txt">Selecione um plano</span>
+      <span id="btn-load" style="display:none"><i class="bi bi-arrow-repeat" style="animation:spin .8s linear infinite"></i> Ativando...</span>
+    </button>
+    <p class="text-secondary mt-3" style="font-size:.78rem;">Plano ativo por 30 dias. Renovação a qualquer momento.</p>
+  </div>
+
+</div>
+
+<script>
+  const token    = localStorage.getItem('token');
+  const usuSalvo = JSON.parse(localStorage.getItem('usuario') || 'null');
+  if (!token) window.location.href = '/login.html';
+  if (usuSalvo) document.getElementById('nav-nome').textContent = usuSalvo.nome;
+
+  let planoSelecionado = null;
+
+  // ── Carrega unidades ────────────────────────────────────────────────────────
+  async function carregarUnidades() {
+    try {
+      const res  = await fetch('/api/usuario/unidades', {
+        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include',
+      });
+      const data = await res.json();
+      const sel  = document.getElementById('select-unidade');
+      sel.innerHTML = '<option value="">— Escolha uma unidade —</option>' +
+        data.unidades.map(u =>
+          `<option value="${u.id}">${u.nome} — ${u.endereco}, ${u.cidade}</option>`
+        ).join('');
+    } catch {
+      document.getElementById('select-unidade').innerHTML =
+        '<option value="">Erro ao carregar unidades</option>';
+    }
+  }
+
+  carregarUnidades();
+
+  // ── Seleciona plano ─────────────────────────────────────────────────────────
+  function selecionarPlano(tipo) {
+    planoSelecionado = tipo;
+
+    // Remove seleção anterior
+    ['basico','pro','elite'].forEach(t => {
+      const card = document.getElementById(`card-${t}`);
+      card.classList.remove('selecionado', 'selecionado-elite');
+    });
+
+    // Aplica seleção
+    const card = document.getElementById(`card-${tipo}`);
+    card.classList.add(tipo === 'elite' ? 'selecionado-elite' : 'selecionado');
+
+    // Mostra seleção de unidade apenas para Basic
+    document.getElementById('secao-unidade').style.display = tipo === 'basico' ? '' : 'none';
+
+    // Atualiza botão
+    const btn = document.getElementById('btn-confirmar');
+    btn.disabled = false;
+    btn.className = `btn-confirmar${tipo === 'elite' ? ' elite-btn' : ''}`;
+    const nomes = { basico: 'Assinar Plano Básico', pro: 'Assinar Plano Pro', elite: 'Assinar Plano Elite' };
+    document.getElementById('btn-txt').textContent = nomes[tipo];
+
+    esconderAlertas();
+  }
+
+  // ── Confirma ────────────────────────────────────────────────────────────────
+  async function confirmar() {
+    if (!planoSelecionado) return;
+
+    const unidade_id = planoSelecionado === 'basico'
+      ? document.getElementById('select-unidade').value
+      : null;
+
+    if (planoSelecionado === 'basico' && !unidade_id) {
+      mostrarErro('Selecione uma unidade para continuar.');
+      return;
+    }
+
+    setLoading(true);
+    esconderAlertas();
+
+    try {
+      const res  = await fetch('/api/usuario/assinar-plano', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify({ tipo: planoSelecionado, unidade_id }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) { mostrarErro(data.erro); return; }
+
+      mostrarOk('Plano ativado! Redirecionando para o seu dashboard...');
+      setTimeout(() => window.location.href = '/dashboard.html', 1500);
+    } catch {
+      mostrarErro('Sem conexão com o servidor.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function setLoading(on) {
+    document.getElementById('btn-txt').style.display  = on ? 'none' : '';
+    document.getElementById('btn-load').style.display = on ? '' : 'none';
+    document.getElementById('btn-confirmar').disabled = on;
+  }
+
+  function mostrarErro(msg) {
+    const el = document.getElementById('alerta-erro');
+    el.textContent = '⚠ ' + msg; el.style.display = 'block';
+    document.getElementById('alerta-ok').style.display = 'none';
+  }
+  function mostrarOk(msg) {
+    const el = document.getElementById('alerta-ok');
+    el.textContent = '✓ ' + msg; el.style.display = 'block';
+    document.getElementById('alerta-erro').style.display = 'none';
+  }
+  function esconderAlertas() {
+    document.getElementById('alerta-erro').style.display = 'none';
+    document.getElementById('alerta-ok').style.display   = 'none';
+  }
+</script>
+</body>
+</html>
