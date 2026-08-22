@@ -4,7 +4,7 @@ Repositório em nuvem do projeto integrador onde estamos trabalhando numa academ
 
 Template base da página inicial que estamos trabalhando:
 
-<img width="1623" height="908" alt="image" src="https://github.com/user-attachments/assets/e2da82a1-0fc4-4074-a29c-6392c15d16b4" />
+<img width="1623" height="908" alt="image" src="https://https://drive.google.com/file/d/1HtSzGwnJ4PAkg9f0Gu1EcIBjJlCS12WO/view?usp=drivesdk />
 
 ## Links
 
