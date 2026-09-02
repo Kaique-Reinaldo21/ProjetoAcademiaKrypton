@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Painel Administrativo — Krypton</title>
+
+  <link rel="icon" type="image/png" href="/logo.png">
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@600;700&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+
+    :root {
+      --green: #2dff7a;
+      --green-dark: #1ad962;
+      --bg: #090909;
+      --sidebar: #0e0e0e;
+      --card: #121212;
+      --border: rgba(255,255,255,.08);
+      --muted: rgba(255,255,255,.5);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: white;
+      font-family: 'Nunito Sans', sans-serif;
+    }
+
+    .layout {
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* SIDEBAR */
+
+    .sidebar {
+      width: 250px;
+      background: var(--sidebar);
+      border-right: 1px solid var(--border);
+      padding: 24px 18px;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      margin-bottom: 38px;
+
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .brand img {
+      width: 46px;
+      height: 46px;
+      object-fit: contain;
+    }
+
+    .admin-label {
+      color: var(--green);
+      font-size: 11px;
+      letter-spacing: 2px;
+    }
+
+    .nav-admin {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .nav-admin a {
+      text-decoration: none;
+      color: rgba(255,255,255,.55);
+
+      padding: 12px 14px;
+      border-radius: 8px;
+
+      font-size: 14px;
+      font-weight: 700;
+
+      transition: .2s;
+    }
+
+    .nav-admin a i {
+      margin-right: 10px;
+    }
+
+    .nav-admin a:hover,
+    .nav-admin a.active {
+      background: rgba(45,255,122,.10);
+      color: var(--green);
+    }
+
+    /* CONTEÚDO */
+
+    .conteudo {
+      flex: 1;
+      padding: 32px;
+      min-width: 0;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+    }
+
+    .titulo h1 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 32px;
+      text-transform: uppercase;
+      margin: 0;
+    }
+
+    .titulo p {
+      color: var(--muted);
+      margin: 5px 0 0;
+    }
+
+    .btn-sair {
+      border: 1px solid var(--border);
+      background: transparent;
+      color: white;
+      padding: 9px 16px;
+      border-radius: 8px;
+      font-weight: 700;
+    }
+
+    .btn-sair:hover {
+      border-color: #ff5b5b;
+      color: #ff7070;
+    }
+
+    /* CARDS */
+
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px;
+      height: 100%;
+    }
+
+    .stat-icon {
+      width: 42px;
+      height: 42px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      border-radius: 10px;
+
+      background: rgba(45,255,122,.1);
+      color: var(--green);
+
+      font-size: 20px;
+
+      margin-bottom: 18px;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .stat-value {
+      font-family: 'Oswald', sans-serif;
+      font-size: 31px;
+      margin-top: 4px;
+    }
+
+    /* PAINÉIS */
+
+    .painel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px;
+      height: 100%;
+    }
+
+    .painel-titulo {
+      font-family: 'Oswald', sans-serif;
+      text-transform: uppercase;
+      font-size: 18px;
+      margin-bottom: 20px;
+    }
+
+    /* TABELAS */
+
+   .table-admin {
+        --bs-table-bg: transparent;
+        --bs-table-color: rgba(255,255,255,.78);
+        --bs-table-border-color: rgba(255,255,255,.08);
+
+        margin: 0;
+        background: transparent;
+        }
+
+        .table-admin > :not(caption) > * > * {
+        background-color: transparent !important;
+        color: rgba(255,255,255,.78) !important;
+        border-color: rgba(255,255,255,.08) !important;
+        }
+
+        .table-admin th {
+        color: rgba(255,255,255,.38) !important;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 700;
+        }
+
+        .table-admin td {
+        color: rgba(255,255,255,.75) !important;
+        vertical-align: middle;
+        font-size: 13px;
+        }
+
+        .table-admin td strong {
+        color: #fff;
+        }
+
+    .badge-plano {
+      font-size: 11px;
+      font-weight: 800;
+      padding: 5px 9px;
+      border-radius: 20px;
+      text-transform: uppercase;
+    }
+
+    .basico {
+      background: rgba(255,255,255,.1);
+    }
+
+    .pro {
+      background: rgba(45,150,255,.15);
+      color: #76baff;
+    }
+
+    .elite {
+      background: rgba(45,255,122,.12);
+      color: var(--green);
+    }
+
+    canvas {
+      max-height: 290px;
+    }
+
+    @media (max-width: 900px) {
+
+      .layout {
+        display: block;
+      }
+
+      .sidebar {
+        width: 100%;
+      }
+
+      .nav-admin {
+        flex-direction: row;
+        overflow-x: auto;
+      }
+
+      .conteudo {
+        padding: 20px;
+      }
+
+    }
+    .subtitulo-painel {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.tag-alerta {
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffbf69;
+  background: rgba(255,191,105,.10);
+  border: 1px solid rgba(255,191,105,.2);
+  padding: 5px 9px;
+  border-radius: 20px;
+}
+
+.item-admin {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+
+  padding: 13px 0;
+
+  border-bottom:
+    1px solid rgba(255,255,255,.06);
+}
+
+.item-admin:last-child {
+  border-bottom: none;
+}
+
+.item-admin-nome {
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.item-admin-info {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.item-admin-data {
+  color: rgba(255,255,255,.65);
+  font-size: 12px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tipo-agendamento {
+  display: inline-block;
+  margin-top: 4px;
+
+  color: var(--green);
+  font-size: 10px;
+  font-weight: 800;
+
+  text-transform: uppercase;
+}
+
+.painel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.painel-cadastros {
+  height: auto;
+  padding-bottom: 16px;
+}
+
+.painel-cadastros canvas {
+  max-height: 250px;
+}
+
+  </style>
+
+</head>
+
+
+<body>
+
+<div class="layout">
+
+
+  <!-- SIDEBAR -->
+
+  <aside class="sidebar">
+
+    <div class="brand">
+      <img src="/logo.png" alt="Krypton">
+      
+      <div>
+        Krypton
+        <div class="admin-label">
+          Administração
+        </div>
+      </div>
+    </div>
+
+
+    <nav class="nav-admin">
+      <a href="#" class="active">
+        <i class="bi bi-grid"></i>
+        Dashboard
+      </a>
+
+      <a href="#alunos">
+        <i class="bi bi-people"></i>
+        Alunos
+      </a>
+
+      <a href="#planos">
+        <i class="bi bi-credit-card"></i>
+        Planos
+      </a>
+
+      <a href="#logins">
+        <i class="bi bi-clock-history"></i>
+        Histórico
+      </a>
+
+    </nav>
+
+  </aside>
+
+
+  <!-- CONTEÚDO -->
+
+  <main class="conteudo">
+
+
+    <div class="topbar">
+
+      <div class="titulo">
+
+        <h1>
+          Dashboard
+        </h1>
+
+        <p>
+          Visão geral da Academia Krypton
+        </p>
+
+      </div>
+
+
+      <button
+        class="btn-sair"
+        id="btn-sair"
+      >
+
+        <i class="bi bi-box-arrow-right"></i>
+
+        Sair
+
+      </button>
+
+    </div>
+
+
+    <!-- INDICADORES -->
+
+    <div class="row g-3 mb-4">
+
+
+      <div class="col-md-6 col-xl-3">
+
+        <div class="stat-card">
+
+          <div class="stat-icon">
+            <i class="bi bi-people"></i>
+          </div>
+
+          <div class="stat-label">
+            Total de alunos
+          </div>
+
+          <div
+            class="stat-value"
+            id="total-alunos"
+          >
+            —
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="col-md-6 col-xl-3">
+
+        <div class="stat-card">
+
+          <div class="stat-icon">
+            <i class="bi bi-check-circle"></i>
+          </div>
+
+          <div class="stat-label">
+            Planos ativos
+          </div>
+
+          <div
+            class="stat-value"
+            id="planos-ativos"
+          >
+            —
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="col-md-6 col-xl-3">
+
+        <div class="stat-card">
+
+          <div class="stat-icon">
+            <i class="bi bi-door-open"></i>
+          </div>
+
+          <div class="stat-label">
+            Logins hoje
+          </div>
+
+          <div
+            class="stat-value"
+            id="logins-hoje"
+          >
+            —
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="col-md-6 col-xl-3">
+
+        <div class="stat-card">
+
+          <div class="stat-icon">
+            <i class="bi bi-cash-stack"></i>
+          </div>
+
+          <div class="stat-label">
+            Receita estimada
+          </div>
+
+          <div
+            class="stat-value"
+            id="receita"
+          >
+            —
+          </div>
+
+        </div>
+
+      </div>
+
+
+    </div>
+
+
+    <!-- GRÁFICOS -->
+
+    <div
+      class="row g-3 mb-4"
+      id="planos"
+    >
+
+
+      <div class="col-lg-5">
+
+        <div class="painel">
+
+          <div class="painel-titulo">
+            Distribuição dos planos
+          </div>
+
+          <canvas id="grafico-planos"></canvas>
+
+        </div>
+
+      </div>
+
+
+      <div class="col-lg-7">
+
+        <div class="painel">
+
+          <div class="painel-titulo">
+            Receita estimada por plano
+          </div>
+
+          <canvas id="grafico-receita"></canvas>
+
+        </div>
+
+      </div>
+
+
+    </div>
+
+
+    <!-- ALUNOS -->
+
+   <div class="row g-3">
+
+  <!-- ÚLTIMOS INSCRITOS -->
+  <div class="col-lg-6" id="alunos">
+
+    <div class="painel">
+
+      <div class="painel-titulo">
+        Últimos inscritos
+      </div>
+
+      <div class="table-responsive">
+
+        <table class="table table-admin">
+
+          <thead>
+            <tr>
+              <th>Aluno</th>
+              <th>Plano</th>
+              <th>Cadastro</th>
+            </tr>
+          </thead>
+
+          <tbody id="lista-alunos">
+            <tr>
+              <td colspan="3">
+                Carregando...
+              </td>
+            </tr>
+          </tbody>
+
+        </table>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- HISTÓRICO -->
+  <div class="col-lg-6" id="logins">
+
+    <div class="painel">
+
+      <div class="painel-titulo">
+        Histórico de login
+      </div>
+
+      <div class="table-responsive historico-scroll">
+
+        <table class="table table-admin">
+
+          <thead>
+            <tr>
+              <th>Usuário</th>
+              <th>Perfil</th>
+              <th>Data</th>
+            </tr>
+          </thead>
+
+          <tbody id="lista-logins">
+            <tr>
+              <td colspan="3">
+                Carregando...
+              </td>
+            </tr>
+          </tbody>
+
+        </table>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+<!-- ATIVIDADE OPERACIONAL -->
+
+<div class="row g-3 mt-1 mb-4">
+
+  <!-- AGENDAMENTOS -->
+
+  <div class="col-lg-6">
+
+    <div class="painel">
+
+      <div class="painel-header">
+
+        <div class="painel-titulo mb-0">
+          Próximos agendamentos
+        </div>
+
+        <i
+          class="bi bi-calendar-check"
+          style="color:var(--green);font-size:20px"
+        ></i>
+
+      </div>
+
+      <div id="lista-agendamentos">
+
+        <p style="color:var(--muted)">
+          Carregando...
+        </p>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- VENCIMENTOS -->
+
+  <div class="col-lg-6">
+
+    <div class="painel">
+
+      <div class="painel-header">
+
+        <div class="painel-titulo mb-0">
+          Planos vencendo
+        </div>
+
+        <span class="tag-alerta">
+          Próximos 7 dias
+        </span>
+
+      </div>
+
+      <div id="lista-vencimentos">
+
+        <p style="color:var(--muted)">
+          Carregando...
+        </p>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+<!-- NOVOS CADASTROS -->
+
+<div class="painel painel-cadastros mb-4"
+
+  <div class="painel-header">
+
+    <div>
+
+      <div class="painel-titulo mb-1">
+        Novos alunos
+      </div>
+
+      <div class="subtitulo-painel">
+        Cadastros nos últimos 7 dias
+      </div>
+
+    </div>
+
+    <i
+      class="bi bi-graph-up-arrow"
+      style="color:var(--green);font-size:22px"
+    ></i>
+
+  </div>
+
+  <canvas id="grafico-cadastros"></canvas>
+
+</div>
+
+  </main>
+
+</div>
+
+
+<script>
+
+  let graficoPlanos;
+  let graficoReceita;
+
+
+  function formatarDinheiro(valor) {
+
+    return Number(valor).toLocaleString(
+      'pt-BR',
+      {
+        style: 'currency',
+        currency: 'BRL'
+      }
+    );
+
+  }
+
+
+  function formatarData(data) {
+
+    if (!data)
+      return '—';
+
+    return new Date(data).toLocaleString('pt-BR');
+
+  }
+
+
+ async function api(url) {
+    const resposta = await fetch(
+  url,
+  {
+    credentials: 'include'
+  });
+
+
+if (resposta.status === 401 ||
+    resposta.status === 403
+  ) {
+
+  window.location.href = '/login.html';
+  throw new Error('Acesso não autorizado');
+}
+ const tipoConteudo =
+    resposta.headers.get('content-type');
+
+if (!resposta.ok) {
+
+    const texto = await resposta.text();
+
+    console.error(
+      'Erro na API:',
+      url,
+      'Status:',
+      resposta.status,
+      'Resposta:',
+      texto
+    );
+
+    throw new Error(
+      `Erro ${resposta.status} em ${url}`
+    );
+  }
+
+  if (!tipoConteudo?.includes('application/json')) {
+
+    const texto = await resposta.text();
+
+    console.error(
+      'A rota não retornou JSON:',
+      url,
+      texto
+    );
+
+    throw new Error(
+      `${url} retornou HTML em vez de JSON`
+    );
+  }
+
+  return resposta.json();
+}
+
+  async function carregarResumo() {
+
+    const dados = await api(
+      '/api/admin/resumo'
+    );
+
+
+    document
+      .getElementById('total-alunos')
+      .textContent =
+        dados.total_alunos;
+
+
+    document
+      .getElementById('planos-ativos')
+      .textContent =
+        dados.planos_ativos;
+
+
+    document
+      .getElementById('logins-hoje')
+      .textContent =
+        dados.logins_hoje;
+
+
+    document
+      .getElementById('receita')
+      .textContent =
+        formatarDinheiro(
+          dados.receita_estimada
+        );
+
+
+    const quantidade = {
+      basico: 0,
+      pro: 0,
+      elite: 0
+    };
+
+
+    const valores = {
+      basico: 0,
+      pro: 0,
+      elite: 0
+    };
+
+
+    dados.planos_por_tipo.forEach(
+      plano => {
+
+        quantidade[plano.tipo] =
+          plano.quantidade;
+
+        valores[plano.tipo] =
+          plano.valor_estimado;
+
+      }
+    );
+
+
+    graficoPlanos = new Chart(
+      document.getElementById(
+        'grafico-planos'
+      ),
+      {
+
+        type: 'doughnut',
+
+        data: {
+
+          labels: [
+            'Básico',
+            'Pro',
+            'Elite'
+          ],
+
+          datasets: [{
+            data: [
+              quantidade.basico,
+              quantidade.pro,
+              quantidade.elite
+            ],
+
+            backgroundColor: [
+              '#777',
+              '#3b82f6',
+              '#2dff7a'
+            ],
+
+            borderWidth: 0
+          }]
+
+        },
+
+        options: {
+
+          plugins: {
+
+            legend: {
+              labels: {
+                color: '#aaa'
+              }
+            }
+
+          }
+
+        }
+
+      }
+    );
+
+
+    graficoReceita = new Chart(
+      document.getElementById(
+        'grafico-receita'
+      ),
+      {
+
+        type: 'bar',
+
+        data: {
+
+          labels: [
+            'Básico',
+            'Pro',
+            'Elite'
+          ],
+
+          datasets: [{
+
+            label: 'Receita estimada',
+
+            data: [
+              valores.basico,
+              valores.pro,
+              valores.elite
+            ],
+
+            backgroundColor: [
+              '#777',
+              '#3b82f6',
+              '#2dff7a'
+            ],
+
+            borderRadius: 7
+
+          }]
+
+        },
+
+        options: {
+
+          scales: {
+
+            x: {
+
+              ticks: {
+                color: '#aaa'
+              },
+
+              grid: {
+                display: false
+              }
+
+            },
+
+            y: {
+
+              ticks: {
+                color: '#aaa'
+              },
+
+              grid: {
+                color: 'rgba(255,255,255,.05)'
+              }
+
+            }
+
+          },
+
+          plugins: {
+
+            legend: {
+              display: false
+            }
+
+          }
+
+        }
+
+      }
+    );
+
+  }
+
+
+  async function carregarAlunos() {
+
+  const dados = await api('/api/admin/alunos');
+
+  const tbody = document.getElementById('lista-alunos');
+
+  tbody.innerHTML = '';
+
+  dados.alunos.forEach(aluno => {
+
+    const tr = document.createElement('tr');
+
+    tr.innerHTML = `
+      <td>
+        <strong>${aluno.nome}</strong>
+      </td>
+
+      <td>
+        <span class="badge-plano ${aluno.plano || ''}">
+          ${aluno.plano || 'Sem plano'}
+        </span>
+      </td>
+
+      <td>
+        ${formatarData(aluno.created_at)}
+      </td>
+    `;
+
+    tbody.appendChild(tr);
+  });
+}
+
+
+// ─────────────────────────────────────────────
+// HISTÓRICO DE LOGIN
+// ─────────────────────────────────────────────
+
+async function carregarLogins() {
+
+  const dados = await api('/api/admin/logins');
+
+  const tbody = document.getElementById('lista-logins');
+
+  tbody.innerHTML = '';
+
+  const loginsVisiveis = dados.logins.slice(0, 5);
+
+  loginsVisiveis.forEach(login => {
+
+    const tr = document.createElement('tr');
+
+    tr.innerHTML = `
+      <td>
+        <strong>${login.nome}</strong>
+      </td>
+
+      <td>
+        ${login.role}
+      </td>
+
+      <td>
+        ${formatarData(login.data_login)}
+      </td>
+    `;
+
+    tbody.appendChild(tr);
+  });
+}
+
+async function carregarAgendamentos() {
+
+  const dados = await api('/api/admin/agendamentos-proximos');
+
+  const container =
+    document.getElementById('lista-agendamentos');
+
+  container.innerHTML = '';
+
+  if (!dados.agendamentos.length) {
+    container.innerHTML = `
+      <p style="color:rgba(255,255,255,.4)">
+        Nenhum agendamento próximo.
+      </p>
+    `;
+    return;
+  }
+
+  dados.agendamentos.forEach(item => {
+
+    const div = document.createElement('div');
+
+    div.className = 'item-admin';
+
+    div.innerHTML = `
+      <div>
+        <div class="item-admin-nome">
+          ${item.nome}
+        </div>
+
+        <span class="tipo-agendamento">
+          ${item.tipo}
+        </span>
+      </div>
+
+      <div class="item-admin-data">
+        ${formatarData(item.data_hora)}
+      </div>
+    `;
+
+    container.appendChild(div);
+  });
+}
+
+
+async function carregarVencimentos() {
+
+  const dados = await api('/api/admin/vencimentos');
+
+  const container =
+    document.getElementById('lista-vencimentos');
+
+  container.innerHTML = '';
+
+  if (!dados.vencimentos.length) {
+    container.innerHTML = `
+      <p style="color:rgba(255,255,255,.4)">
+        Nenhum plano vencendo nos próximos 7 dias.
+      </p>
+    `;
+    return;
+  }
+
+  dados.vencimentos.forEach(item => {
+
+    const div = document.createElement('div');
+
+    div.className = 'item-admin';
+
+    div.innerHTML = `
+      <div>
+        <div class="item-admin-nome">
+          ${item.nome}
+        </div>
+
+        <div class="item-admin-info">
+          Plano ${item.tipo}
+        </div>
+      </div>
+
+      <div class="item-admin-data">
+        Vence em<br>
+        ${new Date(item.vencimento).toLocaleDateString('pt-BR')}
+      </div>
+    `;
+
+    container.appendChild(div);
+  });
+}
+
+
+let graficoCadastros;
+
+async function carregarCadastrosSemana() {
+
+  const dados =
+    await api('/api/admin/cadastros-semana');
+
+  const mapa = {};
+
+  dados.cadastros.forEach(item => {
+
+    const chave =
+      new Date(item.data)
+        .toISOString()
+        .slice(0, 10);
+
+    mapa[chave] =
+      Number(item.quantidade);
+  });
+
+  const labels = [];
+  const valores = [];
+
+  for (let i = 6; i >= 0; i--) {
+
+    const data = new Date();
+
+    data.setDate(
+      data.getDate() - i
+    );
+
+    const chave =
+      data.toISOString().slice(0, 10);
+
+    labels.push(
+      data.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit'
+      })
+    );
+
+    valores.push(
+      mapa[chave] || 0
+    );
+  }
+
+  graficoCadastros = new Chart(
+    document.getElementById('grafico-cadastros'),
+    {
+      type: 'line',
+
+      data: {
+        labels,
+
+        datasets: [{
+          label: 'Novos alunos',
+          data: valores,
+          borderColor: '#2dff7a',
+          backgroundColor: 'rgba(45,255,122,.08)',
+          fill: true,
+          tension: .35,
+          pointRadius: 4,
+          pointBackgroundColor: '#2dff7a'
+        }]
+      },
+
+      options: {
+        responsive: true,
+
+        scales: {
+          x: {
+            ticks: {
+              color: '#aaa'
+            },
+            grid: {
+              display: false
+            }
+          },
+
+          y: {
+            beginAtZero: true,
+            ticks: {
+              color: '#aaa',
+              precision: 0
+            },
+            grid: {
+              color: 'rgba(255,255,255,.05)'
+            }
+          }
+        },
+
+        plugins: {
+          legend: {
+            display: false
+          }
+        }
+      }
+    }
+  );
+}
+
+// ─────────────────────────────────────────────
+// LOGOUT
+// ─────────────────────────────────────────────
+
+document
+  .getElementById('btn-sair')
+  .addEventListener('click', async () => {
+
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include'
+    });
+
+    localStorage.removeItem('token');
+    localStorage.removeItem('usuario');
+
+    window.location.href = '/login.html';
+  });
+
+
+// ─────────────────────────────────────────────
+// INICIALIZAÇÃO
+// ─────────────────────────────────────────────
+
+async function iniciarDashboard() {
+
+  try {
+
+   await Promise.all([
+        carregarResumo(),
+        carregarAlunos(),
+        carregarLogins(),
+        carregarAgendamentos(),
+        carregarVencimentos(),
+        carregarCadastrosSemana()
+    ]);
+
+  } catch (erro) {
+
+    console.error(
+      'Erro no dashboard:',
+      erro
+    );
+
+  }
+}
+
+iniciarDashboard();
+
+
+// Atualiza resumo e histórico a cada 10 segundos
+setInterval(() => {
+  carregarLogins();
+}, 10000);
+
+</script>
+</body>
+</html>
