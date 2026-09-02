@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Meu Plano — Academia Krypton</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@700&family=Nunito+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root { --green: #2dff7a; --green-d: #1ad962; --dark: #0a0a0a; --purple: #8b5cf6; }
+    body { background: var(--dark); color: #fff; font-family: 'Nunito Sans', sans-serif; min-height: 100vh; }
+
+    .navbar { background: rgba(10,10,10,.95); border-bottom: 1px solid rgba(255,255,255,.08); }
+    .navbar-brand { font-family: 'Nunito Sans', sans-serif; font-weight: 800; font-size: 1rem; letter-spacing: 1.5px; text-transform: uppercase; color: #fff !important; }
+    .navbar-brand img { width: 28px; height: 28px; object-fit: contain; }
+    .btn-logout { background: transparent; border: 1px solid rgba(255,255,255,.2); color: rgba(255,255,255,.6); font-size: .78rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; border-radius: 7px; padding: .4rem 1rem; cursor: pointer; transition: border-color .2s, color .2s; }
+    .btn-logout:hover { border-color: var(--green); color: var(--green); }
+
+    .card-dash { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 16px; padding: 1.8rem; }
+    .card-dash.destaque { border-color: rgba(45,255,122,.25); background: rgba(45,255,122,.03); }
+    .card-dash.elite-card { border-color: rgba(139,92,246,.25); background: rgba(139,92,246,.03); }
+
+    .plano-nome { font-family: 'Oswald', sans-serif; font-size: 2.8rem; font-weight: 700; text-transform: uppercase; line-height: 1; }
+    .plano-nome.basico { color: #94a3b8; }
+    .plano-nome.pro    { color: var(--green); }
+    .plano-nome.elite  { color: #c4b5fd; }
+
+    .badge-status { display: inline-flex; align-items: center; gap: .35rem; font-size: .7rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: .35rem .9rem; border-radius: 999px; }
+    .badge-ativo   { background: rgba(45,255,122,.12); color: var(--green); border: 1px solid rgba(45,255,122,.3); }
+    .badge-inativo { background: rgba(220,53,69,.12);  color: #ff8080;      border: 1px solid rgba(220,53,69,.3); }
+    .badge-vencido { background: rgba(255,193,7,.1);   color: #ffc107;      border: 1px solid rgba(255,193,7,.3); }
+
+    .info-label { font-size: .68rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,.38); margin-bottom: .2rem; }
+    .info-valor { font-size: .92rem; font-weight: 600; }
+
+    .beneficio-item { display: flex; align-items: flex-start; gap: .5rem; padding: .4rem 0; border-bottom: 1px solid rgba(255,255,255,.05); font-size: .86rem; }
+    .beneficio-item:last-child { border-bottom: none; }
+    .beneficio-item i.verde  { color: var(--green); margin-top: 2px; flex-shrink: 0; }
+    .beneficio-item i.roxo   { color: #c4b5fd;      margin-top: 2px; flex-shrink: 0; }
+
+    /* RF03 — Card unidade Basic */
+    .card-unidade { background: rgba(45,255,122,.05); border: 1px solid rgba(45,255,122,.2); border-radius: 12px; padding: 1.2rem 1.4rem; }
+
+    /* Pro/Elite — grid de unidades */
+    .unidade-item { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: 1rem 1.2rem; margin-bottom: .75rem; }
+    .unidade-item:last-child { margin-bottom: 0; }
+    .unidade-nome { font-weight: 700; font-size: .9rem; color: var(--green); margin-bottom: .2rem; }
+
+    /* RF04 — Agendamento Elite */
+    .card-agendamento { background: rgba(139,92,246,.06); border: 1px solid rgba(139,92,246,.25); border-radius: 14px; padding: 1.5rem; }
+    .titulo-ag { font-family: 'Oswald', sans-serif; font-size: 1.2rem; text-transform: uppercase; color: #c4b5fd; }
+    .tag-exclusivo { display: inline-flex; align-items: center; gap: .3rem; background: rgba(139,92,246,.15); border: 1px solid rgba(139,92,246,.3); color: #c4b5fd; font-size: .68rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: .22rem .6rem; border-radius: 999px; }
+    .form-dark { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.15); color: #fff; border-radius: 8px; padding: .65rem .9rem; font-family: 'Nunito Sans', sans-serif; font-size: .88rem; width: 100%; }
+    .form-dark:focus { outline: none; border-color: #c4b5fd; }
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(1) opacity(.4); cursor: pointer; }
+    .btn-agendar { background: rgba(139,92,246,.2); border: 1px solid rgba(139,92,246,.4); color: #c4b5fd; font-family: 'Nunito Sans', sans-serif; font-weight: 700; font-size: .82rem; letter-spacing: 1px; text-transform: uppercase; border-radius: 8px; padding: .7rem 1.2rem; cursor: pointer; transition: background .2s; width: 100%; }
+    .btn-agendar:hover { background: rgba(139,92,246,.35); }
+
+    /* RF05 — sem plano */
+    .btn-assinar { background: var(--green); color: #000; font-family: 'Nunito Sans', sans-serif; font-weight: 800; font-size: .82rem; letter-spacing: 2px; text-transform: uppercase; border: none; border-radius: 8px; padding: .75rem 1.4rem; text-decoration: none; display: inline-flex; align-items: center; gap: .4rem; transition: background .2s; }
+    .btn-assinar:hover { background: var(--green-d); color: #000; }
+
+    .sk { background: linear-gradient(90deg, rgba(255,255,255,.05) 25%, rgba(255,255,255,.1) 50%, rgba(255,255,255,.05) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 6px; }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+    @keyframes spin    { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg px-3 px-md-5">
+  <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+    <img src="/logo.png" alt="Logo Kripton"/> Academia Krypton
+  </a>
+  <div class="ms-auto d-flex align-items-center gap-3">
+    <span id="nav-nome" class="text-secondary" style="font-size:.83rem;"></span>
+    <button class="btn-logout" onclick="logout()"><i class="bi bi-box-arrow-right me-1"></i>Sair</button>
+  </div>
+</nav>
+
+<div class="container py-5">
+
+  <div class="mb-5">
+    <p class="mb-1" style="font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.38);">Área do Aluno</p>
+    <h1 style="font-family:'Oswald',sans-serif;font-size:2rem;font-weight:700;text-transform:uppercase;">
+      Olá, <span style="color:var(--green)" id="nome-usuario">...</span>
+    </h1>
+  </div>
+
+  <!-- Skeleton -->
+  <div id="sk-loading" class="row g-4">
+    <div class="col-12 col-lg-5"><div class="card-dash"><div class="sk mb-3" style="height:48px;width:130px;"></div><div class="sk mb-2" style="height:16px;width:80px;"></div><div class="sk" style="height:14px;width:55%;"></div></div></div>
+    <div class="col-12 col-lg-7"><div class="card-dash"><div class="sk mb-3" style="height:16px;width:70%;"></div><div class="sk mb-2" style="height:16px;width:60%;"></div><div class="sk" style="height:16px;width:80%;"></div></div></div>
+  </div>
+
+  <!-- Conteúdo real -->
+  <div id="conteudo" style="display:none" class="row g-4">
+
+    <!-- ── Coluna esquerda: status do plano ──────────────────────── -->
+    <div class="col-12 col-lg-5">
+      <div class="card-dash destaque mb-4" id="card-status">
+        <p class="info-label mb-3">Seu plano atual</p>
+        <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+          <div class="plano-nome" id="plano-nome"></div>
+          <span class="badge-status" id="plano-badge"></span>
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-6"><p class="info-label">Início</p><p class="info-valor" id="plano-inicio">—</p></div>
+          <div class="col-6"><p class="info-label">Vencimento</p><p class="info-valor" id="plano-vencimento">—</p></div>
+        </div>
+
+        <!-- Sem plano ativo -->
+        <div id="bloco-sem-plano" style="display:none">
+          <div style="background:rgba(255,193,7,.07);border:1px solid rgba(255,193,7,.2);border-radius:10px;padding:1rem;margin-bottom:1rem;">
+            <p class="mb-1" style="color:#ffc107;font-weight:700;font-size:.88rem;"><i class="bi bi-star me-1"></i>Nenhum plano ativo</p>
+            <p class="mb-0 text-secondary" style="font-size:.82rem;">Assine um plano para começar a treinar.</p>
+          </div>
+          <a href="/escolher-plano.html" class="btn-assinar"><i class="bi bi-lightning-fill"></i> Escolher Plano</a>
+        </div>
+
+        <!-- Plano vencido/inativo -->
+        <div id="bloco-inativo" style="display:none">
+          <div style="background:rgba(220,53,69,.1);border:1px solid rgba(220,53,69,.25);border-radius:10px;padding:1rem;margin-bottom:1rem;">
+            <p class="mb-1" style="color:#ff8080;font-weight:700;font-size:.88rem;"><i class="bi bi-exclamation-triangle-fill me-1"></i>Plano inativo ou vencido</p>
+            <p class="mb-0 text-secondary" style="font-size:.82rem;">Renove para continuar treinando.</p>
+          </div>
+          <a href="/escolher-plano.html" class="btn-assinar"><i class="bi bi-arrow-clockwise"></i> Renovar Plano</a>
+        </div>
+      </div>
+
+      <!-- RF03: Unidade vinculada (Basic) -->
+      <div id="secao-unidade-basic" style="display:none">
+        <div class="card-unidade">
+          <p class="info-label mb-2"><i class="bi bi-geo-alt-fill me-1"></i>Sua unidade</p>
+          <p class="fw-bold mb-1" id="unidade-nome" style="font-size:.95rem;color:#fff;"></p>
+          <p class="mb-1 text-secondary" style="font-size:.82rem;" id="unidade-end"></p>
+          <p class="mb-1" style="font-size:.82rem;"><i class="bi bi-telephone me-1" style="color:var(--green)"></i><span id="unidade-tel"></span></p>
+          <p class="mb-0" style="font-size:.78rem;color:rgba(255,255,255,.4);"><i class="bi bi-clock me-1"></i><span id="unidade-horario"></span></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Coluna direita: benefícios + unidades + agendamento ──── -->
+    <div class="col-12 col-lg-7">
+
+      <!-- Benefícios -->
+      <div class="card-dash mb-4">
+        <p class="info-label mb-3">Benefícios inclusos</p>
+        <div id="lista-beneficios"></div>
+        <hr style="border-color:rgba(255,255,255,.07);margin:1.2rem 0;"/>
+        <p style="font-size:.78rem;color:rgba(255,255,255,.35);"><i class="bi bi-info-circle me-1"></i>Dúvidas? WhatsApp <strong style="color:#fff">(11) 9 9999-0000</strong></p>
+      </div>
+
+      <!-- Pro/Elite: todas as unidades -->
+      <div id="secao-todas-unidades" style="display:none" class="mb-4">
+        <div class="card-dash">
+          <p class="info-label mb-3"><i class="bi bi-geo-alt-fill me-1"></i>Nossas unidades — todas disponíveis para você</p>
+          <div id="lista-unidades"></div>
+        </div>
+      </div>
+
+      <!-- RF04: Agendamento Elite -->
+      <div id="secao-agendamento" style="display:none">
+        <div class="card-agendamento">
+          <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+            <p class="titulo-ag mb-0">Agendamentos</p>
+            <span class="tag-exclusivo"><i class="bi bi-star-fill"></i> Exclusivo Elite</span>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-12 col-sm-6">
+              <label class="info-label d-block mb-1">Tipo de serviço</label>
+              <select id="ag-tipo" class="form-dark">
+                <option value="nutricionista">🥗 Nutricionista</option>
+                <option value="personal">💪 Personal Trainer</option>
+              </select>
+            </div>
+            <div class="col-12 col-sm-6">
+              <label class="info-label d-block mb-1">Data e horário</label>
+              <input type="datetime-local" id="ag-data" class="form-dark"/>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="info-label d-block mb-1">Observação <span style="color:rgba(255,255,255,.3)">(opcional)</span></label>
+            <textarea id="ag-obs" class="form-dark" rows="2" placeholder="Ex: objetivo de hipertrofia, alergia a lactose..."></textarea>
+          </div>
+          <button class="btn-agendar" onclick="agendar()">
+            <i class="bi bi-calendar-check me-1"></i> Confirmar Agendamento
+          </button>
+          <div id="ag-feedback" class="mt-2" style="font-size:.83rem;display:none;"></div>
+          <div id="lista-agendamentos" class="mt-3"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const token    = localStorage.getItem('token');
+const usuSalvo = JSON.parse(localStorage.getItem('usuario') || 'null');
+if (!token) window.location.href = '/login.html';
+
+if (usuSalvo) {
+  document.getElementById('nav-nome').textContent     = usuSalvo.nome;
+  document.getElementById('nome-usuario').textContent = usuSalvo.nome.split(' ')[0];
+}
+
+const fmt = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR') : 'Sem vencimento';
+const H   = { 'Authorization': `Bearer ${token}` };
+
+async function carregarPlano() {
+  try {
+    const res  = await fetch('/api/usuario/plano', { headers: H, credentials: 'include' });
+    if (res.status === 401) { localStorage.clear(); window.location.href = '/login.html'; return; }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.erro);
+    renderPlano(data.plano);
+  } catch {
+    document.getElementById('sk-loading').innerHTML =
+      '<p style="color:#ff8080;font-size:.85rem;padding:1rem;">Erro ao carregar plano.</p>';
+  }
+}
+
+function renderPlano(p) {
+  document.getElementById('sk-loading').style.display = 'none';
+  document.getElementById('conteudo').style.display   = '';
+
+  // ── Nome e badge ──────────────────────────────────────────────────────────
+  const el = document.getElementById('plano-nome');
+  el.textContent = p.nome;
+  el.className   = `plano-nome ${p.tipo}`;
+
+  const badge = document.getElementById('plano-badge');
+  if (p.status === 'ativo') {
+    badge.className = 'badge-status badge-ativo';
+    badge.innerHTML = '<i class="bi bi-check-circle-fill"></i> Ativo';
+  } else if (p.status === 'vencido') {
+    badge.className = 'badge-status badge-vencido';
+    badge.innerHTML = '<i class="bi bi-clock-fill"></i> Vencido';
+  } else {
+    badge.className = 'badge-status badge-inativo';
+    badge.innerHTML = '<i class="bi bi-x-circle-fill"></i> Inativo';
+  }
+
+  document.getElementById('plano-inicio').textContent    = fmt(p.inicio);
+  document.getElementById('plano-vencimento').textContent = fmt(p.vencimento);
+
+  const ativo = p.status === 'ativo';
+
+  // ── Blocos de alerta (sem plano / inativo) ────────────────────────────────
+  if (!ativo && p.tipo === 'basico' && !p.unidade) {
+    document.getElementById('bloco-sem-plano').style.display = '';
+  } else if (!ativo) {
+    document.getElementById('bloco-inativo').style.display = '';
+  }
+
+  // ── Benefícios ────────────────────────────────────────────────────────────
+  const corIcon = p.tipo === 'elite' ? 'roxo' : 'verde';
+  document.getElementById('lista-beneficios').innerHTML = p.beneficios.map(b =>
+    `<div class="beneficio-item"><i class="bi bi-check-circle-fill ${corIcon}"></i><span>${b}</span></div>`
+  ).join('');
+
+  // ── RF03: Unidade vinculada (Basic) ───────────────────────────────────────
+  if (p.unidade && ativo) {
+    document.getElementById('secao-unidade-basic').style.display = '';
+    document.getElementById('unidade-nome').textContent    = p.unidade.nome;
+    document.getElementById('unidade-end').textContent     = `${p.unidade.endereco}, ${p.unidade.cidade}`;
+    document.getElementById('unidade-tel').textContent     = p.unidade.telefone;
+    document.getElementById('unidade-horario').textContent = p.unidade.horario;
+  }
+
+  // ── Pro/Elite: Todas as unidades ──────────────────────────────────────────
+  if (p.mostra_todas_unidades && ativo && p.todas_unidades?.length) {
+    document.getElementById('secao-todas-unidades').style.display = '';
+    document.getElementById('lista-unidades').innerHTML = p.todas_unidades.map(u => `
+      <div class="unidade-item">
+        <div class="unidade-nome"><i class="bi bi-geo-alt-fill me-1"></i>${u.nome}</div>
+        <div class="text-secondary" style="font-size:.82rem;">${u.endereco}, ${u.cidade}</div>
+        <div style="font-size:.8rem;color:rgba(255,255,255,.4);margin-top:.2rem;">
+          <i class="bi bi-telephone me-1"></i>${u.telefone}
+          &nbsp;·&nbsp;<i class="bi bi-clock me-1"></i>${u.horario}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // ── RF04: Agendamento Elite ───────────────────────────────────────────────
+  if (p.mostra_agendamento && ativo) {
+    document.getElementById('secao-agendamento').style.display = '';
+    carregarAgendamentos();
+  }
+}
+
+// ── Agendamento ───────────────────────────────────────────────────────────────
+async function agendar() {
+  const tipo     = document.getElementById('ag-tipo').value;
+  const data_hora = document.getElementById('ag-data').value;
+  const obs      = document.getElementById('ag-obs').value;
+  const fb       = document.getElementById('ag-feedback');
+
+  if (!data_hora) {
+    fb.style.display = ''; fb.style.color = '#ff8080';
+    fb.textContent   = '⚠ Informe a data e horário.'; return;
+  }
+
+  try {
+    const res  = await fetch('/api/usuario/agendamento', {
+      method: 'POST',
+      headers: { ...H, 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ tipo, data_hora, observacao: obs }),
+    });
+    const data = await res.json();
+    fb.style.display = '';
+    if (res.ok) {
+      fb.style.color = 'var(--green)'; fb.textContent = '✓ ' + data.mensagem;
+      document.getElementById('ag-data').value = '';
+      document.getElementById('ag-obs').value  = '';
+      carregarAgendamentos();
+    } else {
+      fb.style.color = '#ff8080'; fb.textContent = '⚠ ' + data.erro;
+    }
+  } catch { fb.style.display = ''; fb.style.color = '#ff8080'; fb.textContent = 'Erro de conexão.'; }
+}
+
+async function carregarAgendamentos() {
+  try {
+    const res  = await fetch('/api/usuario/agendamentos', { headers: H, credentials: 'include' });
+    const data = await res.json();
+    const lista = document.getElementById('lista-agendamentos');
+    if (!data.agendamentos?.length) { lista.innerHTML = ''; return; }
+    const label = { nutricionista: '🥗 Nutricionista', personal: '💪 Personal' };
+    lista.innerHTML = `<p class="info-label mt-3 mb-2">Próximos agendamentos</p>` +
+      data.agendamentos.map(a => `
+        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:.7rem 1rem;margin-bottom:.5rem;font-size:.83rem;">
+          <span style="color:#c4b5fd;font-weight:700;">${label[a.tipo]}</span>
+          <span class="ms-2 text-secondary">${new Date(a.data_hora).toLocaleString('pt-BR')}</span>
+          ${a.observacao ? `<p class="mb-0 mt-1 text-secondary">${a.observacao}</p>` : ''}
+        </div>
+      `).join('');
+  } catch {}
+}
+
+async function logout() {
+  await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+  localStorage.clear();
+  window.location.href = '/login.html';
+}
+
+carregarPlano();
+</script>
+</body>
+</html>

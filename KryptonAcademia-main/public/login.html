@@ -233,13 +233,7 @@
       if (!res.ok) { mostrarErro(data.erro); return; }
       localStorage.setItem('token', data.token);
       localStorage.setItem('usuario', JSON.stringify(data.usuario));
-      //window.location.href = '/dashboard.html';
-      if (data.usuario.role === 'admin') {
-          window.location.href = '/admin.html';
-        } else {
-          window.location.href = '/dashboard.html';
-      }
-      
+      window.location.href = '/dashboard.html';
     } catch { mostrarErro('Sem conexão com o servidor.'); }
     finally  { setLoading('login', false); }
   });

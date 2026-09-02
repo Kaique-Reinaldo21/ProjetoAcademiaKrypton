@@ -27,27 +27,7 @@ async function inicializarBanco() {
         email            VARCHAR(180)  NOT NULL UNIQUE,
         senha_hash       VARCHAR(255)  NOT NULL,
         data_nascimento  DATE          NOT NULL,
-        role             ENUM('aluno', 'admin', 'personal', 'nutricionista') NOT NULL DEFAULT 'aluno',
         created_at       DATETIME      DEFAULT CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    `);
-
-    // ── Histórico de logins
-
-    await conn.query(`
-      CREATE TABLE IF NOT EXISTS historico_logins (
-        id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        usuario_id  INT UNSIGNED NOT NULL,
-        data_login  DATETIME DEFAULT CURRENT_TIMESTAMP,
-        ip          VARCHAR(45),
-        user_agent  VARCHAR(255),
-
-        FOREIGN KEY (usuario_id)
-          REFERENCES usuarios(id)
-          ON DELETE CASCADE,
-
-        INDEX idx_usuario_login (usuario_id),
-        INDEX idx_data_login (data_login)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
