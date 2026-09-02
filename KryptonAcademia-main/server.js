@@ -9,7 +9,6 @@ const path = require('path');
 const { inicializarBanco } = require('./db/database');
 const authRoutes    = require('./routes/auth');
 const usuarioRoutes = require('./routes/usuario');
-const adminRoutes = require('./routes/admin');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -32,7 +31,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/api/auth',    authRoutes);
 app.use('/api/usuario', usuarioRoutes);
-app.use('/api/admin', adminRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', env: process.env.NODE_ENV });

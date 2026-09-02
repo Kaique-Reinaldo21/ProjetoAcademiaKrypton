@@ -12,7 +12,7 @@ const SALT_ROUNDS = 10;
 
 function gerarToken(usuario) {
   return jwt.sign(
-    { id: usuario.id, nome: usuario.nome, email: usuario.email, role: usuario.role },
+    { id: usuario.id, nome: usuario.nome, email: usuario.email },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
   );
@@ -66,8 +66,8 @@ router.post('/cadastro', async (req, res) => {
     const senhaHash = await bcrypt.hash(senha, SALT_ROUNDS);
 
     const [result] = await conn.query(
-      'INSERT INTO usuarios (nome, email, senha_hash, data_nascimento, role) VALUES (?, ?, ?, ?, ?)',
-      [nome, email, senhaHash, data_nascimento, 'aluno']
+      'INSERT INTO usuarios (nome, email, senha_hash, data_nascimento) VALUES (?, ?, ?, ?)',
+      [nome, email, senhaHash, data_nascimento]
     );
 
     
@@ -77,7 +77,7 @@ router.post('/cadastro', async (req, res) => {
       [result.insertId]
     );
 
-    const novoUsuario = { id: result.insertId, nome, email, role: 'aluno' };
+    const novoUsuario = { id: result.insertId, nome, email };
     const token = gerarToken(novoUsuario);
     setCookieToken(res, token);
 
@@ -105,7 +105,7 @@ router.post('/login', async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const [[usuario]] = await conn.query(
-      'SELECT id, nome, email, senha_hash, role FROM usuarios WHERE email = ?',
+      'SELECT id, nome, email, senha_hash FROM usuarios WHERE email = ?',
       [email]
     );
 
@@ -115,26 +115,14 @@ router.post('/login', async (req, res) => {
     const senhaCorreta = await bcrypt.compare(senha, usuario.senha_hash);
     if (!senhaCorreta)
       return res.status(401).json({ erro: 'Credenciais inválidas.' });
-    
-    // Registra histórico de login
-    await conn.query(
-        `INSERT INTO historico_logins
-        (usuario_id, ip, user_agent)
-        VALUES (?, ?, ?)`,
-        [
-          usuario.id,
-          req.ip,
-          req.headers['user-agent']
-        ]
-      );
-      
+
     const token = gerarToken(usuario);
     setCookieToken(res, token);
 
     return res.json({
       mensagem: 'Login realizado com sucesso!',
       token,
-      usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, role: usuario.role },
+      usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email },
     });
   } catch (err) {
     console.error('Erro no login:', err);

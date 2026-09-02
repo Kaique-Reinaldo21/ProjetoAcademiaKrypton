@@ -7,7 +7,7 @@ const jwt = require('jsonwebtoken');
  *   1. Header "Authorization: Bearer <token>"
  *   2. Cookie httpOnly chamado "token"
  *
- * // Se válido, injeta: req.usuario = { id, nome, email, role, iat, exp }
+ * Se válido, injeta req.usuario = { id, nome, email }
  * Se inválido/ausente, retorna 401.
 */
 function authMiddleware(req, res, next) {

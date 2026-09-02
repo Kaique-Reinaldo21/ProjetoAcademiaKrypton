@@ -3,7 +3,6 @@
 const express = require('express');
 const { pool } = require('../db/database');
 const authMiddleware = require('../middleware/auth');
-const adminMiddleware = require('../middleware/admin');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -206,7 +205,7 @@ router.get('/agendamentos', async (req, res) => {
 
 // PUT /api/usuario/:id/plano (admin) 
 
-router.put('/:id/plano', adminMiddleware, async (req, res) => {
+router.put('/:id/plano', async (req, res) => {
   const { tipo, ativo, vencimento, unidade_id } = req.body;
   const tiposValidos = ['basico', 'pro', 'elite'];
   if (tipo && !tiposValidos.includes(tipo))
