@@ -2,7 +2,11 @@
 
 > Plataforma integrada de gestão de preparo físico e nutricional para academias.
 
-link da documentação para mais detalhes : https://academia-krypton.gitbook.io/academia-krypton-docs/
+## Documentação
+
+A documentação completa e atualizada do projeto está disponível no GitBook:
+
+[Academia Krypton Docs](https://academia-krypton.gitbook.io/academia-krypton-docs/)
 ---
 
 ## Sobre o Projeto
