@@ -1,6 +1,7 @@
 # Krypton Academia — Sistema de Gestão de Academia
 
 > Plataforma integrada de gestão de preparo físico e nutricional para academias.
+> link da documentação para mais detalhes : https://academia-krypton.gitbook.io/academia-krypton-docs/
 
 ---
 
