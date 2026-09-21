@@ -140,4 +140,28 @@ krypton-academia/
 | **Notificações** | Alertas internos entre personal e nutricionista (ex: mudança de objetivo) |
 | **Relatórios** | Exportação em PDF e Excel por gestão e por profissional |
 
+## 🛠 Configuração do Banco de Dados (Prisma)
+
+Este projeto foi refatorado para utilizar o **Prisma ORM** com MySQL. Para rodar o ambiente de desenvolvimento na sua máquina, siga estes passos:
+
+**1. Instale as dependências**
+Na raiz do projeto, instale os pacotes (isso inclui o Prisma e o Prisma Client):
+bash
+npm install
+
+
+**2. Configure as Variáveis de Ambiente**
+Crie um arquivo chamado .env na raiz do projeto (ele está no .gitignore, então não subirá para o repositório). Adicione a sua string de conexão do MySQL local:
+env
+DATABASE_URL="mysql://root:SUA_SENHA_AQUI@127.0.0.1:3306/academia_kripton"
+
+*(Substitua SUA_SENHA_AQUI pela senha do seu MySQL. Se não tiver senha, deixe apenas root@127.0.0.1...)*
+
+**3. Gere o Prisma Client**
+O arquivo schema.prisma já está atualizado no repositório. Para que o Node.js reconheça os modelos do banco de dados na sua máquina, rode:
+bash
+npx prisma generate
+
+Isso criará o Client sob medida na sua pasta node_modules. Depois disso, o projeto está pronto para rodar!
+
 ---
