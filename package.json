@@ -18,6 +18,7 @@
     "mysql2": "^3.9.7"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "prisma": "^5.22.0"
   }
 }

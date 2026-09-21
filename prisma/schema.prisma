@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model agendamentos {
+  id         Int               @id @default(autoincrement()) @db.UnsignedInt
+  usuario_id Int               @db.UnsignedInt
+  tipo       agendamentos_tipo
+  data_hora  DateTime          @db.DateTime(0)
+  observacao String?           @db.Text
+  created_at DateTime?         @default(now()) @db.DateTime(0)
+  usuarios   usuarios          @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "agendamentos_ibfk_1")
+
+  @@index([usuario_id], map: "idx_usuario_ag")
+}
+
+model historico_logins {
+  id         Int       @id @default(autoincrement()) @db.UnsignedInt
+  usuario_id Int       @db.UnsignedInt
+  data_login DateTime? @default(now()) @db.DateTime(0)
+  ip         String?   @db.VarChar(45)
+  user_agent String?   @db.VarChar(255)
+  usuarios   usuarios  @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "historico_logins_ibfk_1")
+
+  @@index([data_login], map: "idx_data_login")
+  @@index([usuario_id], map: "idx_usuario_login")
+}
+
+model planos {
+  id         Int         @id @default(autoincrement()) @db.UnsignedInt
+  usuario_id Int         @db.UnsignedInt
+  tipo       planos_tipo
+  ativo      Boolean     @default(true)
+  unidade_id Int?        @db.UnsignedInt
+  inicio     DateTime    @default(dbgenerated("(curdate())")) @db.Date
+  vencimento DateTime?   @db.Date
+  updated_at DateTime?   @default(now()) @db.DateTime(0)
+  usuarios   usuarios    @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "planos_ibfk_1")
+
+  @@index([usuario_id], map: "idx_usuario")
+}
+
+model unidades {
+  id       Int     @id @default(autoincrement()) @db.UnsignedInt
+  nome     String  @db.VarChar(120)
+  endereco String  @db.VarChar(255)
+  cidade   String  @db.VarChar(80)
+  telefone String? @db.VarChar(20)
+  horario  String? @default("Seg–Sex 06h–22h | Sáb 08h–18h") @db.VarChar(80)
+}
+
+model usuarios {
+  id               Int                @id @default(autoincrement()) @db.UnsignedInt
+  nome             String             @db.VarChar(120)
+  email            String             @unique(map: "email") @db.VarChar(180)
+  senha_hash       String             @db.VarChar(255)
+  data_nascimento  DateTime           @db.Date
+  role             usuarios_role      @default(aluno)
+  created_at       DateTime?          @default(now()) @db.DateTime(0)
+  agendamentos     agendamentos[]
+  historico_logins historico_logins[]
+  planos           planos[]
+}
+
+enum agendamentos_tipo {
+  nutricionista
+  personal
+}
+
+enum planos_tipo {
+  basico
+  pro
+  elite
+}
+
+enum usuarios_role {
+  aluno
+  admin
+  personal
+  nutricionista
+}
