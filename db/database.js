@@ -1,6 +1,6 @@
 // db/database.js — conexão MySQL + schema atualizado conforme RN e RF
 
-const mysql = require('mysql2/promise');
+import mysql from 'mysql2/promise';
 
 const pool = mysql.createPool({
   host:             process.env.DB_HOST     || 'localhost',
@@ -110,4 +110,4 @@ async function inicializarBanco() {
   }
 }
 
-module.exports = { pool, inicializarBanco };
+export { pool, inicializarBanco }

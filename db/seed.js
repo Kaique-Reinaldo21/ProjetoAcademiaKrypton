@@ -1,7 +1,7 @@
 // db/seed.js — seed atualizado com data_nascimento e unidade_id
-require('dotenv').config();
-const bcrypt = require('bcryptjs');
-const { pool, inicializarBanco } = require('./database');
+import 'dotenv/config';
+import bcrypt from 'bcryptjs';
+import { pool, inicializarBanco } from './database.js';
 
 async function seed() {
   console.log('🌱 Populando banco de dados...\n');

@@ -210,17 +210,55 @@ const H   = { 'Authorization': `Bearer ${token}` };
 
 async function carregarPlano() {
   try {
-    const res  = await fetch('/api/usuario/plano', { headers: H, credentials: 'include' });
-    if (res.status === 401) { localStorage.clear(); window.location.href = '/login.html'; return; }
+    const res = await fetch('/api/usuario/plano', {
+      headers: H,
+      credentials: 'include'
+    });
+
     const data = await res.json();
-    if (!res.ok) throw new Error(data.erro);
+
+    // Usuário autenticado, mas ainda não possui plano
+    if (res.status === 404) {
+      // Esconde o carregamento
+      document.getElementById('sk-loading').style.display = 'none';
+
+      // Mostra o conteúdo real
+      document.getElementById('conteudo').style.display = '';
+
+      // Mostra aviso de usuário sem plano
+      document.getElementById('bloco-sem-plano').style.display = '';
+
+      // Esconde informações de plano que não existem
+      document.getElementById('plano-nome').style.display = 'none';
+      document.getElementById('plano-badge').style.display = 'none';
+
+      return;
+    }
+
+    if (!res.ok) {
+      throw new Error(
+        data.erro || 'Erro ao carregar plano.'
+      );
+    }
+
     renderPlano(data.plano);
-  } catch {
-    document.getElementById('sk-loading').innerHTML =
-      '<p style="color:#ff8080;font-size:.85rem;padding:1rem;">Erro ao carregar plano.</p>';
+
+  } catch (error) {
+    console.error('Erro ao carregar plano:', error);
+
+    // Também precisa parar o skeleton caso ocorra erro real
+    document.getElementById('sk-loading').style.display = 'none';
+    document.getElementById('conteudo').style.display = '';
+
+    document.getElementById('bloco-sem-plano').style.display = '';
+
+    const aviso = document.querySelector('#bloco-sem-plano p');
+
+    if (aviso) {
+      aviso.textContent = 'Não foi possível carregar as informações do plano.';
+    }
   }
 }
-
 function renderPlano(p) {
   document.getElementById('sk-loading').style.display = 'none';
   document.getElementById('conteudo').style.display   = '';
