@@ -1,7 +1,5 @@
-// routes/admin.js
-
 import express from 'express';
-import { pool } from '../../db/database.js';
+import prisma from '../lib/prisma.js';
 import authMiddleware from '../middleware/auth.js';
 import adminMiddleware from '../middleware/admin.js';
 
@@ -11,369 +9,494 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(adminMiddleware);
 
-
 // Preços atuais dos planos
 const PRECOS = {
   basico: 89,
   pro: 149,
-  elite: 249
+  elite: 249,
 };
 
+// Retorna uma data no início do dia
+function inicioDoDia(data = new Date()) {
+  return new Date(
+    data.getFullYear(),
+    data.getMonth(),
+    data.getDate()
+  );
+}
 
-// ─────────────────────────────────────────────
+// Formata YYYY-MM-DD usando a data local
+function formatarDataLocal(data) {
+  if (!data) return null;
+
+  const ano = data.getFullYear();
+  const mes = String(data.getMonth() + 1).padStart(2, '0');
+  const dia = String(data.getDate()).padStart(2, '0');
+
+  return `${ano}-${mes}-${dia}`;
+}
+
+// ========================================================
 // GET /api/admin/resumo
-// ─────────────────────────────────────────────
+// ========================================================
 
 router.get('/resumo', async (req, res) => {
-  const conn = await pool.getConnection();
-
   try {
+    const hoje = inicioDoDia();
 
-    // Total de alunos
-    const [[totalAlunos]] = await conn.query(`
-      SELECT COUNT(*) AS total
-      FROM usuarios
-      WHERE role = 'aluno'
-    `);
+    const amanha = new Date(hoje);
+    amanha.setDate(amanha.getDate() + 1);
 
+    const [
+      totalAlunos,
+      planos,
+      loginsHoje,
+    ] = await Promise.all([
+      prisma.usuarios.count({
+        where: {
+          role: 'aluno',
+        },
+      }),
 
-    // Planos ativos por tipo
-    const [planos] = await conn.query(`
-      SELECT
-        p.tipo,
-        COUNT(*) AS quantidade
-      FROM planos p
-      INNER JOIN usuarios u
-        ON u.id = p.usuario_id
-      WHERE
-        u.role = 'aluno'
-        AND p.ativo = 1
-        AND (
-          p.vencimento IS NULL
-          OR p.vencimento >= CURDATE()
-        )
-      GROUP BY p.tipo
-    `);
+      prisma.planos.findMany({
+        where: {
+          ativo: true,
 
+          usuarios: {
+            role: 'aluno',
+          },
+
+          OR: [
+            {
+              vencimento: null,
+            },
+            {
+              vencimento: {
+                gte: hoje,
+              },
+            },
+          ],
+        },
+
+        select: {
+          tipo: true,
+        },
+      }),
+
+      prisma.historico_logins.count({
+        where: {
+          data_login: {
+            gte: hoje,
+            lt: amanha,
+          },
+        },
+      }),
+    ]);
+
+    const contagem = {
+      basico: 0,
+      pro: 0,
+      elite: 0,
+    };
+
+    for (const plano of planos) {
+      contagem[plano.tipo]++;
+    }
 
     let planosAtivos = 0;
     let receitaEstimada = 0;
 
-    const planosPorTipo = planos.map(plano => {
+    const planosPorTipo = Object.entries(contagem)
+      .filter(([, quantidade]) => quantidade > 0)
+      .map(([tipo, quantidade]) => {
+        const valorEstimado =
+          quantidade * PRECOS[tipo];
 
-      const quantidade = Number(plano.quantidade);
+        planosAtivos += quantidade;
+        receitaEstimada += valorEstimado;
 
-      const valorEstimado =
-        quantidade * PRECOS[plano.tipo];
-
-      planosAtivos += quantidade;
-      receitaEstimada += valorEstimado;
-
-      return {
-        tipo: plano.tipo,
-        quantidade,
-        valor_estimado: valorEstimado
-      };
-    });
-
-
-    // Logins realizados hoje
-    const [[loginsHoje]] = await conn.query(`
-      SELECT COUNT(*) AS total
-      FROM historico_logins
-      WHERE DATE(data_login) = CURDATE()
-    `);
-
+        return {
+          tipo,
+          quantidade,
+          valor_estimado: valorEstimado,
+        };
+      });
 
     return res.json({
-
-      total_alunos: Number(totalAlunos.total),
-
+      total_alunos: totalAlunos,
       planos_ativos: planosAtivos,
-
-      logins_hoje: Number(loginsHoje.total),
-
+      logins_hoje: loginsHoje,
       receita_estimada: receitaEstimada,
-
       planos_por_tipo: planosPorTipo,
-
-      precos: PRECOS
-
+      precos: PRECOS,
     });
-
-
   } catch (err) {
-
     console.error(
       'Erro ao carregar resumo administrativo:',
       err
     );
 
     return res.status(500).json({
-      erro: 'Erro ao carregar dados administrativos.'
+      erro: 'Erro ao carregar dados administrativos.',
     });
-
-  } finally {
-
-    conn.release();
-
   }
 });
 
-
-// ─────────────────────────────────────────────
+// ========================================================
 // GET /api/admin/alunos
-// ─────────────────────────────────────────────
+// ========================================================
 
 router.get('/alunos', async (req, res) => {
-
-  const conn = await pool.getConnection();
-
   try {
+    const usuarios = await prisma.usuarios.findMany({
+      where: {
+        role: 'aluno',
+      },
 
-    const [alunos] = await conn.query(`
-      SELECT
-        u.id,
-        u.nome,
-        u.email,
-        u.created_at,
+      orderBy: {
+        created_at: 'desc',
+      },
 
-        p.tipo AS plano,
-        p.ativo,
-        p.vencimento
+      take: 10,
 
-      FROM usuarios u
+      select: {
+        id: true,
+        nome: true,
+        email: true,
+        created_at: true,
 
-      LEFT JOIN planos p
-        ON p.usuario_id = u.id
+        planos: {
+          orderBy: {
+            id: 'desc',
+          },
 
-      WHERE u.role = 'aluno'
+          take: 1,
 
-      ORDER BY u.created_at DESC
-
-      LIMIT 10
-    `);
-
-    return res.json({
-      alunos
+          select: {
+            tipo: true,
+            ativo: true,
+            vencimento: true,
+          },
+        },
+      },
     });
 
-  } catch (err) {
+    /*
+      Mantemos o mesmo formato de resposta esperado
+      pelo frontend.
 
+      Aqui usamos o plano mais recente de cada aluno,
+      evitando duplicar o aluno caso ele possua
+      registros antigos de plano.
+    */
+    const alunos = usuarios.map((usuario) => {
+      const planoAtual =
+        usuario.planos.length > 0
+          ? usuario.planos[0]
+          : null;
+
+      return {
+        id: usuario.id,
+        nome: usuario.nome,
+        email: usuario.email,
+        created_at: usuario.created_at,
+
+        plano: planoAtual?.tipo ?? null,
+        ativo: planoAtual?.ativo ?? null,
+        vencimento:
+          planoAtual?.vencimento ?? null,
+      };
+    });
+
+    return res.json({
+      alunos,
+    });
+  } catch (err) {
     console.error(
       'Erro ao listar alunos:',
       err
     );
 
     return res.status(500).json({
-      erro: 'Erro ao carregar alunos.'
+      erro: 'Erro ao carregar alunos.',
     });
-
-  } finally {
-
-    conn.release();
-
   }
-
 });
 
-
-// ─────────────────────────────────────────────
+// ========================================================
 // GET /api/admin/logins
-// ─────────────────────────────────────────────
+// ========================================================
 
 router.get('/logins', async (req, res) => {
-
-  const conn = await pool.getConnection();
-
   try {
+    const registros =
+      await prisma.historico_logins.findMany({
+        orderBy: {
+          data_login: 'desc',
+        },
 
-    const [logins] = await conn.query(`
-      SELECT
-        h.id,
-        h.data_login,
-        h.ip,
-        h.user_agent,
+        take: 15,
 
-        u.nome,
-        u.email,
-        u.role
+        select: {
+          id: true,
+          data_login: true,
+          ip: true,
+          user_agent: true,
 
-      FROM historico_logins h
+          usuarios: {
+            select: {
+              nome: true,
+              email: true,
+              role: true,
+            },
+          },
+        },
+      });
 
-      INNER JOIN usuarios u
-        ON u.id = h.usuario_id
+    const logins = registros.map((registro) => ({
+      id: registro.id,
+      data_login: registro.data_login,
+      ip: registro.ip,
+      user_agent: registro.user_agent,
 
-      ORDER BY h.data_login DESC
-
-      LIMIT 15
-    `);
+      nome: registro.usuarios.nome,
+      email: registro.usuarios.email,
+      role: registro.usuarios.role,
+    }));
 
     return res.json({
-      logins
+      logins,
     });
-
   } catch (err) {
-
     console.error(
       'Erro ao buscar histórico de login:',
       err
     );
 
     return res.status(500).json({
-      erro: 'Erro ao carregar histórico de login.'
+      erro: 'Erro ao carregar histórico de login.',
     });
-
-  } finally {
-
-    conn.release();
-
   }
-
 });
 
-router.get('/agendamentos-proximos', async (req, res) => {
+// ========================================================
+// GET /api/admin/agendamentos-proximos
+// ========================================================
 
-  const conn = await pool.getConnection();
+router.get(
+  '/agendamentos-proximos',
+  async (req, res) => {
+    try {
+      const registros =
+        await prisma.agendamentos.findMany({
+          where: {
+            data_hora: {
+              gte: new Date(),
+            },
+          },
 
-  try {
+          orderBy: {
+            data_hora: 'asc',
+          },
 
-    const [agendamentos] = await conn.query(`
-      SELECT
-        a.id,
-        a.tipo,
-        a.data_hora,
-        a.observacao,
-        u.nome,
-        u.email
+          take: 6,
 
-      FROM agendamentos a
+          select: {
+            id: true,
+            tipo: true,
+            data_hora: true,
+            observacao: true,
 
-      INNER JOIN usuarios u
-        ON u.id = a.usuario_id
+            usuarios: {
+              select: {
+                nome: true,
+                email: true,
+              },
+            },
+          },
+        });
 
-      WHERE a.data_hora >= NOW()
+      const agendamentos = registros.map(
+        (registro) => ({
+          id: registro.id,
+          tipo: registro.tipo,
+          data_hora: registro.data_hora,
+          observacao: registro.observacao,
 
-      ORDER BY a.data_hora ASC
+          nome: registro.usuarios.nome,
+          email: registro.usuarios.email,
+        })
+      );
 
-      LIMIT 6
-    `);
+      return res.json({
+        agendamentos,
+      });
+    } catch (err) {
+      console.error(
+        'Erro ao carregar agendamentos:',
+        err
+      );
 
-    return res.json({
-      agendamentos
-    });
-
-  } catch (err) {
-
-    console.error(
-      'Erro ao carregar agendamentos:',
-      err
-    );
-
-    return res.status(500).json({
-      erro: 'Erro ao carregar agendamentos.'
-    });
-
-  } finally {
-    conn.release();
+      return res.status(500).json({
+        erro: 'Erro ao carregar agendamentos.',
+      });
+    }
   }
+);
 
-});
+// ========================================================
+// GET /api/admin/vencimentos
+// ========================================================
 
 router.get('/vencimentos', async (req, res) => {
-
-  const conn = await pool.getConnection();
-
   try {
+    const hoje = inicioDoDia();
 
-    const [vencimentos] = await conn.query(`
-      SELECT
-        u.nome,
-        u.email,
-        p.tipo,
-        p.vencimento
+    const seteDias = new Date(hoje);
+    seteDias.setDate(seteDias.getDate() + 7);
 
-      FROM planos p
+    const registros =
+      await prisma.planos.findMany({
+        where: {
+          ativo: true,
 
-      INNER JOIN usuarios u
-        ON u.id = p.usuario_id
+          vencimento: {
+            not: null,
+            gte: hoje,
+            lte: seteDias,
+          },
 
-      WHERE
-        u.role = 'aluno'
-        AND p.ativo = 1
-        AND p.vencimento IS NOT NULL
-        AND p.vencimento BETWEEN
-          CURDATE()
-          AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+          usuarios: {
+            role: 'aluno',
+          },
+        },
 
-      ORDER BY p.vencimento ASC
+        orderBy: {
+          vencimento: 'asc',
+        },
 
-      LIMIT 6
-    `);
+        take: 6,
+
+        select: {
+          tipo: true,
+          vencimento: true,
+
+          usuarios: {
+            select: {
+              nome: true,
+              email: true,
+            },
+          },
+        },
+      });
+
+    const vencimentos = registros.map(
+      (registro) => ({
+        nome: registro.usuarios.nome,
+        email: registro.usuarios.email,
+        tipo: registro.tipo,
+        vencimento: registro.vencimento,
+      })
+    );
 
     return res.json({
-      vencimentos
+      vencimentos,
     });
-
   } catch (err) {
-
     console.error(
       'Erro ao carregar vencimentos:',
       err
     );
 
     return res.status(500).json({
-      erro: 'Erro ao carregar vencimentos.'
+      erro: 'Erro ao carregar vencimentos.',
     });
-
-  } finally {
-    conn.release();
   }
-
 });
 
-router.get('/cadastros-semana', async (req, res) => {
+// ========================================================
+// GET /api/admin/cadastros-semana
+// ========================================================
 
-  const conn = await pool.getConnection();
+router.get(
+  '/cadastros-semana',
+  async (req, res) => {
+    try {
+      const hoje = inicioDoDia();
 
-  try {
+      const seisDiasAtras = new Date(hoje);
+      seisDiasAtras.setDate(
+        seisDiasAtras.getDate() - 6
+      );
 
-    const [cadastros] = await conn.query(`
-      SELECT
-        DATE(created_at) AS data,
-        COUNT(*) AS quantidade
+      const usuarios =
+        await prisma.usuarios.findMany({
+          where: {
+            role: 'aluno',
 
-      FROM usuarios
+            created_at: {
+              gte: seisDiasAtras,
+            },
+          },
 
-      WHERE
-        role = 'aluno'
-        AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+          orderBy: {
+            created_at: 'asc',
+          },
 
-      GROUP BY DATE(created_at)
+          select: {
+            created_at: true,
+          },
+        });
 
-      ORDER BY data ASC
-    `);
+      /*
+        O SQL antigo agrupava usando:
 
-    return res.json({
-      cadastros
-    });
+        GROUP BY DATE(created_at)
 
-  } catch (err) {
+        Prisma não possui diretamente um DATE()
+        equivalente no groupBy.
 
-    console.error(
-      'Erro ao carregar cadastros:',
-      err
-    );
+        Portanto, buscamos os registros e fazemos
+        esse agrupamento em JavaScript.
+      */
+      const agrupados = {};
 
-    return res.status(500).json({
-      erro: 'Erro ao carregar cadastros.'
-    });
+      for (const usuario of usuarios) {
+        if (!usuario.created_at) continue;
 
-  } finally {
-    conn.release();
+        const data =
+          formatarDataLocal(
+            new Date(usuario.created_at)
+          );
+
+        if (!agrupados[data]) {
+          agrupados[data] = 0;
+        }
+
+        agrupados[data]++;
+      }
+
+      const cadastros = Object.entries(
+        agrupados
+      ).map(([data, quantidade]) => ({
+        data,
+        quantidade,
+      }));
+
+      return res.json({
+        cadastros,
+      });
+    } catch (err) {
+      console.error(
+        'Erro ao carregar cadastros:',
+        err
+      );
+
+      return res.status(500).json({
+        erro: 'Erro ao carregar cadastros.',
+      });
+    }
   }
-
-});
-
+);
 
 export default router;
