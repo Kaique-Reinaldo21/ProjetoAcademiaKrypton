@@ -22,7 +22,7 @@ import adminRoutes from './src/routes/admin.routes.js';
 import './src/config/passport.js';
 
 // rota 
-import { isAuthenticated } from './middlewares/authMiddleware.js';
+import { authMiddleware as isAuthenticated } from './src/middleware/authMiddleware.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
