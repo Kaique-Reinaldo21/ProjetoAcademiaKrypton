@@ -22,6 +22,9 @@ import adminRoutes from './src/routes/admin.routes.js';
 // Configuração do Passport / Google OAuth
 import './src/config/passport.js';
 
+// rota 
+import { isAuthenticated } from './middlewares/authMiddleware.js';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -71,6 +74,20 @@ app.use(session({
 app.use(passport.initialize());
 
 app.use(passport.session());
+
+
+// ─────────────────────────────────────────
+// Rota protegida do Dashboard
+// ─────────────────────────────────────────
+
+app.get('/dashboard', isAuthenticated, (req, res) => {
+    // O req.user contém os dados do utilizador que foram buscados no banco pelo deserializeUser!
+    res.json({
+        mensagem: "Bem-vindo ao painel da Academia Kripton!",
+        aluno: req.user 
+    });
+});
+
 
 
 // ─────────────────────────────────────────
