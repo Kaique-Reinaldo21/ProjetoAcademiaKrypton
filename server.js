@@ -11,8 +11,7 @@ import passport from 'passport';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Temporário enquanto ainda existir mysql2/database.js
-import { inicializarBanco } from './db/database.js';
+import prisma from './src/lib/prisma.js';
 
 // Rotas organizadas no src
 import authRoutes from './src/routes/auth.routes.js';
@@ -158,12 +157,11 @@ app.use((err, req, res, next) => {
 // ─────────────────────────────────────────
 // Inicialização do servidor
 // ─────────────────────────────────────────
-
-inicializarBanco()
-  .then(() => {
+async function iniciarServidor() {
+  try {
+    await prisma.$connect();
 
     app.listen(PORT, () => {
-
       console.log(
         `🚀 Academia Krypton → http://localhost:${PORT}`
       );
@@ -173,23 +171,17 @@ inicializarBanco()
       );
 
       console.log(
-        `   Banco: ${process.env.DB_NAME}@${process.env.DB_HOST}`
+        '   Banco: MySQL via Prisma'
       );
-
     });
-
-  })
-  .catch((err) => {
-
+  } catch (err) {
     console.error(
-      '❌ Falha ao conectar no MySQL:',
-      err.message
-    );
-
-    console.error(
-      'Verifique as variáveis DB_* no .env'
+      'Erro ao conectar ao banco de dados:',
+      err
     );
 
     process.exit(1);
+  }
+}
 
-  });
+iniciarServidor();
