@@ -18,6 +18,12 @@ import * as authService from '../services/auth.service.js';
         senha
         );
 
+        await authService.registrarLogin(
+          resultado.usuario.id,
+          req.ip,
+          req.get('user-agent')
+        );
+
         res.cookie('token', resultado.token, {
         httpOnly: true,
         sameSite: 'lax',
@@ -124,11 +130,29 @@ export function logout(req, res, next) {
 // Callback do Google OAuth
 // ─────────────────────────────────────────
 
-export function googleCallback(req, res) {
-  console.log(
-    'Usuário autenticado com Google:',
-    req.user
-  );
+export async function googleCallback(req, res) {
+  try {
+    if (req.user) {
+      await authService.registrarLogin(
+        req.user.id,
+        req.ip,
+        req.get('user-agent')
+      );
+    }
 
-  res.redirect('/dashboard.html');
+    console.log(
+      'Usuário autenticado com Google:',
+      req.user
+    );
+
+    return res.redirect('/dashboard.html');
+
+  } catch (error) {
+    console.error(
+      'Erro no callback do Google:',
+      error
+    );
+
+    return res.redirect('/login.html');
+  }
 }

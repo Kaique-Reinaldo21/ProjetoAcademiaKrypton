@@ -99,3 +99,28 @@ export async function cadastrar(dados) {
     },
   };
 }
+
+// HISTÓRICO DE LOGIN
+export async function registrarLogin(
+  usuarioId,
+  ip,
+  userAgent
+) {
+  try {
+    await prisma.historico_logins.create({
+      data: {
+        usuario_id: usuarioId,
+        ip: ip || null,
+        user_agent: userAgent
+          ? userAgent.slice(0, 255)
+          : null,
+      },
+    });
+  } catch (error) {
+    // Falha no histórico não deve impedir o usuário de entrar.
+    console.error(
+      'Erro ao registrar histórico de login:',
+      error
+    );
+  }
+}
