@@ -45,12 +45,15 @@ model planos {
 }
 
 model unidades {
-  id       Int     @id @default(autoincrement()) @db.UnsignedInt
-  nome     String  @db.VarChar(120)
-  endereco String  @db.VarChar(255)
-  cidade   String  @db.VarChar(80)
-  telefone String? @db.VarChar(20)
-  horario  String? @default("Seg–Sex 06h–22h | Sáb 08h–18h") @db.VarChar(80)
+  id        Int     @id @default(autoincrement()) @db.UnsignedInt
+  nome      String  @db.VarChar(120)
+  endereco  String  @db.VarChar(255)
+  cidade    String  @db.VarChar(80)
+  telefone  String? @db.VarChar(20)
+  horario   String? @db.VarChar(80)
+
+  latitude  Float?
+  longitude Float?
 }
 
 model usuarios {

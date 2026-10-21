@@ -281,6 +281,18 @@
     } catch { mostrarErro('Sem conexão com o servidor.'); }
     finally  { setLoading('cad', false); }
   });
+  
+  const parametros =
+  new URLSearchParams(
+    window.location.search
+  );
+
+if (
+  parametros.get('tab') ===
+  'cadastro'
+) {
+  mostrarAba('cadastro');
+}
 </script>
 </body>
 </html>

@@ -275,42 +275,135 @@
     .feature-card h5 { font-weight: 700; font-size: .93rem; margin-bottom: .45rem; }
     .feature-card p  { font-size: .83rem; color: #777; line-height: 1.65; margin: 0; }
 
-    /* ─── UNIDADES ─── */
-    #unidades { background: #0a0a0a; }
-    .unit-card {
-      background: #111;
-      border: 1px solid rgba(255,255,255,.07);
-      border-radius: 10px;
-      overflow: hidden;
-      height: 100%;
-      transition: border-color .3s, transform .3s;
-    }
-    .unit-card:hover { border-color: var(--green); transform: translateY(-4px); }
-    .unit-img { width:100%; height:185px; object-fit:cover; display:block; filter:brightness(.65) saturate(.7); transition:filter .3s; }
-    .unit-card:hover .unit-img { filter:brightness(.8) saturate(.85); }
-    .unit-body { padding: 1.4rem; }
-    .unit-tag {
-      display: inline-block;
-      background: rgba(45,255,122,.12);
-      color: var(--green);
-      font-size: .63rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
-      padding: 2px 10px; border-radius: 3px; margin-bottom: .6rem;
-    }
-    .unit-body h5 {
-      font-family: 'Oswald', sans-serif;
-      font-size: 1.15rem; letter-spacing: 1px; text-transform: uppercase; margin-bottom: .4rem;
-    }
-    .unit-body p { font-size: .79rem; color: #666; margin-bottom: 1rem; }
-    .btn-unit {
-      border: 1.5px solid var(--green); color: var(--green); background: transparent;
-      font-size: .73rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
-      padding: .4rem 1rem; border-radius: 5px; text-decoration: none; display: inline-block;
-      transition: background .2s, color .2s;
-    }
-    .btn-unit:hover { background: var(--green); color: #000; }
+   /* ─── UNIDADES ─── */
 
-    /* ─── PLANOS ─── */
-    #planos { background: #0d0d0d; }
+#unidades {
+  background: #0a0a0a;
+}
+
+.unit-card {
+  background: #111;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 10px;
+  overflow: hidden;
+  height: 100%;
+  transition: border-color .3s, transform .3s;
+}
+
+.unit-card:hover {
+  border-color: var(--green);
+  transform: translateY(-4px);
+}
+
+.unit-img {
+  width: 100%;
+  height: 185px;
+  object-fit: cover;
+  display: block;
+  filter: brightness(.65) saturate(.7);
+  transition: filter .3s;
+}
+
+.unit-card:hover .unit-img {
+  filter: brightness(.8) saturate(.85);
+}
+
+.unit-body {
+  padding: 1.4rem;
+}
+
+.unit-tag {
+  display: inline-block;
+  background: rgba(45,255,122,.12);
+  color: var(--green);
+  font-size: .63rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 2px 10px;
+  border-radius: 3px;
+  margin-bottom: .6rem;
+}
+
+.unit-body h5 {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.15rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: .4rem;
+}
+
+.unit-body p {
+  font-size: .79rem;
+  color: #666;
+  margin-bottom: 1rem;
+}
+
+.btn-unit {
+  border: 1.5px solid var(--green);
+  color: var(--green);
+  background: transparent;
+  font-size: .73rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: .4rem 1rem;
+  border-radius: 5px;
+  text-decoration: none;
+  display: inline-block;
+  transition: background .2s, color .2s;
+  cursor: pointer;
+}
+
+.btn-unit:hover {
+  background: var(--green);
+  color: #000;
+}
+
+
+/* ─── MAPA DAS UNIDADES ─── */
+
+.mapa-unidades {
+  margin-top: 2.5rem;
+  background: #111;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.mapa-unidades iframe {
+  width: 100%;
+  height: 420px;
+  border: 0;
+  display: block;
+}
+
+.mapa-info {
+  padding: 1.2rem 1.4rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.mapa-info h5 {
+  font-family: 'Oswald', sans-serif;
+  margin: 0;
+}
+
+.mapa-info p {
+  margin: .25rem 0 0;
+  color: #777;
+  font-size: .83rem;
+}
+
+
+/* ─── PLANOS ─── */
+
+#planos {
+  background: #0d0d0d;
+}
     .plan-card {
       background: #111;
       border: 1px solid rgba(255,255,255,.08);
@@ -394,7 +487,7 @@
     <div class="container">
 
       <!-- Logo esquerda -->
-      <a class="navbar-brand" href="#">
+      <a class="navbar-brand" href="/">
         <span class="logo-icon"><img src="/logo.png" alt="Logo Academia Krypton"/></span>
         Academia Krypton
       </a>
@@ -508,51 +601,66 @@
 
 
 <!-- ══════════════════════ UNIDADES ══════════════════════ -->
+<!-- ══════════════════════ UNIDADES ══════════════════════ -->
+
 <section id="unidades">
   <div class="container">
+
     <div class="text-center mb-5">
       <p class="section-tag">• Onde estamos</p>
       <h2 class="section-title">Nossas Unidades</h2>
     </div>
-    <div class="row g-4">
 
-      <div class="col-12 col-md-6 col-lg-4">
-        <div class="unit-card">
-          <img src="https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=600&q=80" class="unit-img" alt="Centro"/>
-          <div class="unit-body">
-            <span class="unit-tag">Aberta 24h</span>
-            <h5>Unidade Centro</h5>
-            <p><i class="bi bi-geo-alt-fill me-1" style="color:var(--green)"></i>Av. Paulista, 1000 — SP</p>
-            <a href="#" class="btn-unit">Ver Detalhes</a>
-          </div>
-        </div>
+    <!-- Preenchido pela API -->
+    <div
+      class="row g-4"
+      id="lista-unidades-home"
+    >
+      <div class="col-12 text-center text-secondary">
+        Carregando unidades...
       </div>
-
-      <div class="col-12 col-md-6 col-lg-4">
-        <div class="unit-card">
-          <img src="https://images.unsplash.com/photo-1593079831268-3381b0db4a77?w=600&q=80" class="unit-img" alt="Zona Leste"/>
-          <div class="unit-body">
-            <span class="unit-tag">Nova</span>
-            <h5>Unidade Zona Leste</h5>
-            <p><i class="bi bi-geo-alt-fill me-1" style="color:var(--green)"></i>R. Itaquera, 450 — SP</p>
-            <a href="#" class="btn-unit">Ver Detalhes</a>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-12 col-md-6 col-lg-4">
-        <div class="unit-card">
-          <img src="https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=600&q=80" class="unit-img" alt="Vila Madalena"/>
-          <div class="unit-body">
-            <span class="unit-tag">Premium</span>
-            <h5>Unidade Vila Madalena</h5>
-            <p><i class="bi bi-geo-alt-fill me-1" style="color:var(--green)"></i>R. Harmonia, 320 — SP</p>
-            <a href="#" class="btn-unit">Ver Detalhes</a>
-          </div>
-        </div>
-      </div>
-
     </div>
+
+    <!-- Mapa real -->
+    <div
+      class="mapa-unidades"
+      id="mapa-unidades"
+    >
+      <iframe
+        id="mapa-unidades-frame"
+        title="Mapa das unidades Academia Krypton"
+        loading="lazy"
+        allowfullscreen
+        referrerpolicy="no-referrer-when-downgrade"
+      ></iframe>
+
+      <div class="mapa-info">
+
+        <div>
+          <h5 id="mapa-unidade-nome">
+            Selecione uma unidade
+          </h5>
+
+          <p id="mapa-unidade-endereco">
+            Clique em "Ver no mapa".
+          </p>
+        </div>
+
+        <a
+          id="mapa-como-chegar"
+          class="btn-unit"
+          href="#"
+          target="_blank"
+          rel="noopener noreferrer"
+          style="display:none"
+        >
+          <i class="bi bi-sign-turn-right-fill me-1"></i>
+          Como chegar
+        </a>
+
+      </div>
+    </div>
+
   </div>
 </section>
 
@@ -578,7 +686,7 @@
             <li class="off"><i class="bi bi-x-circle"></i> Personal trainer</li>
             <li class="off"><i class="bi bi-x-circle"></i> App de evolução</li>
           </ul>
-          <a href="#" class="btn-plan btn-plan-outline">Assinar Básico</a>
+          <a href="/login.html?tab=cadastro" class="btn-plan btn-plan-outline">Assinar Básico</a>
         </div>
       </div>
 
@@ -594,7 +702,7 @@
             <li><i class="bi bi-check-circle-fill"></i> 2 sessões de personal/mês</li>
             <li><i class="bi bi-check-circle-fill"></i> App de evolução</li>
           </ul>
-          <a href="#" class="btn-plan btn-plan-fill">Assinar Pro</a>
+          <a href="/login.html?tab=cadastro" class="btn-plan btn-plan-fill">Assinar Pro</a>
         </div>
       </div>
 
@@ -610,7 +718,7 @@
             <li><i class="bi bi-check-circle-fill"></i> Personal dedicado</li>
             <li><i class="bi bi-check-circle-fill"></i> Nutricionista + App premium</li>
           </ul>
-          <a href="#" class="btn-plan btn-plan-outline">Assinar Elite</a>
+          <a href="/login.html?tab=cadastro" class="btn-plan btn-plan-outline">Assinar Elite</a>
         </div>
       </div>
 
@@ -650,9 +758,8 @@
       <div class="col-6 col-lg-2">
         <h6>Conta</h6>
         <ul class="list-unstyled d-flex flex-column gap-2">
-          <li><a href="#">Login</a></li>
-          <li><a href="#">Criar Conta</a></li>
-          <li><a href="#">Meu Perfil</a></li>
+          <li><a href="/login.html">Login</a></li>
+          <li><a href="/login.html?tab=cadastro">Criar Conta</a></li>
         </ul>
       </div>
 
@@ -674,17 +781,270 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <!-- Responsividade -->
 <script>
+
+  // =====================================================
+  // ROLAGEM SUAVE DA PÁGINA
+  // =====================================================
+
   document.querySelectorAll('a[href^="#"]').forEach(link => {
     link.addEventListener('click', e => {
-      const target = document.querySelector(link.getAttribute('href'));
+
+      const href = link.getAttribute('href');
+
+      // Evita erro em links que ainda estejam apenas com "#"
+      if (!href || href === '#') {
+        return;
+      }
+
+      const target = document.querySelector(href);
+
       if (target) {
         e.preventDefault();
-        target.scrollIntoView({ behavior: 'smooth' });
-        const col = document.querySelector('.navbar-collapse');
-        if (col.classList.contains('show')) new bootstrap.Collapse(col).hide();
+
+        target.scrollIntoView({
+          behavior: 'smooth'
+        });
+
+        const col =
+          document.querySelector('.navbar-collapse');
+
+        if (col?.classList.contains('show')) {
+          new bootstrap.Collapse(col).hide();
+        }
       }
     });
   });
+
+
+  // =====================================================
+  // UNIDADES / MAPA
+  // =====================================================
+
+      let unidadesHome = [];
+
+      const imagensUnidades = [
+        'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=600&q=80',
+        'https://images.unsplash.com/photo-1593079831268-3381b0db4a77?w=600&q=80',
+        'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=600&q=80'
+      ];
+
+      function escaparHTML(valor) {
+        return String(valor ?? '')
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#039;');
+      }
+
+  function enderecoCompleto(unidade) {
+    return `${unidade.endereco}, ${unidade.cidade}, SP, Brasil`;
+  }
+
+  function linkGoogleMaps(endereco) {
+    return (
+      'https://www.google.com/maps/search/?api=1&query=' +
+      encodeURIComponent(endereco)
+    );
+  }
+
+  function linkGoogleMapsEmbed(endereco) {
+    return (
+      'https://www.google.com/maps?q=' +
+      encodeURIComponent(endereco) +
+      '&output=embed'
+    );
+  }
+
+  function mostrarUnidadeNoMapa(id, rolar = true) {
+    const unidade = unidadesHome.find(
+      item => item.id === id
+    );
+
+    if (!unidade) return;
+
+    const endereco =
+      enderecoCompleto(unidade);
+
+    document.getElementById(
+      'mapa-unidades-frame'
+    ).src = linkGoogleMapsEmbed(endereco);
+
+    document.getElementById(
+      'mapa-unidade-nome'
+    ).textContent = unidade.nome;
+
+    document.getElementById(
+      'mapa-unidade-endereco'
+    ).textContent = endereco;
+
+    const comoChegar =
+      document.getElementById(
+        'mapa-como-chegar'
+      );
+
+    comoChegar.href =
+      linkGoogleMaps(endereco);
+
+    comoChegar.style.display =
+      'inline-block';
+
+      if (rolar) {
+        document.getElementById(
+          'mapa-unidades'
+        ).scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
+      }
+  }
+
+  async function carregarUnidadesHome() {
+
+    const container =
+      document.getElementById(
+        'lista-unidades-home'
+      );
+
+    try {
+
+      const resposta =
+        await fetch('/api/unidades');
+
+      const dados =
+        await resposta.json();
+
+      if (!resposta.ok) {
+        throw new Error(
+          dados.erro ||
+          'Erro ao carregar unidades'
+        );
+      }
+
+      unidadesHome =
+        dados.unidades || [];
+
+      if (!unidadesHome.length) {
+        container.innerHTML = `
+          <div class="col-12 text-center text-secondary">
+            Nenhuma unidade cadastrada.
+          </div>
+        `;
+
+        return;
+      }
+
+      container.innerHTML =
+        unidadesHome.map(
+          (unidade, index) => {
+
+            const imagem =
+              imagensUnidades[
+                index % imagensUnidades.length
+              ];
+
+            return `
+              <div class="col-12 col-md-6 col-lg-4">
+
+                <div class="unit-card">
+
+                  <img
+                    src="${imagem}"
+                    class="unit-img"
+                    alt="${escaparHTML(unidade.nome)}"
+                  >
+
+                  <div class="unit-body">
+
+                    <span class="unit-tag">
+                      Unidade Krypton
+                    </span>
+
+                    <h5>
+                      ${escaparHTML(unidade.nome)}
+                    </h5>
+
+                    <p>
+                      <i
+                        class="bi bi-geo-alt-fill me-1"
+                        style="color:var(--green)"
+                      ></i>
+
+                      ${escaparHTML(unidade.endereco)}
+                      —
+                      ${escaparHTML(unidade.cidade)}
+                    </p>
+
+                    <p>
+                      <i
+                        class="bi bi-telephone-fill me-1"
+                        style="color:var(--green)"
+                      ></i>
+
+                      ${escaparHTML(
+                        unidade.telefone ||
+                        'Telefone não informado'
+                      )}
+                    </p>
+
+                    <p>
+                      <i
+                        class="bi bi-clock-fill me-1"
+                        style="color:var(--green)"
+                      ></i>
+
+                      ${escaparHTML(
+                        unidade.horario ||
+                        'Horário não informado'
+                      )}
+                    </p>
+
+                    <button
+                      type="button"
+                      class="btn-unit"
+                      onclick="mostrarUnidadeNoMapa(${unidade.id})"
+                    >
+                      <i class="bi bi-map me-1"></i>
+                      Ver no mapa
+                    </button>
+
+                  </div>
+
+                </div>
+
+              </div>
+            `;
+          }
+        ).join('');
+
+      // Mostra a primeira unidade automaticamente
+      mostrarUnidadeNoMapa(
+        unidadesHome[0].id,
+        false
+      );
+
+    } catch (error) {
+
+      console.error(
+        'Erro ao carregar unidades:',
+        error
+      );
+
+      container.innerHTML = `
+        <div class="col-12 text-center text-danger">
+          Não foi possível carregar as unidades.
+        </div>
+      `;
+    }
+  }
+
+
+  // =====================================================
+  // INICIALIZAÇÃO
+  // =====================================================
+
+  carregarUnidadesHome();
+
 </script>
 </body>
 </html>

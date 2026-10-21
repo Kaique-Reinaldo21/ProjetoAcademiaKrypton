@@ -51,34 +51,31 @@ async function seed() {
   // ======================================================
 
   const unidadeCentro =
-    await criarOuAtualizarUnidade({
-      nome: 'Krypton Centro',
-      endereco: 'Rua Central, 100',
-      cidade: 'São Paulo',
-      telefone: '(11) 4000-1000',
-      horario:
-        'Seg–Sex 06h–22h | Sáb 08h–18h',
-    });
+  await criarOuAtualizarUnidade({
+    nome: 'Unidade Centro',
+    endereco: 'Av. Paulista, 1000 — Centro',
+    cidade: 'São Paulo',
+    telefone: '(11) 3000-0001',
+    horario: 'Seg–Sex 06h–22h | Sáb 08h–18h',
+  });
 
-  const unidadeSaoMateus =
-    await criarOuAtualizarUnidade({
-      nome: 'Krypton São Mateus',
-      endereco: 'Avenida Mateo Bei, 1000',
-      cidade: 'São Paulo',
-      telefone: '(11) 4000-2000',
-      horario:
-        'Seg–Sex 06h–22h | Sáb 08h–18h',
-    });
+const unidadeZonaLeste =
+  await criarOuAtualizarUnidade({
+    nome: 'Unidade Zona Leste',
+    endereco: 'Rua do Tatuapé, 450 — Tatuapé',
+    cidade: 'São Paulo',
+    telefone: '(11) 3000-0002',
+    horario: 'Seg–Sex 06h–22h | Sáb 08h–18h',
+  });
 
-  const unidadeTatuape =
-    await criarOuAtualizarUnidade({
-      nome: 'Krypton Tatuapé',
-      endereco: 'Rua Tuiuti, 500',
-      cidade: 'São Paulo',
-      telefone: '(11) 4000-3000',
-      horario:
-        'Seg–Sex 06h–22h | Sáb 08h–18h',
-    });
+const unidadeVilaMadalena =
+  await criarOuAtualizarUnidade({
+    nome: 'Unidade Vila Madalena',
+    endereco: 'Rua Harmonia, 200 — Vila Madalena',
+    cidade: 'São Paulo',
+    telefone: '(11) 3000-0003',
+    horario: 'Seg–Sex 06h–22h | Sáb 08h–18h',
+  });
 
   console.log('✅ Unidades criadas/atualizadas');
 
@@ -244,8 +241,8 @@ console.log(
 
 console.log('\n📍 Unidades disponíveis:');
 console.log(`   ${unidadeCentro.nome}`);
-console.log(`   ${unidadeSaoMateus.nome}`);
-console.log(`   ${unidadeTatuape.nome}`);
+console.log(`   ${unidadeZonaLeste.nome}`);
+console.log(`   ${unidadeVilaMadalena.nome}`);
 }
 
 seed()

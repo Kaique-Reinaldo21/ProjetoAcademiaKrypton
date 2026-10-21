@@ -17,6 +17,7 @@ import prisma from './src/lib/prisma.js';
 import authRoutes from './src/routes/auth.routes.js';
 import usuarioRoutes from './src/routes/usuario.routes.js';
 import adminRoutes from './src/routes/admin.routes.js';
+import publicRoutes from './src/routes/public.routes.js';
 
 // Configuração do Passport / Google OAuth
 import './src/config/passport.js';
@@ -75,6 +76,8 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 
+
+
 // ─────────────────────────────────────────
 // Rota protegida do Dashboard
 // ─────────────────────────────────────────
@@ -109,6 +112,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/usuario', usuarioRoutes);
 
 app.use('/api/admin', adminRoutes);
+
+
+// Unidades públicas (rota pública)
+app.use('/api', publicRoutes);
+
 
 
 // Health Check
@@ -152,6 +160,7 @@ app.use((err, req, res, next) => {
   });
 
 });
+
 
 
 // ─────────────────────────────────────────
