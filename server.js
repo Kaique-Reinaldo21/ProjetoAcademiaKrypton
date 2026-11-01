@@ -58,7 +58,7 @@ app.use(cookieParser());
 
 
 // ─────────────────────────────────────────
-// Sessão e Passport
+// Sessão e Passport 
 // ─────────────────────────────────────────
 app.use(session({
   secret: process.env.SESSION_SECRET,
@@ -91,6 +91,20 @@ app.get('/dashboard', isAuthenticated, (req, res) => {
 });
 
 
+// ─────────────────────────────────────────
+// Rota temporária para teste - gatewary de pagamento 
+// http://localhost:3000/teste-planos
+// ─────────────────────────────────────────
+import { registrarPlanoAcademia } from './src/gatewary/mercadopago.js';
+
+app.get('/teste-planos', async (req, res) => {
+    try {
+        await registrarPlanoAcademia();
+        return res.json({ mensagem: "Função executada! Verifica o terminal para ver os IDs criados." });
+    } catch (error) {
+        return res.status(500).json({ erro: error.message });
+    }
+});
 
 // ─────────────────────────────────────────
 // Arquivos públicos
