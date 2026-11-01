@@ -40,6 +40,7 @@ model planos {
   vencimento DateTime?   @db.Date
   updated_at DateTime?   @default(now()) @db.DateTime(0)
   usuarios   usuarios    @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "planos_ibfk_1")
+  mp_plan_id String?     @db.VarChar(100)
 
   @@index([usuario_id], map: "idx_usuario")
 }
