@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import prisma from '../lib/prisma.js';
 
 
-function gerarToken(usuario) {
+export function gerarToken(usuario) {
   return jwt.sign(
     {
       id: usuario.id,
@@ -28,6 +28,10 @@ export async function login(email, senha) {
 
   if (!usuario) {
     throw new Error('E-mail ou senha inválidos');
+  }
+
+  if (!usuario.senha_hash) {
+    throw new Error('Esta conta foi cadastrada com o Google. Use o botão "Entrar com o Google".');
   }
 
   const senhaValida = await bcrypt.compare(

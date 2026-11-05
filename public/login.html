@@ -95,6 +95,57 @@
       transition: color .2s, background .2s;
     }
     .tab-btn.active { background: rgba(45,255,122,.12); color: var(--green); }
+    
+    /* Botão estilizado do Google */
+    .btn-google {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: .75rem;
+      background: #ffffff;
+      color: #1f1f1f;
+      font-family: 'Nunito Sans', sans-serif;
+      font-weight: 700;
+      font-size: .88rem;
+      border-radius: 8px;
+      padding: .75rem 1rem;
+      width: 100%;
+      text-decoration: none;
+      transition: background .2s, transform .15s, box-shadow .2s;
+      box-shadow: 0 2px 8px rgba(0,0,0,.25);
+    }
+    .btn-google:hover {
+      background: #f1f3f4;
+      color: #111;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(0,0,0,.35);
+    }
+    .btn-google svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+    .divider-ou {
+      display: flex;
+      align-items: center;
+      text-align: center;
+      color: rgba(255,255,255,.35);
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+      margin: 1.25rem 0;
+    }
+    .divider-ou::before,
+    .divider-ou::after {
+      content: '';
+      flex: 1;
+      border-bottom: 1px solid rgba(255,255,255,.1);
+    }
+    .divider-ou span {
+      padding: 0 .75rem;
+    }
+
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
@@ -122,6 +173,21 @@
     <h2 class="mb-1">Bem-<span>vindo</span></h2>
     <p class="mb-4" style="color:rgba(255,255,255,.5);font-size:.88rem;">Acesse seu plano e acompanhe sua evolução.</p>
 
+    <!-- Botão Google Login -->
+    <a href="/api/auth/google" class="btn-google mb-3" id="btn-google-login">
+      <svg viewBox="0 0 24 24">
+        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+      </svg>
+      <span>Entrar com o Google</span>
+    </a>
+
+    <div class="divider-ou">
+      <span>ou entre com e-mail</span>
+    </div>
+
     <div class="mb-3">
       <label class="form-label">E-mail</label>
       <input type="email" id="login-email" class="form-control" placeholder="seu@email.com" required/>
@@ -140,6 +206,21 @@
   <form id="form-cadastro" style="display:none">
     <h2 class="mb-1">Criar <span>Conta</span></h2>
     <p class="mb-4" style="color:rgba(255,255,255,.5);font-size:.88rem;">Junte-se à Academia Krypton.</p>
+
+    <!-- Botão Google Cadastro -->
+    <a href="/api/auth/google" class="btn-google mb-3" id="btn-google-cad">
+      <svg viewBox="0 0 24 24">
+        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+      </svg>
+      <span>Cadastrar com o Google</span>
+    </a>
+
+    <div class="divider-ou">
+      <span>ou preencha seus dados</span>
+    </div>
 
     <div class="mb-3">
       <label class="form-label">Nome completo</label>
@@ -173,6 +254,29 @@
 </div>
 
 <script>
+
+  // ── Redirecionar se já logado ─────────────────────────────────────────────
+  (function() {
+    var tokenExistente = localStorage.getItem('token');
+    if (tokenExistente) {
+      fetch('/api/auth/me', {
+        headers: { 'Authorization': 'Bearer ' + tokenExistente }
+      })
+      .then(function(r) { if (r.ok) return r.json(); throw new Error(); })
+      .then(function(data) {
+        if (data.usuario.role === 'admin') {
+          window.location.href = '/admin.html';
+        } else {
+          window.location.href = '/dashboard.html';
+        }
+      })
+      .catch(function() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('usuario');
+      });
+    }
+  })();
+
   // ── Aba ──────────────────────────────────────────────────────────────────────
   function mostrarAba(aba) {
     const login = aba === 'login';
@@ -233,11 +337,10 @@
       if (!res.ok) { mostrarErro(data.erro); return; }
       localStorage.setItem('token', data.token);
       localStorage.setItem('usuario', JSON.stringify(data.usuario));
-      //window.location.href = '/dashboard.html';
       if (data.usuario.role === 'admin') {
-          window.location.href = '/admin.html';
-        } else {
-          window.location.href = '/dashboard.html';
+        window.location.href = '/admin.html';
+      } else {
+        window.location.href = '/dashboard.html';
       }
       
     } catch { mostrarErro('Sem conexão com o servidor.'); }
@@ -282,17 +385,16 @@
     finally  { setLoading('cad', false); }
   });
   
-  const parametros =
-  new URLSearchParams(
-    window.location.search
-  );
+  const parametros = new URLSearchParams(window.location.search);
 
-if (
-  parametros.get('tab') ===
-  'cadastro'
-) {
-  mostrarAba('cadastro');
-}
+  if (parametros.get('tab') === 'cadastro') {
+    mostrarAba('cadastro');
+  }
+
+  const erroUrl = parametros.get('erro');
+  if (erroUrl) {
+    mostrarErro(erroUrl);
+  }
 </script>
 </body>
 </html>

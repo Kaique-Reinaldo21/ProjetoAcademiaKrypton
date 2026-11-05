@@ -508,8 +508,8 @@
         </ul>
 
         <!-- Botões direita -->
-        <div class="d-flex align-items-center gap-2 mt-3 mt-lg-0 ms-lg-auto">
-          <a href="login.html" class="btn-criar">
+        <div class="d-flex align-items-center gap-2 mt-3 mt-lg-0 ms-lg-auto" id="nav-auth-area">
+          <a href="login.html" class="btn-criar" id="nav-btn-login">
             <i class="bi bi-box-arrow-in-right"></i> Login
           </a>
         </div>
@@ -1042,6 +1042,54 @@
   // =====================================================
 
   carregarUnidadesHome();
+
+  // =====================================================
+  // VERIFICAR SESSÃO DO USUÁRIO (persistência de login)
+  // =====================================================
+  (function verificarSessao() {
+    var token = localStorage.getItem('token');
+    var usuario = JSON.parse(localStorage.getItem('usuario') || 'null');
+    var area = document.getElementById('nav-auth-area');
+    if (!area) return;
+
+    if (token && usuario) {
+      fetch('/api/auth/me', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      })
+      .then(function(r) { if (r.ok) return r.json(); throw new Error(); })
+      .then(function(data) {
+        var nome = data.usuario.nome.split(' ')[0];
+        var destino = data.usuario.role === 'admin' ? '/admin.html' : '/dashboard.html';
+        area.innerHTML =
+          '<span style="color:#fff;font-weight:600;font-size:.9rem;">' +
+          '<i class="bi bi-person-circle" style="color:#2dff7a;margin-right:4px;"></i>' +
+          nome + '</span>' +
+          '<a href="' + destino + '" class="btn-criar" style="margin-left:8px;">' +
+          '<i class="bi bi-grid"></i> Meu Painel</a>' +
+          '<a href="#" id="btn-logout-nav" class="btn-criar" ' +
+          'style="margin-left:4px;background:transparent;border:1px solid rgba(255,255,255,.2);color:#fff;" ' +
+          'title="Sair"><i class="bi bi-box-arrow-right"></i></a>';
+        document.getElementById('btn-logout-nav').addEventListener('click', function(e) {
+          e.preventDefault();
+          fazerLogout();
+        });
+      })
+      .catch(function() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('usuario');
+      });
+    }
+  })();
+
+  function fazerLogout() {
+    fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+    .finally(function() {
+      localStorage.removeItem('token');
+      localStorage.removeItem('usuario');
+      document.cookie = 'token=; Max-Age=0; path=/';
+      window.location.href = '/';
+    });
+  }
 
 </script>
 </body>

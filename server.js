@@ -61,13 +61,14 @@ app.use(cookieParser());
 // Sessão e Passport 
 // ─────────────────────────────────────────
 app.use(session({
-  secret: process.env.SESSION_SECRET,
+  secret: process.env.SESSION_SECRET || 'chave-secreta-padrao-dev',
   resave: false,
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias
   },
 }));
 
@@ -116,22 +117,18 @@ app.use(
   )
 );
 
-  // GOOGLE OAUTH //
+// ─────────────────────────────────────────
+// Google OAuth - atalhos para /api/auth/google
+// ─────────────────────────────────────────
 
-app.get('/auth/google',
-  passport.authenticate('google', { scope: ['profile', 'email'] })
-);
+app.get('/auth/google', (req, res) => {
+  res.redirect('/api/auth/google');
+});
 
-app.get('/auth/google/callback',
-  passport.authenticate('google', { 
-    failureRedirect: '/login-erro' // Crie uma página ou rota para caso dê erro
-  }),
-  (req, res) => {
-    // Sucesso! O express-session já gravou o usuário na sessão.
-    // Basta redirecionar direto para o seu dashboard protegido.
-    res.redirect('/dashboard'); 
-  }
-);
+app.get(['/auth/google/callback', '/auth/callback/google'], (req, res) => {
+  const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+  res.redirect('/api/auth/google/callback' + query);
+});
 
 // ─────────────────────────────────────────
 // Rotas da API

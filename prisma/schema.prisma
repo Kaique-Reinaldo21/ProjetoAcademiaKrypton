@@ -61,7 +61,7 @@ model usuarios {
   id               Int                @id @default(autoincrement()) @db.UnsignedInt
   nome             String             @db.VarChar(120)
   email            String             @unique(map: "email") @db.VarChar(180)
-  senha_hash       String             @db.VarChar(255)
+  senha_hash       String?            @db.VarChar(255)
   data_nascimento  DateTime           @db.Date
   role             usuarios_role      @default(aluno)
   created_at       DateTime?          @default(now()) @db.DateTime(0)
@@ -87,5 +87,3 @@ enum usuarios_role {
   personal
   nutricionista
 }
-
-
