@@ -116,6 +116,22 @@ app.use(
   )
 );
 
+  // GOOGLE OAUTH //
+
+app.get('/auth/google',
+  passport.authenticate('google', { scope: ['profile', 'email'] })
+);
+
+app.get('/auth/google/callback',
+  passport.authenticate('google', { 
+    failureRedirect: '/login-erro' // Crie uma página ou rota para caso dê erro
+  }),
+  (req, res) => {
+    // Sucesso! O express-session já gravou o usuário na sessão.
+    // Basta redirecionar direto para o seu dashboard protegido.
+    res.redirect('/dashboard'); 
+  }
+);
 
 // ─────────────────────────────────────────
 // Rotas da API
