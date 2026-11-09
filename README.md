@@ -1,167 +1,392 @@
-# Krypton Academia — Sistema de Gestão de Academia
+<div align="center">
+  <img src="public/logo.png" alt="Logotipo da Academia Krypton" width="180" />
 
-> Plataforma integrada de gestão de preparo físico e nutricional para academias.
+  # Academia Krypton
 
-## Documentação
+  **Plataforma web de gestão de academia**
 
-A documentação completa e atualizada do projeto está disponível no GitBook:
+  Cadastro e autenticação de alunos, planos, unidades, agendamentos e recursos administrativos.
 
-[Academia Krypton Docs](https://academia-krypton.gitbook.io/academia-krypton-docs/)
----
-
-## Sobre o Projeto
-
-O **Krypton Academia** é um software de gestão voltado para academias de médio e grande porte, integrando o acompanhamento de treinos, nutrição e gestão de alunos em uma única plataforma. O sistema conecta donos de academia, personal trainers, nutricionistas e alunos com hierarquia de acesso definida por perfil.
+  [Documentação no GitBook](https://academia-krypton.gitbook.io/academia-krypton-docs/) · [Código-fonte](https://github.com/Kaique-Reinaldo21/ProjetoAcademiaKrypton)
+</div>
 
 ---
 
-## Como Rodar o Projeto
+## Visão geral
 
-### Pré-requisitos
+A **Academia Krypton** é uma aplicação web desenvolvida com **Node.js e Express**, utilizando **MySQL** e **Prisma ORM** para persistência de dados. O projeto disponibiliza páginas web servidas pelo próprio back-end, uma API HTTP e recursos associados à gestão de alunos e unidades.
 
-Certifique-se de ter instalado em sua máquina:
+### Funcionalidades presentes no repositório
 
-- [Node.js](https://nodejs.org/) 
-- [npm](https://www.npmjs.com/) 
-- [Express](https://expressjs.com/)
-- [Git](https://git-scm.com/)
-- [Banco de dados] (MySQL Workbench recomendado)
+- Interface institucional e páginas de cadastro, login, seleção de planos e painéis.
+- Autenticação tradicional com JWT e controle de acesso por perfil.
+- Fluxo de autenticação com Google OAuth 2.0, mediante configuração de credenciais.
+- Planos Básico, Pro e Elite; informações de usuários e histórico de login.
+- Consulta pública de unidades por API e visualização de endereços no Google Maps.
+- Rotas de agendamentos e operações administrativas.
+- Integração experimental com Mercado Pago para registro de planos, dependente de credenciais próprias.
 
+> **Escopo:** esta documentação descreve a execução local da versão presente no repositório. Recursos planejados e extensões futuras são documentados separadamente no [GitBook](https://academia-krypton.gitbook.io/academia-krypton-docs/).
 
-### 1. Clone o repositório
+## Tecnologias
 
-```bash
-git clone https://github.com/seu-usuario/krypton-academia.git
-cd krypton-academia
+| Camada | Tecnologia |
+| --- | --- |
+| Servidor e API | Node.js, Express 4, JavaScript (ES Modules) |
+| Interface | HTML, CSS e JavaScript, servidos pelo Express |
+| Persistência | MySQL 8, Prisma ORM 5 |
+| Autenticação | JWT, bcryptjs, Passport e Google OAuth 2.0 |
+| Integrações | Mercado Pago e Google Maps (links/iframe) |
+| Desenvolvimento | npm, Git, Nodemon |
+
+## Requisitos
+
+- **Node.js 24 LTS** (recomendado) ou versão LTS compatível, com **npm** incluído.
+- **Git** para obter o código-fonte.
+- **MySQL Server 8.x**, instalado localmente ou acessível em outro servidor.
+- Conexão com a internet para baixar ferramentas e dependências.
+- Portas **3000** (aplicação, por padrão) e **3306** (MySQL, por padrão) disponíveis ou ajustadas ao seu ambiente.
+
+**Não é necessário instalar Express, Prisma, Passport ou Nodemon globalmente.** Eles já estão declarados no `package.json`. O **MySQL Workbench é opcional**: é uma interface de administração, não substitui o MySQL Server.
+
+## Instalação
+
+Selecione o procedimento correspondente ao seu sistema operacional. Cada guia contempla uma máquina nova, desde os pré-requisitos até a execução da aplicação.
+
+- [Windows 10/11](#windows-1011)
+- [Linux — Ubuntu, Zorin OS e derivados Debian](#linux--ubuntu-zorin-os-e-derivados-debian)
+
+---
+
+## Windows 10/11
+
+### 1. Instalar as ferramentas
+
+Instale, preferencialmente pelas fontes oficiais:
+
+1. [Node.js LTS](https://nodejs.org/en/download) — inclui o npm.
+2. [Git for Windows](https://git-scm.com/downloads/win).
+3. [MySQL Community Server](https://dev.mysql.com/downloads/mysql/) — o **MySQL Installer** pode facilitar a instalação e a configuração do serviço no Windows.
+4. Opcional: [MySQL Workbench](https://dev.mysql.com/downloads/workbench/) e [Visual Studio Code](https://code.visualstudio.com/).
+
+Durante a instalação do MySQL, configure uma senha para a conta administrativa e mantenha o serviço habilitado. Depois, abra um novo terminal **PowerShell** e verifique:
+
+```powershell
+node --version
+npm.cmd --version
+git --version
 ```
 
----
+> No PowerShell, este guia usa `npm.cmd` e `npx.cmd`, que chamam os executáveis do npm sem depender da execução de scripts `.ps1`.
 
-### 2. Configure as variáveis de ambiente
+### 2. Clonar o repositório
 
-Crie um arquivo .env e preencha com suas configurações:
+```powershell
+git clone https://github.com/Kaique-Reinaldo21/ProjetoAcademiaKrypton.git
+cd ProjetoAcademiaKrypton
 ```
+
+### 3. Instalar as dependências
+
+Execute na pasta que contém `package.json`:
+
+```powershell
+npm.cmd ci
+```
+
+O comando `npm ci` instala as versões registradas no `package-lock.json`, preservando uma instalação reproduzível.
+
+### 4. Criar o banco e um usuário local
+
+Abra uma conexão administrativa no **MySQL Workbench** e execute o SQL abaixo. Como alternativa, use o cliente de linha de comando MySQL conectado como administrador.
+
+```sql
+CREATE DATABASE IF NOT EXISTS academia_kripton
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+CREATE USER IF NOT EXISTS 'krypton_dev'@'127.0.0.1'
+  IDENTIFIED BY 'SUBSTITUA_POR_UMA_SENHA_FORTE';
+
+GRANT ALL PRIVILEGES ON academia_kripton.*
+  TO 'krypton_dev'@'127.0.0.1';
+```
+
+Substitua a senha de exemplo por uma senha exclusiva para o ambiente local. Se o MySQL estiver em outro servidor, ajuste o host e as permissões para esse ambiente em vez de utilizar `127.0.0.1`.
+
+### 5. Configurar as variáveis de ambiente
+
+Na raiz do projeto:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Edite o arquivo `.env` com os dados do seu MySQL e com **segredos exclusivos** para JWT e sessão. As variáveis principais são:
+
+```dotenv
 PORT=3000
 NODE_ENV=development
-
-# JWT
-JWT_SECRET= 
-JWT_EXPIRES_IN= 
-
-# MySQL
-DB_HOST=localhost
-DB_PORT=3306 
-DB_USER=root 
-DB_PASSWORD= 
-DB_NAME=academia_kripton
-
+DATABASE_URL="mysql://krypton_dev:SENHA_DO_BANCO@127.0.0.1:3306/academia_kripton"
+JWT_SECRET="SUBSTITUA_POR_UM_SEGREDO_LONGO_E_ALEATORIO"
+JWT_EXPIRES_IN=7d
+SESSION_SECRET="SUBSTITUA_POR_OUTRO_SEGREDO_LONGO_E_ALEATORIO"
 ```
 
-Copie o texto acime e cole no arquivo `.env` com as informações do seu ambiente:
+Preserve também as demais variáveis do `.env.example`, quando necessárias. Se a senha do MySQL contiver `@`, `#`, `%`, `:` ou caracteres especiais, codifique esses caracteres na parte da senha da `DATABASE_URL` (percent-encoding).
 
-# Configurações do servidor
-PORT=3000 (A porta onde o servidor Node.js vai rodar )
-NODE_ENV=development(Define o ambiente. Em development, erros são mais verbosos. Em production, o app otimiza performance e oculta detalhes de erro).
+**Nunca faça commit do arquivo `.env` ou compartilhe credenciais reais.**
 
-# Autenticação (JWT- JSON Web Token)
-JWT_SECRET=*String para assinar o token!* (Chave secreta usada para assinar e validar tokens JWT (login/sessão). Se vazar, alguém pode forjar tokens de autenticação)
-JWT_EXPIRES_IN=7d
+### 6. Preparar o Prisma e os dados
 
-# MySQL
-DB_HOST=localhost(Endereço do servidor MySQL.)
-DB_PORT=3306 (Porta padrão do MySQL)
-DB_USER=root (Usuário do banco. root é o superusuário (ok em dev, evitar em produção))
-DB_PASSWORD= (Senha do MySQL Workbench)
-DB_NAME=academia_kripton (Nome do projeto)
+```powershell
+npx.cmd prisma generate
+npx.cmd prisma migrate deploy
+```
+
+Para preencher **um banco local de desenvolvimento** com unidades e contas demonstrativas:
+
+```powershell
+npm.cmd run seed
+```
+
+O seed oficial (`prisma/seed.js`) também pode **atualizar usuários, planos e unidades existentes**. Não o execute em ambientes de produção ou em bancos com dados importantes. O próprio script bloqueia sua execução quando `NODE_ENV=production`.
+
+### 7. Iniciar e verificar a aplicação
+
+```powershell
+npm.cmd run dev
+```
+
+Abra:
+
+- Aplicação: <http://localhost:3000>
+- Status da API: <http://localhost:3000/api/health>
+- Unidades cadastradas: <http://localhost:3000/api/unidades>
+
+Para executar sem o monitor de alterações do Nodemon, utilize `npm.cmd start`.
+
 ---
 
-### 3. Instale as dependências
+## Linux — Ubuntu, Zorin OS e derivados Debian
 
-Baixe o Express(https://expressjs.com/)
+Os comandos abaixo utilizam `apt` e `systemd`. Em outras distribuições, adapte a instalação de pacotes e o gerenciamento do serviço MySQL.
+
+### 1. Instalar Git, ferramentas básicas e MySQL
+
+```bash
+sudo apt update
+sudo apt install -y git curl ca-certificates mysql-server
+sudo systemctl enable --now mysql
 ```
-npm install 
-npm install express
+
+Confira o serviço:
+
+```bash
+sudo systemctl status mysql
 ```
-npm install nodemon (Opcional, para desenvolvimento com hot reload)
+
+Se a distribuição não oferecer `mysql-server` nos repositórios habilitados, utilize os pacotes oficiais compatíveis disponibilizados pela [MySQL Community](https://dev.mysql.com/downloads/mysql/).
+
+### 2. Instalar Node.js LTS com nvm
+
+Recomendamos o [nvm](https://github.com/nvm-sh/nvm) para gerenciar versões do Node.js sem instalar pacotes globais como administrador. Siga as instruções de instalação oficiais do nvm e, após reiniciar o terminal, execute:
+
+```bash
+nvm install 24
+nvm alias default 24
+node --version
+npm --version
+git --version
 ```
-npm install nodemo
+
+### 3. Clonar o repositório e instalar as dependências
+
+```bash
+git clone https://github.com/Kaique-Reinaldo21/ProjetoAcademiaKrypton.git
+cd ProjetoAcademiaKrypton
+npm ci
 ```
-Para rodar o arquivo execute o:
+
+### 4. Criar o banco e um usuário local
+
+Em instalações Ubuntu/Zorin, a conta administrativa do MySQL normalmente pode ser acessada com:
+
+```bash
+sudo mysql
 ```
+
+No terminal do MySQL, execute:
+
+```sql
+CREATE DATABASE IF NOT EXISTS academia_kripton
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+CREATE USER IF NOT EXISTS 'krypton_dev'@'127.0.0.1'
+  IDENTIFIED BY 'SUBSTITUA_POR_UMA_SENHA_FORTE';
+
+GRANT ALL PRIVILEGES ON academia_kripton.*
+  TO 'krypton_dev'@'127.0.0.1';
+
+EXIT;
+```
+
+O usuário `krypton_dev` deve ter permissões somente no banco da aplicação. Ajuste as permissões conforme a política do seu ambiente se estiver utilizando um servidor MySQL remoto.
+
+### 5. Configurar as variáveis de ambiente
+
+```bash
+cp .env.example .env
+```
+
+Edite o `.env` (por exemplo, com `nano .env`) e configure as variáveis fundamentais:
+
+```dotenv
+PORT=3000
+NODE_ENV=development
+DATABASE_URL="mysql://krypton_dev:SENHA_DO_BANCO@127.0.0.1:3306/academia_kripton"
+JWT_SECRET="SUBSTITUA_POR_UM_SEGREDO_LONGO_E_ALEATORIO"
+JWT_EXPIRES_IN=7d
+SESSION_SECRET="SUBSTITUA_POR_OUTRO_SEGREDO_LONGO_E_ALEATORIO"
+```
+
+As credenciais de Google e Mercado Pago só são necessárias para utilizar essas integrações. Codifique caracteres especiais da senha na URL de conexão e mantenha o `.env` fora do controle de versão.
+
+### 6. Preparar o Prisma e os dados
+
+```bash
+npx prisma generate
+npx prisma migrate deploy
+```
+
+Opcional, **somente para banco de desenvolvimento**:
+
+```bash
+npm run seed
+```
+
+### 7. Iniciar e verificar a aplicação
+
+```bash
 npm run dev
 ```
 
-> Servidor disponível em: `http://localhost:3000`
+Acesse:
 
+- Aplicação: <http://localhost:3000>
+- Status da API: <http://localhost:3000/api/health>
+- Unidades cadastradas: <http://localhost:3000/api/unidades>
 
+Para execução sem Nodemon, utilize `npm start`.
 
-## Estrutura do Projeto
+---
 
+## Configuração do ambiente
+
+A aplicação lê as variáveis de um arquivo `.env` na raiz do repositório. Use **`.env.example` como referência**, sem incluir dados sensíveis nesse arquivo de exemplo.
+
+| Variável | Uso | Obrigatoriedade |
+| --- | --- | --- |
+| `DATABASE_URL` | Conexão do Prisma com MySQL | Obrigatória |
+| `PORT` | Porta HTTP da aplicação; padrão `3000` | Opcional |
+| `NODE_ENV` | `development` para execução local | Recomendada |
+| `JWT_SECRET` | Assinatura e validação dos tokens JWT | Obrigatória para autenticação |
+| `JWT_EXPIRES_IN` | Expiração do JWT, por exemplo `7d` | Opcional |
+| `SESSION_SECRET` | Assinatura das sessões Express | Obrigatória para uso seguro de sessões |
+| `GOOGLE_CLIENT_ID` | Identificador OAuth do Google | Somente para login Google |
+| `GOOGLE_CLIENT_SECRET` | Segredo OAuth do Google | Somente para login Google |
+| `GOOGLE_CALLBACK_URL` | Callback OAuth autorizado | Somente para login Google |
+| `mercado_pago_access_token` | Token do Mercado Pago | Somente para a integração de pagamentos |
+| `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | Campos auxiliares mantidos no template | O Prisma nesta versão utiliza `DATABASE_URL` |
+
+Para o login Google em desenvolvimento, o callback usado pelo servidor, quando não sobrescrito, é:
+
+```text
+http://localhost:3000/api/auth/google/callback
 ```
-krypton-academia/
-├── backend/
-│   ├── src/
-│   │   ├── modules/
-│   │   │   ├── auth/           # Autenticação e controle de acesso por perfil
-│   │   │   ├── alunos/         # Perfil, anamnese, fotos e medidas corporais
-│   │   │   ├── treinos/        # Fichas de treino, progressão de carga
-│   │   │   ├── nutricao/       # Plano alimentar e diário alimentar
-│   │   │   ├── dashboard/      # KPIs, retenção e relatórios gerenciais
-│   │   │   └── notificacoes/   # Alertas entre profissionais
-│   │   ├── config/
-│   │   └── shared/
-│   ├── prisma/                 # Schema e migrations do banco
-│   ├── .env.example
-│   └── package.json
-│
-├── frontend/
-│   ├── src/
-│   │   ├── pages/
-│   │   ├── components/
-│   │   ├── hooks/
-│   │   └── services/           # Chamadas à API
-│   └── package.json
-│
-├── docker-compose.yml
+
+Esse endereço deve ser autorizado na configuração OAuth do provedor. Sem credenciais Google, o login tradicional pode ser utilizado e o fluxo Google permanece desabilitado.
+
+O módulo do Mercado Pago utiliza o nome de variável **`mercado_pago_access_token`**, em letras minúsculas, conforme a implementação atual. Não utilize tokens reais em documentação ou ambientes compartilhados.
+
+## Banco de dados e migrations
+
+A estrutura do MySQL é declarada em `prisma/schema.prisma` e suas alterações devem ser versionadas em `prisma/migrations/`.
+
+| Comando | Finalidade |
+| --- | --- |
+| `npx prisma generate` | Gerar o Prisma Client |
+| `npx prisma migrate deploy` | Aplicar migrations existentes, inclusive em uma instalação nova |
+| `npx prisma migrate status` | Consultar o estado das migrations |
+| `npx prisma migrate dev --name descricao` | Criar uma migration durante o desenvolvimento de alterações no schema |
+| `npm run seed` | Popular ou atualizar dados de demonstração no banco de desenvolvimento |
+
+> **Para mantenedores:** alterações no `schema.prisma` devem ser acompanhadas por migrations commitadas no repositório. Não use `db push` como substituto permanente do histórico de migrations. Para esta versão, o histórico deve incluir os campos `unidades.latitude`, `unidades.longitude`, `planos.mp_plan_id` e a nulabilidade de `usuarios.senha_hash` antes de distribuir o projeto para novas instalações.
+
+## Scripts disponíveis
+
+| Comando | Descrição |
+| --- | --- |
+| `npm run dev` | Inicia o servidor com Nodemon |
+| `npm start` | Inicia o servidor com Node.js |
+| `npm run seed` | Executa `prisma/seed.js` no banco de desenvolvimento |
+
+No Windows PowerShell, substitua `npm` por `npm.cmd` e `npx` por `npx.cmd` caso necessário.
+
+## Estrutura do projeto
+
+```text
+ProjetoAcademiaKrypton/
+├── public/                 # HTML e recursos estáticos servidos pelo Express
+├── assets/                 # Imagens e recursos visuais
+├── css/                    # Estilos
+├── src/
+│   ├── config/             # Configuração do Passport
+│   ├── controllers/        # Controladores HTTP
+│   ├── gatewary/           # Integração de pagamentos (nome atual da pasta)
+│   ├── lib/                # Instância central do Prisma
+│   ├── middleware/         # Autenticação e autorização
+│   ├── routes/             # Endpoints públicos, aluno, admin e autenticação
+│   └── services/           # Regras de autenticação
+├── prisma/
+│   ├── migrations/         # Evolução versionada do banco
+│   ├── schema.prisma       # Modelos e relacionamentos
+│   ├── seed.js             # Seed usado por npm run seed
+│   └── seed.ts             # Script auxiliar não chamado pelo npm run seed
+├── .env.example            # Referência sem segredos
+├── .gitignore
+├── nodemon.json
+├── package.json
+├── package-lock.json
+├── server.js               # Ponto de entrada da aplicação
 └── README.md
 ```
 
----
+## Verificação de instalação
 
-## Módulos Principais
+Após iniciar o servidor, as seguintes respostas são esperadas:
 
-| Módulo | Descrição |
-|---|---|
-| **Dashboard** | KPIs de retenção, frequência, alunos inativos (+7 dias sem check-in) |
-| **Treinos** | Fichas digitais com séries, repetições, carga e progressão por aluno |
-| **App do Aluno** | Acesso mobile à ficha de treino, registro de execução e evolução |
-| **Nutrição** | Plano alimentar digital + diário alimentar com controle de privacidade (CFN) |
-| **Perfil do Aluno** | Anamnese, fotos de progresso, medidas, restrições e exames em PDF |
-| **Notificações** | Alertas internos entre personal e nutricionista (ex: mudança de objetivo) |
-| **Relatórios** | Exportação em PDF e Excel por gestão e por profissional |
+- `GET /api/health`: JSON com `status: "ok"`.
+- `GET /api/unidades`: JSON contendo a propriedade `unidades` (uma lista, que pode estar vazia antes do seed).
+- `GET /`: página institucional da academia.
 
-## 🛠 Configuração do Banco de Dados (Prisma)
+Se um serviço externo não estiver configurado, suas funcionalidades específicas podem permanecer indisponíveis; isso não impede necessariamente a execução das demais partes da aplicação.
 
-Este projeto foi refatorado para utilizar o **Prisma ORM** com MySQL. Para rodar o ambiente de desenvolvimento na sua máquina, siga estes passos:
+## Segurança e ambientes
 
-**1. Instale as dependências**
-Na raiz do projeto, instale os pacotes (isso inclui o Prisma e o Prisma Client):
-bash
-npm install
+- Use segredos exclusivos para cada instalação e nunca publique arquivos `.env`.
+- O seed contém **contas de demonstração com senhas previsíveis** e não deve ser utilizado em produção.
+- Não exponha publicamente o MySQL; prefira conexão restrita à aplicação e privilégio mínimo para os usuários do banco.
+- A execução local não equivale a uma implantação pronta para produção. Antes de publicar, revise HTTPS, CORS, armazenamento de sessões, credenciais, logs, configuração do provedor OAuth e integração de pagamentos.
+- Não inclua arquivos `.env`, chaves, tokens ou dados reais em arquivos ZIP de distribuição.
 
+## Documentação e colaboração
 
-**2. Configure as Variáveis de Ambiente**
-Crie um arquivo chamado .env na raiz do projeto (ele está no .gitignore, então não subirá para o repositório). Adicione a sua string de conexão do MySQL local:
-env
-DATABASE_URL="mysql://root:SUA_SENHA_AQUI@127.0.0.1:3306/academia_kripton"
+A documentação funcional e de gestão do projeto está no [GitBook da Academia Krypton](https://academia-krypton.gitbook.io/academia-krypton-docs/).
 
-*(Substitua SUA_SENHA_AQUI pela senha do seu MySQL. Se não tiver senha, deixe apenas root@127.0.0.1...)*
-
-**3. Gere o Prisma Client**
-O arquivo schema.prisma já está atualizado no repositório. Para que o Node.js reconheça os modelos do banco de dados na sua máquina, rode:
-bash
-npx prisma generate
-
-Isso criará o Client sob medida na sua pasta node_modules. Depois disso, o projeto está pronto para rodar!
+Para contribuir, crie uma branch a partir da versão atual, faça alterações pequenas e revisáveis, atualize migrations e documentação quando necessário e envie um Pull Request descrevendo o objetivo e os procedimentos de validação.
 
 ---
+
+**Academia Krypton — projeto acadêmico em desenvolvimento.**
