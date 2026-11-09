@@ -161,6 +161,12 @@ JWT_SECRET="SUBSTITUA_POR_UM_SEGREDO_LONGO_E_ALEATORIO"
 JWT_EXPIRES_IN=7d
 
 SESSION_SECRET="SUBSTITUA_POR_OUTRO_SEGREDO_LONGO_E_ALEATORIO"
+
+GOOGLE_CLIENT_ID=
+
+GOOGLE_CLIENT_SECRET=
+
+GOOGLE_CALLBACK_URL=http://localhost:3000/api/auth/google/callback
 ```
 
 Preserve também as demais variáveis do `.env.example`, quando necessárias. Se a senha do MySQL contiver `@`, `#`, `%`, `:` ou caracteres especiais, codifique esses caracteres na parte da senha da `DATABASE_URL` (percent-encoding).
@@ -307,6 +313,12 @@ JWT_SECRET="SUBSTITUA_POR_UM_SEGREDO_LONGO_E_ALEATORIO"
 JWT_EXPIRES_IN=7d
 
 SESSION_SECRET="SUBSTITUA_POR_OUTRO_SEGREDO_LONGO_E_ALEATORIO"
+
+GOOGLE_CLIENT_ID=
+
+GOOGLE_CLIENT_SECRET=
+
+GOOGLE_CALLBACK_URL=http://localhost:3000/api/auth/google/callback
 ```
 
 As credenciais de Google e Mercado Pago só são necessárias para utilizar essas integrações. Codifique caracteres especiais da senha na URL de conexão e mantenha o `.env` fora do controle de versão.
