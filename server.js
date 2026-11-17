@@ -19,11 +19,17 @@ import usuarioRoutes from './src/routes/usuario.routes.js';
 import adminRoutes from './src/routes/admin.routes.js';
 import publicRoutes from './src/routes/public.routes.js';
 
+
 // Configuração do Passport / Google OAuth
 import './src/config/passport.js';
 
-// rota 
+
+// rota middleware 
 import { authMiddleware as isAuthenticated } from './src/middleware/authMiddleware.js';
+
+
+// Rota de Assinatura - Mercado Pago
+import { criarCheckoutAssinatura, ativarPlano} from './src/gatewary/mercadopago.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -93,19 +99,38 @@ app.get('/dashboard', isAuthenticated, (req, res) => {
 
 
 // ─────────────────────────────────────────
-// Rota temporária para teste - gatewary de pagamento 
-// http://localhost:3000/teste-planos
+// Inicia o checkout e devolve o link de pagamento
 // ─────────────────────────────────────────
-import { registrarPlanoAcademia } from './src/gatewary/mercadopago.js';
+app.post('/api/checkout', async (req, res) => {
+    try{
+      const { tipoPlano} = req.body;
+      const usuarioId = req.user?.id || 1; 
+      const emailUsuario = req.user?.email || "test_user_7685228472683360671@testuser.com";
 
-app.get('/teste-planos', async (req, res) => {
-    try {
-        await registrarPlanoAcademia();
-        return res.json({ mensagem: "Função executada! Verifica o terminal para ver os IDs criados." });
+      const checkoutUrl = await criarCheckoutAssinatura(tipoPlano, emailUsuario, usuarioId);
+      return res.json({ url: checkoutUrl });
     } catch (error) {
-        return res.status(500).json({ erro: error.message });
+      console.error("Erro ao iniciar o checkout:", error);
+    return res.status(500).json({ error: "Não foi possível gerar o link de pagamento. Tente novamente mais tarde." });
     }
 });
+
+// Confirma o pagamento após aprovação e ativa no banco de dados
+app.get('/checkout/success', async (req, res) => {
+    try {
+      const { preapproval_id } = req.query;
+      if (!preapproval_id) {
+        return res.status(400).send("ID da assinatura não encontrado.");
+      }
+
+      await ativarPlano(preapproval_id);
+      return res.redirect('/dashboard?pagamento=aprovado');
+    } catch (error) {
+      console.error("Erro ao confirmar o pagamento:", error);
+      return res.status(500).send("Erro ao ativar o plano no  sistema. Tente novammente mais tarde.");
+    }
+});
+
 
 // ─────────────────────────────────────────
 // Arquivos públicos
