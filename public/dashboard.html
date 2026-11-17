@@ -109,6 +109,16 @@
           <div class="col-6"><p class="info-label">Vencimento</p><p class="info-valor" id="plano-vencimento">—</p></div>
         </div>
 
+        <!-- Alteracao de plano: o plano atual permanece ativo ate confirmacao financeira -->
+        <div id="bloco-alterar-plano" style="display:none" class="mt-3">
+          <a href="/escolher-plano.html?alterar=1" class="btn-assinar w-100 justify-content-center">
+            <i class="bi bi-arrow-left-right"></i> Alterar plano
+          </a>
+          <p class="text-secondary mt-2 mb-0" style="font-size:.77rem;">
+            O seu plano atual continua ativo ate a confirmacao do novo pagamento.
+          </p>
+        </div>
+
         <!-- Sem plano ativo -->
         <div id="bloco-sem-plano" style="display:none">
           <div style="background:rgba(255,193,7,.07);border:1px solid rgba(255,193,7,.2);border-radius:10px;padding:1rem;margin-bottom:1rem;">
@@ -284,6 +294,7 @@ function renderPlano(p) {
   document.getElementById('plano-vencimento').textContent = fmt(p.vencimento);
 
   const ativo = p.status === 'ativo';
+  document.getElementById('bloco-alterar-plano').style.display = ativo ? '' : 'none';
 
   // ── Blocos de alerta (sem plano / inativo) ────────────────────────────────
   if (!ativo && p.tipo === 'basico' && !p.unidade) {
