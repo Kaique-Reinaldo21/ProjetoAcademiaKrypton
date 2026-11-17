@@ -8,6 +8,7 @@ import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import passport from 'passport';
 
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -18,6 +19,7 @@ import authRoutes from './src/routes/auth.routes.js';
 import usuarioRoutes from './src/routes/usuario.routes.js';
 import adminRoutes from './src/routes/admin.routes.js';
 import publicRoutes from './src/routes/public.routes.js';
+import checkoutRoutes from './src/routes/checkout.routes.js';
 
 
 // Configuração do Passport / Google OAuth
@@ -29,7 +31,8 @@ import { authMiddleware as isAuthenticated } from './src/middleware/authMiddlewa
 
 
 // Rota de Assinatura - Mercado Pago
-import { criarCheckoutAssinatura, ativarPlano} from './src/gatewary/mercadopago.js';
+import { consultarFatura } from './src/gatewary/mercadopago.js';
+import { confirmarCheckoutPorAssinatura } from './src/services/checkout.service.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -99,38 +102,61 @@ app.get('/dashboard', isAuthenticated, (req, res) => {
 
 
 // ─────────────────────────────────────────
-// Inicia o checkout e devolve o link de pagamento
+// Checkout autenticado — nunca usar IDs de usuários fictícios.
 // ─────────────────────────────────────────
-app.post('/api/checkout', async (req, res) => {
-    try{
-      const { tipoPlano} = req.body;
-      const usuarioId = req.user?.id || 1; 
-      const emailUsuario = req.user?.email || "test_user_7685228472683360671@testuser.com";
+app.use('/api/checkout', checkoutRoutes);
 
-      const checkoutUrl = await criarCheckoutAssinatura(tipoPlano, emailUsuario, usuarioId);
-      return res.json({ url: checkoutUrl });
-    } catch (error) {
-      console.error("Erro ao iniciar o checkout:", error);
-    return res.status(500).json({ error: "Não foi possível gerar o link de pagamento. Tente novamente mais tarde." });
-    }
-});
-
-// Confirma o pagamento após aprovação e ativa no banco de dados
+// Retorno do navegador: consulta o provedor; não considera a query como prova de pagamento.
 app.get('/checkout/success', async (req, res) => {
-    try {
-      const { preapproval_id } = req.query;
-      if (!preapproval_id) {
-        return res.status(400).send("ID da assinatura não encontrado.");
-      }
-
-      await ativarPlano(preapproval_id);
-      return res.redirect('/dashboard?pagamento=aprovado');
-    } catch (error) {
-      console.error("Erro ao confirmar o pagamento:", error);
-      return res.status(500).send("Erro ao ativar o plano no  sistema. Tente novammente mais tarde.");
-    }
+  try {
+    const id = req.query.preapproval_id;
+    if (typeof id !== 'string') return res.redirect('/dashboard.html?pagamento=pendente');
+    const resultado = await confirmarCheckoutPorAssinatura(id);
+    const situacao = resultado.status === 'confirmado' ? 'aprovado' : 'pendente';
+    return res.redirect('/dashboard.html?pagamento=' + situacao);
+  } catch (error) {
+    console.error('Erro no retorno do pagamento:', error);
+    return res.redirect('/dashboard.html?pagamento=pendente');
+  }
 });
 
+function validarAssinaturaWebhook(req) {
+  const segredo = process.env.MP_WEBHOOK_SECRET;
+  const header = req.get('x-signature') || '';
+  const requestId = req.get('x-request-id') || '';
+  const dataId = String(req.query['data.id'] || req.body?.data?.id || '');
+  if (!segredo || !requestId || !dataId) return false;
+  const partes = Object.fromEntries(header.split(',').map(parte => parte.trim().split('=')));
+  const ts = partes.ts;
+  const v1 = partes.v1;
+  if (!/^\d{10,13}$/.test(ts || '') || !/^[a-f0-9]{64}$/i.test(v1 || '')) return false;
+  const instante = Number(ts) > 1e12 ? Number(ts) / 1000 : Number(ts);
+  if (Math.abs(Date.now() / 1000 - instante) > 300) return false;
+  const manifesto = 'id:' + dataId.toLowerCase() + ';request-id:' + requestId + ';ts:' + ts + ';';
+  const esperado = createHmac('sha256', segredo).update(manifesto).digest('hex');
+  return timingSafeEqual(Buffer.from(esperado, 'hex'), Buffer.from(v1, 'hex'));
+}
+
+// Webhook assinado: o payload é somente uma indicação para consultar a API do Mercado Pago.
+app.post('/api/webhooks/mercadopago', async (req, res) => {
+  if (!validarAssinaturaWebhook(req)) return res.sendStatus(401);
+  try {
+    const tipo = req.body?.type || req.query.type || req.body?.topic;
+    const id = String(req.body?.data?.id || req.query['data.id'] || '');
+    if (tipo === 'subscription_preapproval') {
+      await confirmarCheckoutPorAssinatura(id);
+    } else if (tipo === 'subscription_authorized_payment') {
+      const fatura = await consultarFatura(id);
+      if (fatura.preapproval_id) {
+        await confirmarCheckoutPorAssinatura(String(fatura.preapproval_id));
+      }
+    }
+    return res.sendStatus(200);
+  } catch (error) {
+    console.error('Erro ao processar webhook Mercado Pago:', error);
+    return res.sendStatus(500);
+  }
+});
 
 // ─────────────────────────────────────────
 // Arquivos públicos
