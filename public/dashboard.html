@@ -87,6 +87,13 @@
     </h1>
   </div>
 
+  <div id="aviso-checkout" class="card-dash mb-4" style="display:none" role="status">
+    <p class="mb-2 fw-bold" id="checkout-status-texto">Verificando pagamento...</p>
+    <button id="btn-verificar-pagamento" type="button" class="btn-assinar" onclick="verificarPagamento()">
+      <i class="bi bi-arrow-clockwise"></i> Verificar pagamento
+    </button>
+  </div>
+
   <!-- Skeleton -->
   <div id="sk-loading" class="row g-4">
     <div class="col-12 col-lg-5"><div class="card-dash"><div class="sk mb-3" style="height:48px;width:130px;"></div><div class="sk mb-2" style="height:16px;width:80px;"></div><div class="sk" style="height:14px;width:55%;"></div></div></div>
@@ -394,6 +401,49 @@ async function logout() {
   await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
   localStorage.clear();
   window.location.href = '/login.html';
+}
+
+
+async function verificarPagamento() {
+  const id = localStorage.getItem('checkout_tentativa_id');
+  if (!id) return;
+  const aviso = document.getElementById('aviso-checkout');
+  const texto = document.getElementById('checkout-status-texto');
+  const botao = document.getElementById('btn-verificar-pagamento');
+  aviso.style.display = '';
+  texto.textContent = 'Consultando confirmação no Mercado Pago...';
+  botao.disabled = true;
+  try {
+    const resposta = await fetch('/api/checkout/status/' + encodeURIComponent(id), {
+      headers: H,
+      credentials: 'include',
+    });
+    const dados = await resposta.json();
+    if (!resposta.ok) throw new Error(dados.erro || 'Não foi possível verificar o pagamento.');
+    if (dados.status === 'confirmado') {
+      localStorage.removeItem('checkout_tentativa_id');
+      window.location.replace('/dashboard.html?pagamento=aprovado');
+      return;
+    }
+    if (dados.status === 'aguardando' || dados.status === 'pendente') {
+      texto.textContent = 'Pagamento pendente. Seu plano atual continua válido enquanto aguardamos a confirmação.';
+    } else {
+      texto.textContent = 'Não foi possível concluir este checkout (' + dados.status + '). Entre em contato com o suporte.';
+    }
+  } catch (erro) {
+    texto.textContent = erro.message;
+  } finally {
+    botao.disabled = false;
+  }
+}
+
+if (localStorage.getItem('checkout_tentativa_id')) {
+  verificarPagamento();
+} else if (new URLSearchParams(window.location.search).get('pagamento') === 'aprovado') {
+  const aviso = document.getElementById('aviso-checkout');
+  aviso.style.display = '';
+  document.getElementById('checkout-status-texto').textContent = 'Pagamento confirmado! Seu plano foi atualizado.';
+  document.getElementById('btn-verificar-pagamento').style.display = 'none';
 }
 
 carregarPlano();
