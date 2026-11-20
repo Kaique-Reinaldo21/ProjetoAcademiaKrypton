@@ -41,6 +41,7 @@ model planos {
   updated_at DateTime?   @default(now()) @db.DateTime(0)
   usuarios   usuarios    @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "planos_ibfk_1")
   mp_plan_id String?     @db.VarChar(100)
+  mp_preapproval_id String? @unique @db.VarChar(100)
 
   @@index([usuario_id], map: "idx_usuario")
 }
@@ -68,6 +69,7 @@ model usuarios {
   agendamentos     agendamentos[]
   historico_logins historico_logins[]
   planos           planos[]
+  checkout_tentativas checkout_tentativas[]
 }
 
 enum agendamentos_tipo {
@@ -86,4 +88,18 @@ enum usuarios_role {
   admin
   personal
   nutricionista
+}
+
+model checkout_tentativas {
+  id                String   @id @db.VarChar(36)
+  usuario_id        Int      @db.UnsignedInt
+  tipo              planos_tipo
+  unidade_id        Int?     @db.UnsignedInt
+  mp_preapproval_id String?  @unique @db.VarChar(100)
+  status            String   @default("pendente") @db.VarChar(20)
+  created_at        DateTime @default(now()) @db.DateTime(0)
+  updated_at        DateTime @updatedAt @db.DateTime(0)
+  usuarios          usuarios @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@index([usuario_id, status])
 }
