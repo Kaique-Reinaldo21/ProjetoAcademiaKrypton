@@ -11,8 +11,10 @@
     "check:env": "node scripts/check-env.js",
     "check:db": "node scripts/check-db.js",
     "prisma:status": "prisma migrate status",
-    "check:syntax": "node --check server.js && node --check scripts/check-env.js && node --check scripts/check-db.js",
-    "test": "node --test tests/documentacao.test.js"
+    "check:syntax": "node --check server.js && node --check scripts/check-env.js && node --check scripts/check-db.js && node --check scripts/local-db-guard.js && node --check scripts/setup-local.js && node --check scripts/seed-local-unidades.js",
+    "test": "node --test",
+    "setup:local": "node scripts/setup-local.js",
+    "demo:unidades:local": "node scripts/seed-local-unidades.js"
   },
   "dependencies": {
     "@nestjs/jwt": "^12.0.3",

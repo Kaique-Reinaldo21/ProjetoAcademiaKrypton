@@ -1,4 +1,9 @@
 # Academia Krypton — Inicio rápido en clase (ES)
+
+## Instalación local más rápida
+
+Después de instalar las dependencias, crear una base y usuario MySQL **locales** y configurar `.env` con host **localhost**, ejecute `npm run setup:local` (Windows: `npm.cmd run setup:local`) y luego `npm run dev` (Windows: `npm.cmd run dev`). El comando prepara Prisma, aplica migraciones únicamente a la base **local** y registra las unidades ficticias que falten. Para crear solo las unidades utilice `npm run demo:unidades:local`. Ambos comandos bloquean hosts remotos y `NODE_ENV=production`; no use túneles de puerto local hacia una base remota. Consulte el [README](../README.md).
+
 El repositorio es un entorno **académico de pruebas**, no un sistema listo para producción. Para el manual completo, consulte [GUIA-FACULDADE.md](GUIA-FACULDADE.md).
 
 ## Windows (PowerShell)

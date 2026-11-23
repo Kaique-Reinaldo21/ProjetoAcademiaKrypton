@@ -12,30 +12,118 @@ Cadastro e autenticação de alunos, planos, unidades, agendamentos e recursos a
 
 ---
 
-## Windows e Linux (PT · EN · ES)
+## ⚡ Comece aqui — instalação rápida
 
-> **Base de homologação**: novas rotinas de diagnóstico, guias de instalação e referência das APIs. Painéis novos, filas e integração com catracas estão **planejados**, ainda não implementados.
+**Requisitos:** Node.js LTS (com npm), Git e um MySQL 8 compatível acessível. O projeto tem duas opções: rodar **localmente com dados fictícios** (ideal para apresentação) ou usar apenas o **site de homologação no Render**. Não confunda com produção definitiva.
 
-| Idioma | Guia |
-| --- | --- |
-| 🇧🇷 Português | [Guia da Faculdade](docs/GUIA-FACULDADE.md) |
-| 🇺🇸 English | [Classroom Quickstart](docs/QUICKSTART-EN.md) |
-| 🇪🇸 Español | [Inicio rápido](docs/INICIO-RAPIDO-ES.md) |
-| 📚 GitBook | [Proposta de sincronização editorial](docs/GITBOOK-ATUALIZACAO.md) |
+### Windows (PowerShell — VS Code)
 
-**Documentação interativa da API:** [abrir Swagger UI](https://projetoacademiakrypton.onrender.com/api-docs.html) (após deploy) · [especificação OpenAPI JSON](public/openapi.json). A interface pública deixa métodos de escrita desabilitados para evitar alterações acidentais; ainda assim, rotas GET autenticadas exigem sessão e não devem expor dados privados.
+**Primeira instalação** (na pasta em que deseja guardar o projeto):
 
-### Diagnóstico rápido (somente leitura)
-```bash
-npm run check:env     # verifica variáveis, sem mostrar senhas
-npm run check:db      # consulta MySQL e conta unidades, usuários e planos
-npm run prisma:status # inspeciona migrations, sem aplicá-las
-npm run check:syntax  # verifica sintaxe dos scripts
+```powershell
+git clone https://github.com/Kaique-Reinaldo21/ProjetoAcademiaKrypton.git
+cd ProjetoAcademiaKrypton
+npm.cmd ci
+Copy-Item .env.example .env
 ```
 
-**Primeira instalação no Windows (PowerShell):** `npm.cmd ci`, `Copy-Item .env.example .env` (somente se ainda não existir), `npx.cmd prisma generate`, `npm.cmd run check:env`, `npm.cmd run check:db` e `npm.cmd run dev`. Veja os comandos completos nos guias trilíngues.
+Abra o `.env` e informe **seu MySQL LOCAL** (host `localhost` ou `127.0.0.1`), nome do banco, usuário e senha na `DATABASE_URL`. Configure `JWT_SECRET` e `SESSION_SECRET` com valores longos e diferentes. Antes do próximo passo, o banco e o usuário MySQL precisam existir e ter permissão. Consulte [configuração local do MySQL](#configurar-o-mysql-local-se-ainda-nao-estiver-pronto).
 
-**Atenção:** `/api/health` apenas confirma resposta do Express; não verifica MySQL. `/api/unidades` com `{"unidades":[]}` significa que não existem unidades no banco consultado. MySQL local e Clever Cloud são bancos separados. Nunca use `prisma migrate reset` ou seed demonstrativo no banco público para resolver isso. O arquivo `.env` continua ignorado pelo Git e deve ficar privado.
+```powershell
+npm.cmd run check:env
+npm.cmd run setup:local
+npm.cmd run dev
+```
+
+Abra **http://localhost:3000**. A documentação visual da API está em **http://localhost:3000/api-docs.html**. O setup prepara o Prisma, aplica as migrations **somente no banco local confirmado** e cadastra três unidades *fictícias* que ainda não existam.
+
+**Já instalou e voltou para a aula?** Na pasta do projeto:
+
+```powershell
+git status
+git pull --ff-only origin main
+npm.cmd ci
+npm.cmd run check:db
+npm.cmd run dev
+```
+
+Faça o `pull` somente com a árvore de trabalho limpa; preserve seu `.env`. Se houver migrations novas e você estiver usando um banco local, execute `npm.cmd run setup:local` antes de iniciar.
+
+### Linux (Zorin / Ubuntu — terminal)
+
+```bash
+git clone https://github.com/Kaique-Reinaldo21/ProjetoAcademiaKrypton.git
+cd ProjetoAcademiaKrypton
+npm ci
+cp .env.example .env
+# Edite .env com MySQL LOCAL, JWT_SECRET e SESSION_SECRET
+npm run check:env
+npm run setup:local
+npm run dev
+```
+
+**Na próxima aula:** `git status`, `git pull --ff-only origin main` (se não houver alterações locais), `npm ci`, `npm run check:db`, `npm run dev`. Não sobrescreva um `.env` existente.
+
+### Configurar o MySQL local se ainda não estiver pronto
+
+1. Instale/inicie o **MySQL Server 8** e crie o banco `academia_kripton` usando uma ferramenta como MySQL Workbench, DBeaver ou cliente `mysql`.
+2. Crie um usuário exclusivo de desenvolvimento com senha forte e permissões **somente** nesse banco (não utilize um superusuário remoto). Exemplo executado por um administrador **no MySQL local**:
+
+```sql
+CREATE DATABASE IF NOT EXISTS academia_kripton
+  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'krypton_dev'@'localhost'
+  IDENTIFIED BY 'SUBSTITUA_POR_SENHA_FORTE';
+GRANT ALL PRIVILEGES ON academia_kripton.* TO 'krypton_dev'@'localhost';
+```
+
+3. Preencha o `.env` local (exemplo **sem senha verdadeira**):
+
+```dotenv
+NODE_ENV=development
+DATABASE_URL="mysql://krypton_dev:SENHA_CODIFICADA@localhost:3306/academia_kripton"
+JWT_SECRET=SUBSTITUA_POR_SEGREDO_FORTE
+SESSION_SECRET=SUBSTITUA_POR_OUTRO_SEGREDO_FORTE
+```
+
+Se MySQL estiver em outro host/porta ou se o usuário for `'krypton_dev'@'127.0.0.1'`, ajuste as permissões e a URL. Caracteres especiais da senha na URL precisam de codificação percentual. O exemplo SQL cria usuário, mas se já houver usuário com esse nome, ajuste a senha/configuração de acordo com sua instalação.
+
+### Criar somente as unidades no PC
+
+Se o projeto já estiver configurado com **MySQL LOCAL**, execute:
+
+```powershell
+npm.cmd run demo:unidades:local
+npm.cmd run check:db
+```
+
+No Linux, use `npm run demo:unidades:local` e `npm run check:db`.
+
+Esse comando só cadastra as três unidades fictícias **Centro, Zona Leste e Vila Madalena** se não existir outra com o mesmo nome. Não altera unidades existentes, alunos, planos nem senhas. Confira em `http://localhost:3000/api/unidades` (reinicie a API se estiver fechada).
+
+**Bloqueio importante:** `setup:local` e `demo:unidades:local` recusam `DATABASE_URL` com host remoto e `NODE_ENV=production`. Não execute esses scripts contra túneis ou redirecionamentos de porta que apontem um endereço `localhost` para um banco remoto. Nunca execute `npm run seed` em banco compartilhado: o seed geral inclui usuários e senhas demonstrativas.
+
+### Acesso remoto e apresentação
+
+- **Sem instalar nada:** [abrir o site já hospedado no Render](https://projetoacademiakrypton.onrender.com/). Basta internet; pode haver demora ao despertar o serviço gratuito. [API de unidades no Render](https://projetoacademiakrypton.onrender.com/api/unidades).
+- **Site local usando Clever Cloud:** após `npm ci` e `npx prisma generate`, configure a `DATABASE_URL` remota no `.env`, execute `npm run check:env`, `npm run check:db` e `npm run dev`. **Não execute `setup:local`, `demo:unidades:local` nem seeds** nesse cenário.
+- O MySQL local e o MySQL remoto **não compartilham dados automaticamente**. `/api/unidades` vazio no Render exige cadastrar dados por procedimento administrativo autorizado para o banco remoto, não copiar seeds inseguros.
+- Prepare o ambiente um dia antes e teste cadastro/login, serviços e conexão. Evite mudar `NODE_ENV` para `production` no PC da faculdade: o aplicativo ainda exige validação de cookies, CORS e HTTPS.
+
+### Ambiente e documentação
+
+| Recurso | Atalho |
+| --- | --- |
+| Guia completo (PT-BR) | [Faculdade — Windows e Linux](docs/GUIA-FACULDADE.md) |
+| English | [Classroom Quickstart](docs/QUICKSTART-EN.md) |
+| Español | [Inicio rápido](docs/INICIO-RAPIDO-ES.md) |
+| GitBook | [Plano de atualização editorial](docs/GITBOOK-ATUALIZACAO.md) |
+| Documentação interativa | [Swagger UI (site hospedado)](https://projetoacademiakrypton.onrender.com/api-docs.html) |
+| Verificar configurações | `npm run check:env` — não exibe senhas |
+| Verificar banco | `npm run check:db` — apenas leitura |
+| Testes | `npm test` e `npm run check:syntax` |
+
+**Segurança:** `.env` está no `.gitignore`. Nunca o envie ao GitHub nem divulgue usuário/senha em prints. Guarde um `.env` separado para cada ambiente e, para transportá-lo, prefira um pendrive pessoal criptografado. `GET /api/health` confirma somente o Express; `{"unidades":[]}` significa lista vazia na base consultada.
 
 ---
 
