@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Documentação da API · Krypton Academy</title>
+<link rel="icon" href="/logo.png">
+<link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+<style>
+:root{color-scheme:dark}body{margin:0;background:#101513;color:#f2f7f4;font-family:system-ui,sans-serif}
+header{background:#101513;border-bottom:1px solid #264633;padding:22px max(16px,calc((100vw - 1100px)/2))}
+header h1{margin:0;color:#52eb92;font-size:1.55rem}header p{margin:8px 0;color:#bdcfbf}
+header a{color:#6bf2a1}.notice{margin:20px auto;max-width:1080px;padding:15px;border:1px solid #527052;background:#203127;color:#edf7ee;border-radius:10px}
+#swagger-ui{background:#fff;color:#222;max-width:1150px;margin:auto;border-radius:10px;padding:10px 6px 30px}
+.swagger-ui .topbar{display:none}
+</style>
+</head>
+<body>
+<header><h1>Academia Krypton · Documentação da API</h1><p>Referência interativa para apresentação e desenvolvimento. Rotas documentadas a partir do código atual.</p><a href="/">← Voltar ao site</a></header>
+<div class="notice">Ambiente de homologação. Não digite credenciais reais na interface pública. O endpoint de saúde <code>/api/health</code> não comprova sozinho a conexão com o banco. Algumas rotas exigem autenticação.</div>
+<div id="swagger-ui"><p style="padding:20px">Carregando documentação… Se estiver offline, consulte <a href="/openapi.json">OpenAPI JSON</a>.</p></div>
+<script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+<script>
+if (window.SwaggerUIBundle) {
+  window.ui = SwaggerUIBundle({
+    url:'/openapi.json',dom_id:'#swagger-ui',deepLinking:true,
+    supportedSubmitMethods:['get'], // evita mutacoes acidentais no ambiente compartilhado
+    presets:[SwaggerUIBundle.presets.apis],layout:'BaseLayout'
+  });
+}
+</script>
+</body>
+</html>

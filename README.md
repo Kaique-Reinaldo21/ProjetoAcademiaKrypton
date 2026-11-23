@@ -12,6 +12,33 @@ Cadastro e autenticação de alunos, planos, unidades, agendamentos e recursos a
 
 ---
 
+## 🚀 Continuar na faculdade — Windows e Linux (PT · EN · ES)
+
+> **Base de homologação**: novas rotinas de diagnóstico, guias de instalação e referência das APIs. Painéis novos, filas e integração com catracas estão **planejados**, ainda não implementados.
+
+| Idioma | Guia |
+| --- | --- |
+| 🇧🇷 Português | [Guia da Faculdade](docs/GUIA-FACULDADE.md) |
+| 🇺🇸 English | [Classroom Quickstart](docs/QUICKSTART-EN.md) |
+| 🇪🇸 Español | [Inicio rápido](docs/INICIO-RAPIDO-ES.md) |
+| 📚 GitBook | [Proposta de sincronização editorial](docs/GITBOOK-ATUALIZACAO.md) |
+
+**Documentação interativa da API:** [abrir Swagger UI](https://projetoacademiakrypton.onrender.com/api-docs.html) (após deploy) · [especificação OpenAPI JSON](public/openapi.json). A interface pública deixa métodos de escrita desabilitados para evitar alterações acidentais; ainda assim, rotas GET autenticadas exigem sessão e não devem expor dados privados.
+
+### Diagnóstico rápido (somente leitura)
+```bash
+npm run check:env     # verifica variáveis, sem mostrar senhas
+npm run check:db      # consulta MySQL e conta unidades, usuários e planos
+npm run prisma:status # inspeciona migrations, sem aplicá-las
+npm run check:syntax  # verifica sintaxe dos scripts
+```
+
+**Primeira instalação no Windows (PowerShell):** `npm.cmd ci`, `Copy-Item .env.example .env` (somente se ainda não existir), `npx.cmd prisma generate`, `npm.cmd run check:env`, `npm.cmd run check:db` e `npm.cmd run dev`. Veja os comandos completos nos guias trilíngues.
+
+**Atenção:** `/api/health` apenas confirma resposta do Express; não verifica MySQL. `/api/unidades` com `{"unidades":[]}` significa que não existem unidades no banco consultado. MySQL local e Clever Cloud são bancos separados. Nunca use `prisma migrate reset` ou seed demonstrativo no banco público para resolver isso. O arquivo `.env` continua ignorado pelo Git e deve ficar privado.
+
+---
+
 ## Visão geral
 
 A **Academia Krypton** é uma aplicação web desenvolvida com **Node.js e Express**, utilizando **MySQL** e **Prisma ORM** para persistência de dados. O projeto disponibiliza páginas web servidas pelo próprio back-end, uma API HTTP e recursos associados à gestão de alunos e unidades.
