@@ -12,7 +12,7 @@ Cadastro e autenticação de alunos, planos, unidades, agendamentos e recursos a
 
 ---
 
-## 🚀 Continuar na faculdade — Windows e Linux (PT · EN · ES)
+## Windows e Linux (PT · EN · ES)
 
 > **Base de homologação**: novas rotinas de diagnóstico, guias de instalação e referência das APIs. Painéis novos, filas e integração com catracas estão **planejados**, ainda não implementados.
 
