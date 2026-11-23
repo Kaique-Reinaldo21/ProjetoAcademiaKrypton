@@ -8,7 +8,7 @@
 
 Cadastro e autenticação de alunos, planos, unidades, agendamentos e recursos administrativos.
 
-[Documentação no GitBook](https://academia-krypton.gitbook.io/academia-krypton-docs/) · [Código-fonte](https://github.com/Kaique-Reinaldo21/ProjetoAcademiaKrypton)
+[Site online — homologação](https://projetoacademiakrypton.onrender.com/) · [Documentação no GitBook](https://academia-krypton.gitbook.io/academia-krypton-docs/) · [Código-fonte](https://github.com/Kaique-Reinaldo21/ProjetoAcademiaKrypton)
 
 ---
 
@@ -30,9 +30,80 @@ A **Academia Krypton** é uma aplicação web desenvolvida com **Node.js e Expre
 
 - Rotas de agendamentos e operações administrativas.
 
-- Integração experimental com Mercado Pago para registro de planos, dependente de credenciais próprias.
+- Checkout de assinaturas e verificação de pagamento com Mercado Pago **em homologação**, dependentes de credenciais e testes de integração. Não utilizar cobranças reais antes da validação do fluxo completo.
 
-> **Escopo:** esta documentação descreve a execução local da versão presente no repositório. Recursos planejados e extensões futuras são documentados separadamente no [GitBook](https://academia-krypton.gitbook.io/academia-krypton-docs/).
+> **Escopo:** este README reúne execução local e informações do ambiente online de **homologação/apresentação**. A hospedagem não significa que pagamentos reais ou todas as funcionalidades planejadas estejam prontos para produção. Consulte também o [GitBook](https://academia-krypton.gitbook.io/academia-krypton-docs/).
+
+## Acesso online — homologação e apresentação
+
+A Academia Krypton possui um ambiente público **para testes e demonstrações acadêmicas**:
+
+- **[Abrir o site da Academia Krypton](https://projetoacademiakrypton.onrender.com/)**
+- [Verificar a API (`GET /api/health`)](https://projetoacademiakrypton.onrender.com/api/health)
+- [Consultar unidades (`GET /api/unidades`)](https://projetoacademiakrypton.onrender.com/api/unidades)
+
+| Componente | Serviço | Observação |
+| --- | --- | --- |
+| Site e API Node.js/Express | Render (Web Service) | URL pública HTTPS; plano gratuito pode entrar em repouso após inatividade |
+| Banco de dados MySQL 8 | Clever Cloud (plano DEV) | Banco remoto **separado do MySQL local**; limites e disponibilidade próprios de serviço de desenvolvimento |
+| Estrutura de dados | Prisma Migrate | Migrations versionadas em `prisma/migrations/` |
+| Checkout de assinaturas | Mercado Pago | **Em testes**; não usar pagamentos reais nem contas de clientes |
+
+O deploy e a conexão com MySQL foram observados nos logs de **23/11/2026**; a disponibilidade e os dados devem ser verificados novamente antes de cada demonstração. O Render Free pode demorar a atender a primeira requisição após um período de inatividade.
+
+### Como está organizada a hospedagem
+
+1. O Render executa a aplicação Express, que também serve as páginas HTML/CSS/JavaScript.
+2. A variável `DATABASE_URL`, configurada **somente no painel do Render**, aponta para o MySQL hospedado no Clever Cloud.
+3. O Prisma aplica as migrations disponíveis ao banco remoto; isso **cria/atualiza tabelas**, mas não importa automaticamente os dados do MySQL local.
+4. Alunos e unidades cadastrados pelo ambiente online ficam no banco remoto configurado para esse serviço.
+
+**Importante:** os acessos, segredos e credenciais de produção não devem ser compartilhados no repositório ou enviados por mensagens. Não execute o seed demonstrativo no ambiente público: ele contém contas de teste e senhas previsíveis.
+
+### Configuração de deploy (referência para mantenedores)
+
+Para a configuração de apresentação no Render, os comandos utilizados são:
+
+| Campo | Valor |
+| --- | --- |
+| Build Command | `npm ci --include=dev && npx prisma generate` |
+| Start Command | `npx prisma migrate deploy && npm start` |
+| Health Check Path | `/api/health` |
+
+O comando de início aplica migrations pendentes antes de subir o Express. Essa estratégia é adequada à homologação atual; em produção, recomenda-se executar migrations em uma etapa de release separada, com backup e validação.
+
+Configure as variáveis de ambiente no **painel do serviço** (não no Git):
+
+- `DATABASE_URL`: conexão remota MySQL fornecida pelo Clever Cloud.
+- `JWT_SECRET` e `SESSION_SECRET`: segredos distintos e fortes.
+- `NODE_ENV`: revisar para `production` após validar cookies, HTTPS, CORS e integrações na URL publicada.
+- `mercado_pago_access_token`, `MP_BACK_URL` e `MP_WEBHOOK_SECRET`: somente para testar o checkout. `MP_BACK_URL` deve ser uma URL HTTPS pública terminando em `/checkout/success`.
+
+Os pagamentos **não devem ser feitos com dinheiro real** nessa fase. O webhook exige configuração no Mercado Pago e o processamento financeiro deve ser validado com dados de teste antes de qualquer liberação.
+
+### Verificação do MySQL remoto sem modificar dados
+
+No phpMyAdmin do Clever Cloud, expanda o banco e confira as tabelas. A consulta abaixo é **somente leitura**:
+
+```sql
+SHOW TABLES;
+SELECT migration_name, finished_at, rolled_back_at
+FROM _prisma_migrations
+ORDER BY started_at;
+SELECT COUNT(*) AS total_unidades FROM unidades;
+SELECT COUNT(*) AS total_usuarios FROM usuarios;
+SELECT COUNT(*) AS total_planos FROM planos;
+```
+
+Não envie capturas com senhas, connection strings ou dados pessoais dos alunos. **Não execute `prisma migrate reset`, `prisma db push` nem importe dados reais do banco local para solucionar erros de hospedagem.**
+
+### Antes da apresentação
+
+- Acessar a URL pública e testar cadastro, login, consulta de planos e unidades e painel administrativo com dados fictícios.
+- Validar a conexão e as migrations; preparar unidades e contas fictícias com senhas fortes, sem usar o seed padrão no servidor público.
+- Conferir as integrações com o Mercado Pago **exclusivamente em ambiente de teste**.
+- Preparar uma alternativa local e uma gravação curta para o caso de indisponibilidade da internet ou da hospedagem.
+- Verificar os avisos de `npm audit` sem aplicar atualizações forçadas na véspera da apresentação.
 
 ## Tecnologias
 
@@ -373,6 +444,8 @@ A aplicação lê as variáveis de um arquivo `.env` na raiz do repositório. Us
 | `GOOGLE_CLIENT_SECRET` | Segredo OAuth do Google | Somente para login Google |
 | `GOOGLE_CALLBACK_URL` | Callback OAuth autorizado | Somente para login Google |
 | `mercado_pago_access_token` | Token do Mercado Pago | Somente para a integração de pagamentos |
+| `MP_BACK_URL` | URL HTTPS pública de retorno do checkout (`/checkout/success`) | Para pagamentos em homologação |
+| `MP_WEBHOOK_SECRET` | Validação de notificações assinadas do Mercado Pago | Para webhook em homologação |
 | `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | Campos auxiliares mantidos no template | O Prisma nesta versão utiliza `DATABASE_URL` |
 
 Para o login Google em desenvolvimento, o callback usado pelo servidor, quando não sobrescrito, é:
@@ -406,6 +479,8 @@ O histórico de migrations inclui:
 - `0_init` — criação da estrutura inicial do banco de dados.
 
 - `20261109_sync_schema_atual` — sincronização da estrutura atual, incluindo coordenadas das unidades, identificador dos planos no Mercado Pago e ajustes no modelo de usuários.
+
+- `20261116_checkout_tentativas` — estrutura para tentativas de checkout e vínculo de assinaturas ao fluxo de confirmação do pagamento.
 
 Em uma instalação nova, execute `npx prisma migrate deploy` para aplicar as migrations disponíveis e `npx prisma migrate status` para verificar o estado do banco.
 
@@ -496,6 +571,10 @@ Se um serviço externo não estiver configurado, suas funcionalidades específic
 - A execução local não equivale a uma implantação pronta para produção. Antes de publicar, revise HTTPS, CORS, armazenamento de sessões, credenciais, logs, configuração do provedor OAuth e integração de pagamentos.
 
 - Não inclua arquivos `.env`, chaves, tokens ou dados reais em arquivos ZIP de distribuição.
+
+- **Atenção ao ambiente online:** o deploy inicial registrou `NODE_ENV=development`; revisar a configuração de produção, proteção de sessões, CORS e endpoints financeiros antes de divulgar o sistema para uso real.
+
+- A verificação de dependências no deploy indicou vulnerabilidades; avaliar com `npm audit` em branch de manutenção, sem executar `npm audit fix --force` indiscriminadamente.
 
 ## Documentação e colaboração
 
