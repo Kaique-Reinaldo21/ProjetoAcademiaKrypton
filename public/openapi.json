@@ -1,0 +1,512 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Academia Krypton — API",
+    "version": "1.0.0",
+    "description": "Documentação do ambiente de homologação. Somente endpoints existentes estão relacionados. Algumas operações exigem login e perfil adequado. Pagamentos somente em ambiente de teste."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Mesmo domínio da aplicação"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Infraestrutura",
+      "description": "Verificação simples de disponibilidade."
+    },
+    {
+      "name": "Público",
+      "description": "Consulta pública de unidades."
+    },
+    {
+      "name": "Autenticação"
+    },
+    {
+      "name": "Aluno"
+    },
+    {
+      "name": "Administração"
+    },
+    {
+      "name": "Checkout (testes)"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "token"
+      },
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Mensagem": {
+        "type": "object",
+        "properties": {
+          "mensagem": {
+            "type": "string"
+          }
+        }
+      },
+      "Erro": {
+        "type": "object",
+        "properties": {
+          "erro": {
+            "type": "string"
+          }
+        }
+      },
+      "Unidade": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "nome": {
+            "type": "string"
+          },
+          "endereco": {
+            "type": "string"
+          },
+          "cidade": {
+            "type": "string"
+          },
+          "telefone": {
+            "type": "string",
+            "nullable": true
+          },
+          "horario": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": [
+          "Infraestrutura"
+        ],
+        "summary": "Verificar resposta do servidor",
+        "description": "Retorna status e ambiente. Não consulta o MySQL.",
+        "responses": {
+          "200": {
+            "description": "Resposta JSON (consulte o código para detalhes do esquema)."
+          }
+        }
+      }
+    },
+    "/api/unidades": {
+      "get": {
+        "tags": [
+          "Público"
+        ],
+        "summary": "Listar unidades",
+        "description": "Retorna { unidades: [...] }. Lista vazia indica ausência de unidades cadastradas no banco consultado.",
+        "responses": {
+          "200": {
+            "description": "Lista de unidades.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "unidades": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Unidade"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Fazer login",
+        "description": "Recebe credenciais. Não informe senhas reais na documentação interativa.",
+        "responses": {
+          "200": {
+            "description": "Resposta JSON (consulte o código para detalhes do esquema)."
+          }
+        }
+      }
+    },
+    "/api/auth/cadastro": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Cadastrar aluno",
+        "description": "Cria usuário com validações do backend.",
+        "responses": {
+          "200": {
+            "description": "Resposta JSON (consulte o código para detalhes do esquema)."
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Encerrar sessão",
+        "description": "Encerra a sessão.",
+        "responses": {
+          "200": {
+            "description": "Resposta JSON (consulte o código para detalhes do esquema)."
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Consultar usuário autenticado",
+        "description": "Exige sessão válida.",
+        "responses": {
+          "200": {
+            "description": "Resposta JSON (consulte o código para detalhes do esquema)."
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/auth/google": {
+      "get": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Iniciar login Google",
+        "description": "Redireciona para Google OAuth quando configurado.",
+        "responses": {
+          "200": {
+            "description": "Resposta JSON (consulte o código para detalhes do esquema)."
+          }
+        }
+      }
+    },
+    "/api/usuario/perfil": {
+      "get": {
+        "tags": [
+          "Aluno"
+        ],
+        "summary": "Consultar perfil",
+        "description": "Retorna informações de perfil do aluno autenticado.",
+        "responses": {
+          "200": {
+            "description": "Resposta JSON (consulte o código para detalhes do esquema)."
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/usuario/plano": {
+      "get": {
+        "tags": [
+          "Aluno"
+        ],
+        "summary": "Consultar plano",
+        "description": "Retorna plano e benefícios.",
+        "responses": {
+          "200": {
+            "description": "Resposta JSON (consulte o código para detalhes do esquema)."
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/usuario/unidades": {
+      "get": {
+        "tags": [
+          "Aluno"
+        ],
+        "summary": "Consultar unidades",
+        "description": "Consulta autenticada de unidades.",
+        "responses": {
+          "200": {
+            "description": "Resposta JSON (consulte o código para detalhes do esquema)."
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/usuario/agendamento": {
+      "post": {
+        "tags": [
+          "Aluno"
+        ],
+        "summary": "Criar agendamento",
+        "description": "Atualmente registra tipo (personal/nutricionista), data/hora e observação. Ainda não atribui profissional nem valida conflitos de agenda.",
+        "responses": {
+          "200": {
+            "description": "Resposta JSON (consulte o código para detalhes do esquema)."
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/usuario/agendamentos": {
+      "get": {
+        "tags": [
+          "Aluno"
+        ],
+        "summary": "Listar agendamentos",
+        "description": "Lista os agendamentos do aluno.",
+        "responses": {
+          "200": {
+            "description": "Resposta JSON (consulte o código para detalhes do esquema)."
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/resumo": {
+      "get": {
+        "tags": [
+          "Administração"
+        ],
+        "summary": "Indicadores de gestão",
+        "description": "Exige perfil administrador.",
+        "responses": {
+          "200": {
+            "description": "Resposta JSON (consulte o código para detalhes do esquema)."
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/alunos": {
+      "get": {
+        "tags": [
+          "Administração"
+        ],
+        "summary": "Listar alunos recentes",
+        "description": "Exige perfil administrador.",
+        "responses": {
+          "200": {
+            "description": "Resposta JSON (consulte o código para detalhes do esquema)."
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/logins": {
+      "get": {
+        "tags": [
+          "Administração"
+        ],
+        "summary": "Histórico de acessos",
+        "description": "Exige perfil administrador.",
+        "responses": {
+          "200": {
+            "description": "Resposta JSON (consulte o código para detalhes do esquema)."
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/agendamentos-proximos": {
+      "get": {
+        "tags": [
+          "Administração"
+        ],
+        "summary": "Próximos agendamentos",
+        "description": "Exige perfil administrador.",
+        "responses": {
+          "200": {
+            "description": "Resposta JSON (consulte o código para detalhes do esquema)."
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/vencimentos": {
+      "get": {
+        "tags": [
+          "Administração"
+        ],
+        "summary": "Planos próximos ao vencimento",
+        "description": "Exige perfil administrador.",
+        "responses": {
+          "200": {
+            "description": "Resposta JSON (consulte o código para detalhes do esquema)."
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/cadastros-semana": {
+      "get": {
+        "tags": [
+          "Administração"
+        ],
+        "summary": "Cadastros recentes",
+        "description": "Exige perfil administrador.",
+        "responses": {
+          "200": {
+            "description": "Resposta JSON (consulte o código para detalhes do esquema)."
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/checkout": {
+      "post": {
+        "tags": [
+          "Checkout (testes)"
+        ],
+        "summary": "Iniciar tentativa de checkout",
+        "description": "Fluxo de homologação. Não executar pagamentos reais.",
+        "responses": {
+          "200": {
+            "description": "Resposta JSON (consulte o código para detalhes do esquema)."
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/checkout/status/{tentativaId}": {
+      "get": {
+        "tags": [
+          "Checkout (testes)"
+        ],
+        "summary": "Consultar tentativa",
+        "description": "Status de checkout em ambiente de teste.",
+        "responses": {
+          "200": {
+            "description": "Resposta JSON (consulte o código para detalhes do esquema)."
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tentativaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    }
+  }
+}
