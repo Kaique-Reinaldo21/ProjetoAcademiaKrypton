@@ -11,7 +11,8 @@
     "check:env": "node scripts/check-env.js",
     "check:db": "node scripts/check-db.js",
     "prisma:status": "prisma migrate status",
-    "check:syntax": "node --check server.js && node --check scripts/check-env.js && node --check scripts/check-db.js"
+    "check:syntax": "node --check server.js && node --check scripts/check-env.js && node --check scripts/check-db.js",
+    "test": "node --test tests/documentacao.test.js"
   },
   "dependencies": {
     "@nestjs/jwt": "^12.0.3",
