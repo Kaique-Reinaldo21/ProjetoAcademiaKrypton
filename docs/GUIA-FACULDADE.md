@@ -1,4 +1,17 @@
 # Academia Krypton — Guia de continuidade (PT-BR)
+
+## Atalho para apresentação com MySQL LOCAL
+
+Depois de instalar dependências (`npm ci` ou `npm.cmd ci`), configurar o `.env` para **localhost** e criar o banco/usuário MySQL local, basta:
+
+```powershell
+npm.cmd run check:env
+npm.cmd run setup:local
+npm.cmd run dev
+```
+
+Esse setup executa Prisma Generate, migrations no banco local e insere **apenas unidades fictícias ausentes**. Para adicionar apenas as unidades depois, use `npm.cmd run demo:unidades:local`. O script recusa conexão remota e `NODE_ENV=production`; não rode com túnel de porta local apontando para banco remoto. Na apresentação, também pode abrir diretamente o [site já hospedado](https://projetoacademiakrypton.onrender.com/). Consulte o [README](../README.md) para o fluxo completo.
+
 > **Homologação acadêmica, não produção.** Este guia é complemento ao [README](../README.md). A documentação visual da API fica em `/api-docs.html` e o contrato em `/openapi.json`.
 
 ## 1. Retomar o projeto na faculdade (Windows PowerShell)
