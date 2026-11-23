@@ -152,9 +152,9 @@
   <div class="text-center mt-4">
     <button class="btn-confirmar" id="btn-confirmar" disabled onclick="confirmar()">
       <span id="btn-txt">Selecione um plano</span>
-      <span id="btn-load" style="display:none"><i class="bi bi-arrow-repeat" style="animation:spin .8s linear infinite"></i> Ativando...</span>
+      <span id="btn-load" style="display:none"><i class="bi bi-arrow-repeat" style="animation:spin .8s linear infinite"></i> Abrindo checkout...</span>
     </button>
-    <p class="text-secondary mt-3" style="font-size:.78rem;">Plano ativo por 30 dias. Renovação a qualquer momento.</p>
+    <p class="text-secondary mt-3" style="font-size:.78rem;">Assinatura recorrente mensal. O plano sera atualizado somente apos confirmacao do pagamento.</p>
   </div>
 
 </div>
@@ -166,6 +166,11 @@
   if (usuSalvo) document.getElementById('nav-nome').textContent = usuSalvo.nome;
 
   let planoSelecionado = null;
+  const alterandoPlano = new URLSearchParams(window.location.search).get('alterar') === '1';
+  if (alterandoPlano) {
+    const titulo = document.querySelector('.page-title');
+    if (titulo) titulo.innerHTML = 'Alterar seu <span>Plano</span>';
+  }
 
   // ── Carrega unidades ────────────────────────────────────────────────────────
   async function carregarUnidades() {
@@ -232,23 +237,37 @@
     esconderAlertas();
 
     try {
-      const res  = await fetch('/api/usuario/assinar-plano', {
+      const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          'Authorization': 'Bearer ' + token,
         },
         credentials: 'include',
-        body: JSON.stringify({ tipo: planoSelecionado, unidade_id }),
+        body: JSON.stringify({ tipoPlano: planoSelecionado, unidade_id }),
       });
       const data = await res.json();
-
-      if (!res.ok) { mostrarErro(data.erro); return; }
-
-      mostrarOk('Plano ativado! Redirecionando para o seu dashboard...');
-      setTimeout(() => window.location.href = '/dashboard.html', 1500);
-    } catch {
-      mostrarErro('Sem conexão com o servidor.');
+      if (!res.ok) {
+        mostrarErro(data.erro || 'Não foi possível iniciar o pagamento.');
+        return;
+      }
+      if (!data.url || !data.tentativaId) {
+        mostrarErro('O servidor não retornou o checkout corretamente.');
+        return;
+      }
+      const destino = new URL(data.url);
+      const dominio = destino.hostname.toLowerCase();
+      if (destino.protocol !== 'https:' ||
+          !(dominio === 'mercadopago.com.br' || dominio.endsWith('.mercadopago.com.br') ||
+            dominio === 'mercadopago.com' || dominio.endsWith('.mercadopago.com'))) {
+        mostrarErro('A URL de pagamento recebida é inválida.');
+        return;
+      }
+      localStorage.setItem('checkout_tentativa_id', data.tentativaId);
+      mostrarOk('Redirecionando para o Mercado Pago...');
+      window.location.assign(destino.href);
+    } catch (erro) {
+      mostrarErro('Não foi possível abrir o checkout: ' + erro.message);
     } finally {
       setLoading(false);
     }
