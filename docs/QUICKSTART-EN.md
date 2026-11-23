@@ -1,4 +1,9 @@
 # Academia Krypton — Classroom quickstart (EN)
+
+## Faster local setup (Windows/Linux)
+
+After installing dependencies, creating a local MySQL database/user and editing your `.env` to use **localhost**, run `npm run setup:local` (Windows: `npm.cmd run setup:local`) and then `npm run dev` (Windows: `npm.cmd run dev`). The setup generates Prisma Client, deploys migrations to your **local** database and adds missing fictional demonstration units only. Use `npm run demo:unidades:local` to add just the local units. Both commands reject remote hosts and `NODE_ENV=production`. Do not use an SSH tunnel or forwarded localhost port connected to a remote DB. See the [README](../README.md) for complete instructions.
+
 This repository is an **academic staging environment**, not a production-ready service. For a detailed Portuguese guide, read [GUIA-FACULDADE.md](GUIA-FACULDADE.md).
 
 ## Windows (PowerShell)
