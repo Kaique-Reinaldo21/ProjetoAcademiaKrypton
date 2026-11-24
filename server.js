@@ -13,6 +13,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import prisma from './src/lib/prisma.js';
+import { diagnosticarInicializacao } from './src/lib/diagnostico-inicializacao.js';
 
 // Rotas organizadas no src
 import authRoutes from './src/routes/auth.routes.js';
@@ -268,7 +269,7 @@ async function iniciarServidor() {
     });
   } catch (err) {
     if (err.codigoConfiguracao) console.error('Configuração demo rejeitada:', err.codigoConfiguracao);
-    else console.error('Falha na inicialização ou conexão com banco.');
+    else console.error('Falha na inicialização:', diagnosticarInicializacao(err));
 
     process.exit(1);
   }
