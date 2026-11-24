@@ -1,5 +1,6 @@
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+import { obterCallbackGoogle } from './google-oauth-config.js';
 import prisma from '../lib/prisma.js'; // Utiliza a conexão centralizada que você já possui
 
 const googleConfigurado =
@@ -11,7 +12,7 @@ if (googleConfigurado) {
         new GoogleStrategy({
             clientID: process.env.GOOGLE_CLIENT_ID,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-            callbackURL: process.env.GOOGLE_CALLBACK_URL || "http://localhost:3000/api/auth/google/callback",
+            callbackURL: obterCallbackGoogle(),
         }, async (accessToken, refreshToken, profile, done) => {
             try {
                 // 1 - Extrai os dados (e-mail e nome) que vieram do Google
