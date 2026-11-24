@@ -1,6 +1,16 @@
+<div align="center">
+  <img src="public/logo.png" alt="Logotipo da Academia Krypton" width="140">
+</div>
+
 # Academia Krypton
 
-Aplicação web para gestão de academia, desenvolvida como projeto acadêmico. O repositório contém uma API em Node.js/Express, páginas HTML/CSS/JavaScript e persistência em MySQL com Prisma ORM.
+## Apresentação
+
+A Academia Krypton é um projeto acadêmico de desenvolvimento de sistemas voltado à gestão de academias. A aplicação reúne uma interface web e uma API para operações como cadastro de usuários, consulta de planos e unidades, agendamentos e acompanhamento administrativo. O sistema utiliza Node.js, Express, MySQL e Prisma ORM.
+
+## Objetivo do projeto
+
+O objetivo é centralizar e simplificar os processos de cadastro, matrícula e atendimento, reduzindo a dependência de procedimentos presenciais e facilitando o acesso dos alunos às informações da academia. A evolução planejada inclui ferramentas de gestão para recepcionistas, personal trainers e nutricionistas, além de recursos de controle de acesso. Essas funcionalidades futuras não devem ser confundidas com as já implementadas.
 
 **Estado do projeto:** ambiente de desenvolvimento e homologação. O código não deve ser tratado como pronto para operação comercial ou cobrança real.
 
