@@ -1,0 +1,23 @@
+CREATE TABLE `transacoes_pagamento` (
+  `id` INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
+  `mp_payment_id` VARCHAR(100) NOT NULL,
+  `mp_preapproval_id` VARCHAR(100) NOT NULL,
+  `usuario_id` INTEGER UNSIGNED NOT NULL,
+  `tentativa_id` VARCHAR(36) NOT NULL,
+  `plano_id` INTEGER UNSIGNED NOT NULL,
+  `valor_centavos` INTEGER UNSIGNED NOT NULL,
+  `moeda` CHAR(3) NOT NULL,
+  `status` VARCHAR(32) NOT NULL,
+  `data_fatura` DATETIME(3) NULL,
+  `criado_em` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `atualizado_em` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `transacoes_pagamento_mp_payment_id_key` (`mp_payment_id`),
+  INDEX `transacoes_pagamento_mp_preapproval_id_idx` (`mp_preapproval_id`),
+  INDEX `transacoes_pagamento_usuario_id_idx` (`usuario_id`),
+  INDEX `transacoes_pagamento_tentativa_id_idx` (`tentativa_id`),
+  INDEX `transacoes_pagamento_plano_id_idx` (`plano_id`),
+  CONSTRAINT `transacoes_pagamento_usuario_id_fkey` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `transacoes_pagamento_tentativa_id_fkey` FOREIGN KEY (`tentativa_id`) REFERENCES `checkout_tentativas` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `transacoes_pagamento_plano_id_fkey` FOREIGN KEY (`plano_id`) REFERENCES `planos` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

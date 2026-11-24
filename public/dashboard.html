@@ -89,10 +89,16 @@
 
   <div id="aviso-checkout" class="card-dash mb-4" style="display:none" role="status">
     <p class="mb-2 fw-bold" id="checkout-status-texto">Verificando pagamento...</p>
+    <a id="retomar-checkout-demo" class="btn-assinar" style="display:none" href="#">Retomar simulação</a>
     <button id="btn-verificar-pagamento" type="button" class="btn-assinar" onclick="verificarPagamento()">
       <i class="bi bi-arrow-clockwise"></i> Verificar pagamento
     </button>
   </div>
+
+  <section class="card-dash mb-4" id="historico-demo" style="display:none">
+    <h2 style="font-size:1.1rem">Histórico de transações</h2>
+    <div id="historico-transacoes"></div>
+  </section>
 
   <!-- Skeleton -->
   <div id="sk-loading" class="row g-4">
@@ -213,6 +219,28 @@
 </div>
 
 <script>
+async function carregarHistorico() {
+  try {
+    const res = await fetch('/api/checkout/demo/historico', { headers: { Authorization: 'Bearer ' + localStorage.getItem('token') }, credentials: 'include' });
+    if (!res.ok) return;
+    const transacoes = await res.json();
+    const section = document.getElementById('historico-demo');
+    const lista = document.getElementById('historico-transacoes');
+    section.style.display = '';
+    const aviso = document.createElement('p');
+    aviso.textContent = 'DEMONSTRAÇÃO — pagamentos e planos deste ambiente são simulados.';
+    aviso.style.color = '#ffdb73';
+    lista.textContent = '';
+    lista.appendChild(aviso);
+    if (!transacoes.length) { const vazio = document.createElement('p'); vazio.textContent = 'Nenhuma transação registrada.'; lista.appendChild(vazio); }
+    for (const t of transacoes) {
+      const item = document.createElement('p');
+      item.textContent = (t.origem === 'demo' ? 'SIMULADA' : 'Mercado Pago') + ' — ' + t.tentativa.tipo + ' — ' + (t.valor_centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) + ' — ' + ({ approved: 'aprovada', pending: 'pendente', rejected: 'recusada' }[t.status] || t.status);
+      lista.appendChild(item);
+    }
+  } catch (_) { /* Histórico indisponível. */ }
+}
+carregarHistorico();
 const token    = localStorage.getItem('token');
 const usuSalvo = JSON.parse(localStorage.getItem('usuario') || 'null');
 if (!token) window.location.href = '/login.html';
@@ -411,7 +439,7 @@ async function verificarPagamento() {
   const texto = document.getElementById('checkout-status-texto');
   const botao = document.getElementById('btn-verificar-pagamento');
   aviso.style.display = '';
-  texto.textContent = 'Consultando confirmação no Mercado Pago...';
+  texto.textContent = 'Consultando situação do checkout...';
   botao.disabled = true;
   try {
     const resposta = await fetch('/api/checkout/status/' + encodeURIComponent(id), {
@@ -422,11 +450,20 @@ async function verificarPagamento() {
     if (!resposta.ok) throw new Error(dados.erro || 'Não foi possível verificar o pagamento.');
     if (dados.status === 'confirmado') {
       localStorage.removeItem('checkout_tentativa_id');
-      window.location.replace('/dashboard.html?pagamento=aprovado');
+      window.location.replace('/dashboard.html?pagamento=' + (dados.origem === 'demo' ? 'simulado' : 'aprovado'));
       return;
     }
     if (dados.status === 'aguardando' || dados.status === 'pendente') {
-      texto.textContent = 'Pagamento pendente. Seu plano atual continua válido enquanto aguardamos a confirmação.';
+      texto.textContent = dados.origem === 'demo' ? 'Pagamento simulado pendente. Seu plano atual continua válido.' : 'Pagamento pendente. Seu plano atual continua válido enquanto aguardamos a confirmação.';
+      if (dados.origem === 'demo') {
+        const link = document.getElementById('retomar-checkout-demo');
+        link.href = '/checkout-demo.html?tentativa=' + encodeURIComponent(id);
+        link.style.display = '';
+      }
+    } else if (dados.origem === 'demo' && dados.status === 'recusado') {
+      localStorage.removeItem('checkout_tentativa_id');
+      texto.textContent = 'Pagamento simulado recusado. Nenhum valor foi cobrado.';
+      botao.style.display = 'none';
     } else {
       texto.textContent = 'Não foi possível concluir este checkout (' + dados.status + '). Entre em contato com o suporte.';
     }
@@ -439,10 +476,10 @@ async function verificarPagamento() {
 
 if (localStorage.getItem('checkout_tentativa_id')) {
   verificarPagamento();
-} else if (new URLSearchParams(window.location.search).get('pagamento') === 'aprovado') {
+} else if (['aprovado', 'simulado'].includes(new URLSearchParams(window.location.search).get('pagamento'))) {
   const aviso = document.getElementById('aviso-checkout');
   aviso.style.display = '';
-  document.getElementById('checkout-status-texto').textContent = 'Pagamento confirmado! Seu plano foi atualizado.';
+  document.getElementById('checkout-status-texto').textContent = new URLSearchParams(window.location.search).get('pagamento') === 'simulado' ? 'Pagamento simulado aprovado. Nenhum valor foi cobrado; seu plano foi atualizado.' : 'Pagamento confirmado! Seu plano foi atualizado.';
   document.getElementById('btn-verificar-pagamento').style.display = 'none';
 }
 

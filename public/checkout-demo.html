@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Checkout de demonstração</title>
+<style>body{font-family:Arial,sans-serif;background:#10151d;color:#fff;margin:0;padding:2rem}main{max-width:34rem;margin:3rem auto;padding:2rem;background:#202b37;border-radius:12px}button,a{display:inline-block;padding:.8rem;margin:.35rem;border:0;border-radius:6px;cursor:pointer}button{background:#2dff7a;color:#111;font-weight:bold}a{color:#fff}strong{color:#ffdb73}</style></head>
+<body><main><h1>Checkout de demonstração</h1><p><strong>PAGAMENTO SIMULADO — NENHUM VALOR SERÁ COBRADO.</strong></p><p id="detalhes">Carregando...</p><p id="status" role="status"></p><div><button data-acao="aprovar">Simular aprovação</button><button data-acao="pendente">Manter pendente</button><button data-acao="recusar">Simular recusa</button></div><p><a href="/dashboard.html">Voltar ao dashboard</a></p></main>
+<script>
+const id = new URLSearchParams(location.search).get('tentativa');
+const token = localStorage.getItem('token');
+const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) };
+async function carregar() {
+  const response = await fetch('/api/checkout/demo/' + encodeURIComponent(id || ''), { headers, credentials: 'include' });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.erro || 'Checkout indisponível.');
+  document.getElementById('detalhes').textContent = 'Plano ' + data.plano + ' — ' + (data.valor_centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  document.getElementById('status').textContent = 'Situação: ' + ({ pending: 'pendente', approved: 'aprovada', rejected: 'recusada' }[data.status] || data.status);
+  document.querySelectorAll('button').forEach(b => { b.disabled = data.status !== 'pending'; });
+}
+document.querySelectorAll('button').forEach(button => button.addEventListener('click', async () => {
+  document.querySelectorAll('button').forEach(b => { b.disabled = true; });
+  try {
+    const response = await fetch('/api/checkout/demo/' + encodeURIComponent(id || ''), { method: 'POST', headers, credentials: 'include', body: JSON.stringify({ acao: button.dataset.acao }) });
+    const data = await response.json(); if (!response.ok) throw new Error(data.erro || 'Não foi possível simular.');
+    await carregar();
+  } catch (error) { document.getElementById('status').textContent = error.message; }
+}));
+carregar().catch(error => { document.getElementById('detalhes').textContent = error.message; document.querySelectorAll('button').forEach(b => { b.disabled = true; }); });
+</script></body></html>

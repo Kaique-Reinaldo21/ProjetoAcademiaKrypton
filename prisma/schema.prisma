@@ -40,6 +40,7 @@ model planos {
   vencimento DateTime?   @db.Date
   updated_at DateTime?   @default(now()) @db.DateTime(0)
   usuarios   usuarios    @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "planos_ibfk_1")
+  transacoes_pagamento transacoes_pagamento[]
   mp_plan_id String?     @db.VarChar(100)
   mp_preapproval_id String? @unique @db.VarChar(100)
 
@@ -69,6 +70,7 @@ model usuarios {
   agendamentos     agendamentos[]
   historico_logins historico_logins[]
   planos           planos[]
+  transacoes_pagamento transacoes_pagamento[]
   checkout_tentativas checkout_tentativas[]
 }
 
@@ -100,6 +102,31 @@ model checkout_tentativas {
   created_at        DateTime @default(now()) @db.DateTime(0)
   updated_at        DateTime @updatedAt @db.DateTime(0)
   usuarios          usuarios @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  transacoes_pagamento transacoes_pagamento[]
 
   @@index([usuario_id, status])
+}
+
+model transacoes_pagamento {
+  id                Int      @id @default(autoincrement()) @db.UnsignedInt
+  mp_payment_id     String   @unique @db.VarChar(100)
+  mp_preapproval_id String?  @db.VarChar(100)
+  usuario_id        Int      @db.UnsignedInt
+  tentativa_id      String   @db.VarChar(36)
+  plano_id          Int?     @db.UnsignedInt
+  valor_centavos    Int      @db.UnsignedInt
+  moeda             String   @db.Char(3)
+  status            String   @db.VarChar(32)
+  origem            String   @default("mercadopago") @db.VarChar(16)
+  data_fatura       DateTime? @db.DateTime(3)
+  criado_em         DateTime @default(now()) @db.DateTime(3)
+  atualizado_em     DateTime @default(now()) @db.DateTime(3)
+  usuarios          usuarios @relation(fields: [usuario_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  tentativa         checkout_tentativas @relation(fields: [tentativa_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  plano             planos? @relation(fields: [plano_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([mp_preapproval_id])
+  @@index([usuario_id])
+  @@index([tentativa_id])
+  @@index([plano_id])
 }
