@@ -1,6 +1,9 @@
 import './setup-isolamento.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { validarModoDemo, validarArquivoCaDemo, criarServicoDemo } from '../src/services/checkout-demo.service.js';
 
 const env = { NODE_ENV: 'development', PAYMENT_MODE: 'demo', DATABASE_URL: 'mysql://demo:senha@127.0.0.1:3307/academia_kripton_checkout_test' };
@@ -83,8 +86,26 @@ test('somente o par Clever Cloud aprovado é aceito e o schema principal é semp
 
 test('diagnóstico não expõe dados da URL e identifica causa de configuração', () => {
   const base = { NODE_ENV: 'production', PAYMENT_MODE: 'demo', DEMO_DEPLOYMENT: 'academico_isolado', DEMO_DATABASE_HOST: 'booqcxfmlvclpjzw2uce-mysql.services.clever-cloud.com', DEMO_DATABASE_NAME: 'booqcxfmlvclpjzw2uce', DATABASE_URL: 'mysql://usuario:segredo@booqcxfmlvclpjzw2uce-mysql.services.clever-cloud.com:3306/booqcxfmlvclpjzw2uce?sslcert=ca.pem&sslaccept=strict' };
-  for (const [alteracao, codigo] of [[{ NODE_ENV: 'test' }, 'NODE_ENV_INVALIDO'], [{ PAYMENT_MODE: 'real' }, 'PAYMENT_MODE_INVALIDO'], [{ DEMO_DEPLOYMENT: '' }, 'DEMO_DEPLOYMENT_INVALIDO'], [{ DEMO_DATABASE_HOST: 'errado' }, 'HOST_INVALIDO'], [{ DEMO_DATABASE_NAME: 'outro' }, 'SCHEMA_INVALIDO'], [{ DATABASE_URL: base.DATABASE_URL.replace(':3306/', ':3307/') }, 'DESTINO_OU_PORTA_NAO_APROVADO'], [{ DATABASE_URL: base.DATABASE_URL.replace('sslcert=ca.pem&', '') }, 'SSLCERT_AUSENTE_OU_DUPLICADO'], [{ DATABASE_URL: base.DATABASE_URL.replace('strict', 'accept_invalid_certs') }, 'SSLACCEPT_INVALIDO'], [{ DATABASE_URL: base.DATABASE_URL + '&socket=segredo' }, 'PARAMETRO_NAO_PERMITIDO']]) {
+  for (const [alteracao, codigo] of [[{ NODE_ENV: 'test' }, 'NODE_ENV_INVALIDO'], [{ PAYMENT_MODE: 'real' }, 'PAYMENT_MODE_INVALIDO'], [{ DEMO_DEPLOYMENT: '' }, 'DEMO_DEPLOYMENT_INVALIDO'], [{ DEMO_DATABASE_HOST: 'errado' }, 'HOST_INVALIDO'], [{ DEMO_DATABASE_NAME: 'outro' }, 'SCHEMA_INVALIDO'], [{ DATABASE_URL: base.DATABASE_URL.replace(':3306/', ':3307/') }, 'DESTINO_OU_PORTA_NAO_APROVADO'], [{ DATABASE_URL: base.DATABASE_URL.replace('sslcert=ca.pem', 'sslcert=') }, 'SSLCERT_VAZIO_OU_DUPLICADO'], [{ DATABASE_URL: base.DATABASE_URL.replace('strict', 'accept_invalid_certs') }, 'SSLACCEPT_INVALIDO'], [{ DATABASE_URL: base.DATABASE_URL + '&socket=segredo' }, 'PARAMETRO_NAO_PERMITIDO']]) {
     assert.throws(() => validarModoDemo({ ...base, ...alteracao }), erro => erro.codigoConfiguracao === codigo && !String(erro.stack).includes('segredo'));
   }
   assert.throws(() => validarArquivoCaDemo(base), erro => erro.codigoConfiguracao === 'CA_INACESSIVEL' && !String(erro.stack).includes('segredo'));
+});
+
+
+test('TLS estrito aceita CA do sistema ou arquivo explícito, recusando duplicatas', t => {
+  const host = 'booqcxfmlvclpjzw2uce-mysql.services.clever-cloud.com';
+  const banco = 'booqcxfmlvclpjzw2uce';
+  const pasta = mkdtempSync(path.join(tmpdir(), 'checkout-ca-'));
+  t.after(() => rmSync(pasta, { recursive: true, force: true }));
+  const arquivo = path.join(pasta, 'ca.pem');
+  writeFileSync(arquivo, 'conteúdo fictício: confiança é verificada pelo Prisma na conexão');
+  const env = { NODE_ENV: 'production', PAYMENT_MODE: 'demo', DEMO_DEPLOYMENT: 'academico_isolado', DEMO_DATABASE_HOST: host, DEMO_DATABASE_NAME: banco };
+  const base = `mysql://u:p@${host}:3306/${banco}?sslaccept=strict`;
+  for (const url of [base, base + '&sslcert=' + encodeURIComponent(arquivo)]) {
+    const atual = { ...env, DATABASE_URL: url }; validarModoDemo(atual); validarArquivoCaDemo(atual);
+  }
+  for (const url of [base + '&sslaccept=strict', base + '&sslcert=', base + '&sslcert=a&sslcert=b', base.replace('strict', 'accept_invalid_certs')]) {
+    assert.throws(() => validarModoDemo({ ...env, DATABASE_URL: url }));
+  }
 });

@@ -23,7 +23,7 @@ export function validarModoDemo(env = process.env, destinosAprovados = DESTINOS_
   if (!destinosAprovados.some(destino => destino.host === host && destino.banco === banco && destino.porta === url.port)) return negar('DESTINO_OU_PORTA_NAO_APROVADO');
   const params = url.searchParams;
   if ([...params.keys()].some(p => !['sslcert', 'sslaccept'].includes(p))) return negar('PARAMETRO_NAO_PERMITIDO');
-  if (!params.get('sslcert') || params.getAll('sslcert').length !== 1) return negar('SSLCERT_AUSENTE_OU_DUPLICADO');
+  if (params.getAll('sslcert').length > 1 || (params.has('sslcert') && !params.get('sslcert'))) return negar('SSLCERT_VAZIO_OU_DUPLICADO');
   if (params.get('sslaccept') !== 'strict' || params.getAll('sslaccept').length !== 1) return negar('SSLACCEPT_INVALIDO');
 }
 
@@ -31,6 +31,7 @@ export function validarModoDemo(env = process.env, destinosAprovados = DESTINOS_
 export function validarArquivoCaDemo(env = process.env) {
   if (env.NODE_ENV !== 'production') return;
   const caminho = new URL(env.DATABASE_URL).searchParams.get('sslcert');
+  if (caminho === null) return;
   try {
     const arquivo = path.resolve(process.cwd(), 'prisma', caminho);
     if (!statSync(arquivo).isFile()) throw new Error('CA inválida');
