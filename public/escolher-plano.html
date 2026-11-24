@@ -255,16 +255,17 @@
         mostrarErro('O servidor não retornou o checkout corretamente.');
         return;
       }
-      const destino = new URL(data.url);
+      const destino = new URL(data.url, window.location.origin);
       const dominio = destino.hostname.toLowerCase();
-      if (destino.protocol !== 'https:' ||
+      const demonstracao = destino.origin === window.location.origin && destino.pathname === '/checkout-demo.html';
+      if (!demonstracao && (destino.protocol !== 'https:' ||
           !(dominio === 'mercadopago.com.br' || dominio.endsWith('.mercadopago.com.br') ||
-            dominio === 'mercadopago.com' || dominio.endsWith('.mercadopago.com'))) {
+            dominio === 'mercadopago.com' || dominio.endsWith('.mercadopago.com')))) {
         mostrarErro('A URL de pagamento recebida é inválida.');
         return;
       }
       localStorage.setItem('checkout_tentativa_id', data.tentativaId);
-      mostrarOk('Redirecionando para o Mercado Pago...');
+      mostrarOk(demonstracao ? 'Abrindo demonstração...' : 'Redirecionando para o Mercado Pago...');
       window.location.assign(destino.href);
     } catch (erro) {
       mostrarErro('Não foi possível abrir o checkout: ' + erro.message);

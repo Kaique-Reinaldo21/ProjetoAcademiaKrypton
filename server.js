@@ -13,6 +13,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import prisma from './src/lib/prisma.js';
+import { diagnosticarInicializacao } from './src/lib/diagnostico-inicializacao.js';
 
 // Rotas organizadas no src
 import authRoutes from './src/routes/auth.routes.js';
@@ -33,12 +34,14 @@ import { authMiddleware as isAuthenticated } from './src/middleware/authMiddlewa
 // Rota de Assinatura - Mercado Pago
 import { consultarFatura } from './src/gatewary/mercadopago.js';
 import { confirmarCheckoutPorAssinatura } from './src/services/checkout.service.js';
+import { validarModoDemo, validarArquivoCaDemo } from './src/services/checkout-demo.service.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 
 
@@ -108,6 +111,7 @@ app.use('/api/checkout', checkoutRoutes);
 
 // Retorno do navegador: consulta o provedor; não considera a query como prova de pagamento.
 app.get('/checkout/success', async (req, res) => {
+  if (process.env.PAYMENT_MODE === 'demo') return res.redirect('/dashboard.html');
   try {
     const id = req.query.preapproval_id;
     if (typeof id !== 'string') return res.redirect('/dashboard.html?pagamento=pendente');
@@ -139,6 +143,7 @@ function validarAssinaturaWebhook(req) {
 
 // Webhook assinado: o payload é somente uma indicação para consultar a API do Mercado Pago.
 app.post('/api/webhooks/mercadopago', async (req, res) => {
+  if (process.env.PAYMENT_MODE === 'demo') return res.sendStatus(404);
   if (!validarAssinaturaWebhook(req)) return res.sendStatus(401);
   try {
     const tipo = req.body?.type || req.query.type || req.body?.topic;
@@ -246,6 +251,7 @@ app.use((err, req, res, next) => {
 // ─────────────────────────────────────────
 async function iniciarServidor() {
   try {
+    if (process.env.PAYMENT_MODE === 'demo') { validarModoDemo(); validarArquivoCaDemo(); }
     await prisma.$connect();
 
     app.listen(PORT, () => {
@@ -262,10 +268,8 @@ async function iniciarServidor() {
       );
     });
   } catch (err) {
-    console.error(
-      'Erro ao conectar ao banco de dados:',
-      err
-    );
+    if (err.codigoConfiguracao) console.error('Configuração demo rejeitada:', err.codigoConfiguracao);
+    else console.error('Falha na inicialização:', diagnosticarInicializacao(err));
 
     process.exit(1);
   }

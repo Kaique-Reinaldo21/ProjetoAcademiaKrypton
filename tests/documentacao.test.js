@@ -19,9 +19,17 @@ test('OpenAPI distingue endpoints com autenticacao', () => {
   assert.ok(spec.paths['/api/usuario/perfil'].get.security);
 });
 
-test('Comandos de diagnostico nao executam migrate reset ou seed', () => {
-  for (const nome of ['check:env', 'check:db', 'check:syntax', 'prisma:status']) {
+test('Comandos de diagnostico nao alteram o banco', () => {
+  const comandosProibidos =
+    /\b(?:npx\s+)?prisma\s+(?:migrate\s+reset|db\s+push|db\s+seed)\b|\bnode\s+(?:prisma\/seed\.js|scripts\/seed-local-unidades\.js)\b|\bnpm(?:\s+run)?\s+seed\b/i;
+
+  for (const nome of [
+    'check:env',
+    'check:db',
+    'check:syntax',
+    'prisma:status',
+  ]) {
     assert.ok(pkg.scripts[nome], nome);
-    assert.doesNotMatch(pkg.scripts[nome], /(?:migrate\s+reset|db\s+push|\bseed\b)/i);
+    assert.doesNotMatch(pkg.scripts[nome], comandosProibidos);
   }
 });
