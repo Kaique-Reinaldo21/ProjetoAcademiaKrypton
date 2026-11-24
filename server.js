@@ -33,7 +33,7 @@ import { authMiddleware as isAuthenticated } from './src/middleware/authMiddlewa
 // Rota de Assinatura - Mercado Pago
 import { consultarFatura } from './src/gatewary/mercadopago.js';
 import { confirmarCheckoutPorAssinatura } from './src/services/checkout.service.js';
-import { validarModoDemo } from './src/services/checkout-demo.service.js';
+import { validarModoDemo, validarArquivoCaDemo } from './src/services/checkout-demo.service.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -250,7 +250,7 @@ app.use((err, req, res, next) => {
 // ─────────────────────────────────────────
 async function iniciarServidor() {
   try {
-    if (process.env.PAYMENT_MODE === 'demo') validarModoDemo();
+    if (process.env.PAYMENT_MODE === 'demo') { validarModoDemo(); validarArquivoCaDemo(); }
     await prisma.$connect();
 
     app.listen(PORT, () => {
@@ -267,10 +267,8 @@ async function iniciarServidor() {
       );
     });
   } catch (err) {
-    console.error(
-      'Erro ao conectar ao banco de dados:',
-      err
-    );
+    if (err.codigoConfiguracao) console.error('Configuração demo rejeitada:', err.codigoConfiguracao);
+    else console.error('Falha na inicialização ou conexão com banco.');
 
     process.exit(1);
   }

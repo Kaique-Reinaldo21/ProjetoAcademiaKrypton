@@ -1,27 +1,42 @@
 import { randomUUID } from 'node:crypto';
+import { accessSync, constants, statSync } from 'node:fs';
+import path from 'node:path';
 import prisma from '../lib/prisma.js';
 import { ErroCheckout } from './checkout.service.js';
 import { DESTINOS_DEMO_APROVADOS } from '../config/demo-hosts.js';
 
 const planos = { basico: { nome: 'Básico', centavos: 8900 }, pro: { nome: 'Pro', centavos: 14900 }, elite: { nome: 'Elite', centavos: 24900 } };
 export function validarModoDemo(env = process.env, destinosAprovados = DESTINOS_DEMO_APROVADOS) {
-  const negar = () => { throw new ErroCheckout('Demonstração indisponível neste ambiente.', 403); };
+  const negar = codigo => { const erro = new ErroCheckout('Demonstração indisponível neste ambiente.', 403); erro.codigoConfiguracao = codigo; throw erro; };
+  if (env.PAYMENT_MODE !== 'demo') return negar('PAYMENT_MODE_INVALIDO');
   let url;
-  try { url = new URL(env.DATABASE_URL); } catch { return negar(); }
-  if (env.PAYMENT_MODE !== 'demo' || url.protocol !== 'mysql:' || url.hash) return negar();
+  try { url = new URL(env.DATABASE_URL); } catch { return negar('DATABASE_URL_INVALIDA'); }
+  if (url.protocol !== 'mysql:' || url.hash) return negar('DATABASE_URL_PROTOCOLO_OU_FRAGMENTO');
   if (env.NODE_ENV === 'development' && url.hostname === '127.0.0.1' && url.port === '3307' && url.pathname === '/academia_kripton_checkout_test' && !url.search) return;
+  if (env.NODE_ENV !== 'production') return negar('NODE_ENV_INVALIDO');
+  if (env.DEMO_DEPLOYMENT !== 'academico_isolado') return negar('DEMO_DEPLOYMENT_INVALIDO');
   const host = url.hostname.toLowerCase();
   const permitido = (env.DEMO_DATABASE_HOST || '').toLowerCase();
   const banco = env.DEMO_DATABASE_NAME || '';
+  if (!permitido || host !== permitido || host === 'localhost' || host === '127.0.0.1' || !/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(host) || !host.includes('.')) return negar('HOST_INVALIDO');
+  if (banco === 'b7ah1lmgd5imdjqu51eq' || !/^[A-Za-z0-9_]{1,64}$/.test(banco) || url.pathname !== '/' + banco) return negar('SCHEMA_INVALIDO');
+  if (!destinosAprovados.some(destino => destino.host === host && destino.banco === banco && destino.porta === url.port)) return negar('DESTINO_OU_PORTA_NAO_APROVADO');
   const params = url.searchParams;
-  const parametros = [...params.keys()];
-  if (env.NODE_ENV !== 'production' || env.DEMO_DEPLOYMENT !== 'academico_isolado' ||
-      !permitido || host !== permitido || !destinosAprovados.some(destino => destino.host === host && destino.banco === banco && destino.porta === url.port) || host === 'localhost' || host === '127.0.0.1' ||
-      !/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(host) || !host.includes('.') ||
-      banco === 'b7ah1lmgd5imdjqu51eq' || !/^[A-Za-z0-9_]{1,64}$/.test(banco) || url.pathname !== '/' + banco ||
-      !params.get('sslcert') || params.getAll('sslcert').length !== 1 ||
-      params.get('sslaccept') !== 'strict' || params.getAll('sslaccept').length !== 1 ||
-      parametros.some(p => !['sslcert', 'sslaccept'].includes(p))) return negar();
+  if ([...params.keys()].some(p => !['sslcert', 'sslaccept'].includes(p))) return negar('PARAMETRO_NAO_PERMITIDO');
+  if (!params.get('sslcert') || params.getAll('sslcert').length !== 1) return negar('SSLCERT_AUSENTE_OU_DUPLICADO');
+  if (params.get('sslaccept') !== 'strict' || params.getAll('sslaccept').length !== 1) return negar('SSLACCEPT_INVALIDO');
+}
+
+// Prisma resolve caminhos relativos de certificado a partir do diretório prisma/.
+export function validarArquivoCaDemo(env = process.env) {
+  if (env.NODE_ENV !== 'production') return;
+  const caminho = new URL(env.DATABASE_URL).searchParams.get('sslcert');
+  try {
+    const arquivo = path.resolve(process.cwd(), 'prisma', caminho);
+    if (!statSync(arquivo).isFile()) throw new Error('CA inválida');
+    accessSync(arquivo, constants.R_OK);
+  }
+  catch { const erro = new ErroCheckout('Demonstração indisponível neste ambiente.', 403); erro.codigoConfiguracao = 'CA_INACESSIVEL'; throw erro; }
 }
 
 export function criarServicoDemo(db = prisma, validar = validarModoDemo) {
