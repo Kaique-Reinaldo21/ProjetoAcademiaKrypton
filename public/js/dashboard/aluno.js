@@ -143,6 +143,12 @@ async function encerrar(botao) {
 }
 
 document.addEventListener('click', evento => {
+  const foto = evento.target.closest('a[href="#configuracoes/foto"]');
+  if (foto && location.hash === foto.hash && !evento.defaultPrevented &&
+      !evento.ctrlKey && !evento.metaKey && !evento.shiftKey && !evento.altKey) {
+    evento.preventDefault();
+    conteudo.querySelector('[data-foto]')?.click();
+  }
   const sair = evento.target.closest('[data-sair]');
   if (sair) encerrar(sair);
   const link = evento.target.closest('.kd-nav a, .kd-marca');
