@@ -10,7 +10,9 @@ async function confirmarQuandoVisivel() {
     const resposta = await fetch('/checkout-qr', {
       method: 'POST',
       credentials: 'omit',
-      referrerPolicy: 'no-referrer',
+      mode: 'same-origin',
+      redirect: 'error',
+      referrerPolicy: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tentativa: dadosQr.get('tentativa'), token: dadosQr.get('token') }),
     });

@@ -21,7 +21,15 @@ let encaminhando = false;
 let ocupada = false;
 
 async function api(sufixo = '', opcoes = {}) {
-  const resposta = await fetch(endpoint + sufixo, { headers, credentials: 'include', cache: 'no-store', ...opcoes });
+  const resposta = await fetch(endpoint + sufixo, {
+    headers,
+    credentials: 'include',
+    mode: 'same-origin',
+    redirect: 'error',
+    referrerPolicy: 'same-origin',
+    cache: 'no-store',
+    ...opcoes,
+  });
   const dados = await resposta.json();
   if (!resposta.ok) throw new Error(dados.erro || 'Checkout indisponível.');
   return dados;
