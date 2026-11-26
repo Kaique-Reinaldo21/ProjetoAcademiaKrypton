@@ -24,7 +24,7 @@ O CSS específico do aluno fica em `dashboard-aluno.css`. A edição de perfil, 
 - Agendamentos com consulta por aluno e criação para Elite ativo. Plano vencido é recusado também no backend.
 - Configurações com edição do nome, foto persistente e acesso às telas existentes de senha e vínculo Google. E-mail e nascimento ficam somente para leitura. O encerramento usa a rota existente.
 
-Treinos, treinos extras, avaliações, progresso, nutrição e arquivos têm seções independentes. Frequência e gráficos dependem de dados de presença e medições que ainda não existem. Os atalhos para agendamentos de personal e nutrição dependem do Elite ativo.
+Treinos permite registrar ou desfazer a conclusão do dia. O calendário semanal e Meu progresso consultam esses registros. A evolução e o histórico exibem oito semanas. Peso, medidas e avaliações aguardam integração. Nutrição organiza os materiais ainda indisponíveis e libera o atalho para agendamento com Elite ativo.
 
 ## API e persistência
 
@@ -37,3 +37,9 @@ Reutiliza `/api/auth/me`, `/api/auth/logout`, `/api/usuario/perfil`, `/api/usuar
 - `DELETE /api/usuario/perfil/foto` remove a foto da própria conta. As mutações exigem sessão de aluno e origem do próprio site.
 
 A migration aditiva `20261130_foto_perfil` cria a tabela `fotos_perfil` com chave por usuário. A exclusão da conta remove sua foto por relacionamento. O armazenamento não usa o disco do Render. Aplique a migration somente no destino autorizado durante a publicação do painel.
+
+A migration aditiva `20261201_treinos_concluidos` cria o registro de conclusão com chave composta por aluno e data. A data civil é calculada pelo servidor no fuso America/Sao_Paulo. O registro é autodeclarado e poderá ser associado a uma ficha prescrita em uma evolução futura.
+
+- `GET /api/usuario/treinos?semanas=0` informa a semana solicitada, a data atual e até oito semanas de conclusões.
+- `PUT /api/usuario/treinos/hoje` registra o treino concluído. Repetições para a mesma data preservam o primeiro registro.
+- `DELETE /api/usuario/treinos/hoje` desfaz a conclusão do dia. As mutações são autenticadas e exigem a origem do próprio site.

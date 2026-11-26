@@ -1,5 +1,6 @@
 import { api, dia, eliteAtivo, enviar, profissional, quando, reais } from './aluno-dados.js';
-import { badge, elemento, erro, estado, graficoBarras, icone } from './design-system.js';
+import { calendarioTreinos, historicoTreinos, registrarTreino } from './aluno-treinos.js';
+import { badge, elemento, erro, estado, icone } from './design-system.js';
 
 const planos = { basico: 'Básico', pro: 'Pro', elite: 'Elite' };
 const preco = { basico: 8900, pro: 14900, elite: 24900 };
@@ -53,9 +54,10 @@ function metricas(iconeNome, nome, valor, nota) {
 
 export function inicio(raiz, contexto) {
   const hero = elemento('section', null, 'kd-card aluno-hero');
-  const avatar = elemento('span', null, 'kd-avatar');
+  const avatar = elemento('a', null, 'kd-avatar');
+  avatar.href = '#configuracoes/foto';
   avatar.dataset.avatar = '';
-  avatar.setAttribute('aria-hidden', 'true');
+  avatar.setAttribute('aria-label', 'Editar foto de perfil');
   const apresentacao = elemento('div');
   const saudacao = elemento('h1', 'Olá, ' + (contexto.usuario.nome.trim().split(/\s+/)[0] || 'aluno') + '!');
   apresentacao.append(saudacao, elemento('p', 'Acompanhe seu plano e organize sua rotina na Krypton.', 'kd-texto-suave'));
@@ -65,11 +67,18 @@ export function inicio(raiz, contexto) {
   const resumo = elemento('div', null, 'kd-grid aluno-resumo');
   const plano = elemento('div');
   const agenda = elemento('div');
-  resumo.append(plano, metricas('activity', 'Frequência semanal', 'Sem dados', 'Ainda não há um registro de frequência integrado.'), agenda);
+  const frequencia = card('Frequência semanal', calendarioTreinos());
+  resumo.append(plano, frequencia, agenda);
   raiz.append(resumo);
   carregar(plano, contexto, 'plano', p => {
-    const item = metricas('shield-check', 'Plano atual', p?.nome || 'Sem plano', p ? situacoesPlano[p.status]?.[0] || p.status : 'Consulte os planos disponíveis.');
-    if (p?.tipo === 'elite') item.classList.add('aluno-metrica-elite');
+    const item = card('Plano atual', elemento('strong', p?.nome || 'Sem plano', 'aluno-plano-nome'));
+    item.dataset.plano = p?.tipo || '';
+    if (p) {
+      item.append(badge(...(situacoesPlano[p.status] || [p.status])));
+      if (preco[p.tipo]) item.append(elemento('p', reais(preco[p.tipo]) + ' / mês'));
+      if (p.vencimento) item.append(elemento('p', 'Vence em ' + dia(p.vencimento), 'kd-texto-suave'));
+    }
+    item.append(botao('Ver assinatura', '#faturas'));
     plano.replaceChildren(item);
   });
   carregar(agenda, contexto, 'agenda', itens => {
@@ -80,15 +89,15 @@ export function inicio(raiz, contexto) {
 
   const area = elemento('section', null, 'aluno-area');
   const atalhos = elemento('div', null, 'kd-grid aluno-atalhos');
-  for (const [hash, nome, desenho, legenda] of [
-    ['treinos', 'Meus treinos', 'lightning-charge', 'Acesse sua rotina de treino.'],
-    ['progresso', 'Meu progresso', 'graph-up-arrow', 'Consulte suas medições.'],
-    ['agendamentos', 'Agendamentos', 'calendar3', 'Veja suas próximas sessões.'],
-    ['faturas', 'Faturas', 'receipt', 'Consulte o plano e o extrato.'],
+  for (const [hash, nome, desenho] of [
+    ['treinos', 'Treinos', 'lightning-charge'], ['treinos-extras', 'Treinos extras', 'plus-square'],
+    ['avaliacoes', 'Avaliações', 'clipboard2-pulse'], ['progresso', 'Meu progresso', 'graph-up-arrow'],
+    ['nutricao', 'Nutrição', 'egg-fried'], ['agendamentos', 'Agendamentos', 'calendar3'],
+    ['faturas', 'Faturas', 'receipt'], ['arquivos', 'Arquivos', 'folder2'],
   ]) {
     const link = elemento('a', null, 'kd-card kd-card-link aluno-atalho');
     link.href = '#' + hash;
-    link.append(icone(desenho), icone('arrow-up-right'), elemento('h3', nome), elemento('p', legenda, 'kd-texto-suave'));
+    link.append(icone(desenho), elemento('h3', nome));
     atalhos.append(link);
   }
   area.append(elemento('h2', 'Acesso rápido'), atalhos);
@@ -110,16 +119,40 @@ export function inicio(raiz, contexto) {
 export function modulo(raiz, contexto, chave, nome) {
   const [subtitulo, vazio, explicacao, desenho] = modulos[chave];
   titulo(raiz, nome, subtitulo);
-  const corpo = chave === 'progresso' ? graficoBarras([], 'Frequência semanal') : estado(vazio, explicacao);
+  if (chave === 'treinos') raiz.append(card('Treino de hoje', registrarTreino()));
+  if (chave === 'progresso') {
+    raiz.append(card('Frequência semanal', calendarioTreinos()), card('Evolução da frequência', historicoTreinos()),
+      card('Peso, medidas e avaliações', estado(vazio, explicacao)));
+    return;
+  }
+  if (chave === 'nutricao') {
+    const painel = elemento('div', null, 'kd-grid kd-grid-dois');
+    raiz.append(painel);
+    carregar(painel, contexto, 'plano', p => {
+      if (!eliteAtivo(p)) {
+        painel.replaceChildren(card('Acompanhamento com o Elite',
+          elemento('p', 'O Elite inclui consultas com nutricionista e acesso aos materiais personalizados quando disponibilizados.'),
+          botao('Conhecer ou alterar plano', '#faturas')));
+        return;
+      }
+      painel.replaceChildren(
+        card('Agendamento', botao('Agendar consulta', '#agendamentos')),
+        ...['Plano alimentar', 'Refeições', 'Receitas', 'Orientações do nutricionista', 'Documentos'].map(
+          nome => card(nome, estado('Nenhum material disponibilizado.'))),
+      );
+    });
+    return;
+  }
+  const corpo = estado(vazio, explicacao);
   const bloco = card(nome, corpo);
   bloco.prepend(icone(desenho));
   raiz.append(bloco);
-  if (chave === 'treinos-extras' || chave === 'nutricao') {
+  if (chave === 'treinos-extras') {
     const acesso = elemento('section', null, 'aluno-area');
     raiz.append(acesso);
     carregar(acesso, contexto, 'plano', p => {
       const habilitado = eliteAtivo(p);
-      const servico = chave === 'nutricao' ? 'Consulta com nutricionista' : 'Treino com personal trainer';
+      const servico = 'Treino com personal trainer';
       acesso.replaceChildren(card(servico,
         elemento('p', habilitado ? 'Disponível com seu plano Elite ativo.' : 'Disponível para alunos com plano Elite ativo.', 'kd-texto-suave'),
         habilitado ? botao('Abrir agendamentos', '#agendamentos') : botao('Consultar meu plano', '#faturas')));
@@ -287,7 +320,7 @@ export function faturas(raiz, contexto) {
   verificar.addEventListener('click', () => contexto.verificarPagamento());
   const historico = elemento('div');
   const pendente = contexto.pagamento;
-  pendencias.append(elemento('p', pendente?.mensagem || 'Nenhum retorno de checkout nesta sessão.', 'kd-texto-suave'));
+  pendencias.append(elemento('p', pendente?.mensagem || 'Acompanhe abaixo os pagamentos que ainda aguardam confirmação.', 'kd-texto-suave'));
   if (pendente?.url) pendencias.append(botao('Retomar checkout', pendente.url));
   if (localStorage.getItem('checkout_tentativa_id') && !contexto.verificando) pendencias.append(verificar);
   contexto.dados.ler('historico').then(lista => {
@@ -370,11 +403,13 @@ function fotoPerfil(contexto) {
   const form = dialog.querySelector('form');
   const remover = bloco.querySelector('[data-remover-foto]');
   remover.disabled = !contexto.foto;
-  bloco.querySelector('[data-foto]').addEventListener('click', () => {
+  const abrir = () => {
     form.reset();
     feedback(form, '');
     dialog.showModal();
-  });
+  };
+  bloco.querySelector('[data-foto]').addEventListener('click', abrir);
+  if (location.hash === '#configuracoes/foto') queueMicrotask(() => { if (bloco.isConnected) abrir(); });
   bloco.querySelector('[data-fechar]').addEventListener('click', () => dialog.close());
   form.addEventListener('submit', async evento => {
     evento.preventDefault();

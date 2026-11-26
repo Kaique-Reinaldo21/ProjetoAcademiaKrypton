@@ -58,3 +58,21 @@
 .aluno-detalhe > .kd-button, .aluno-detalhe > .kd-badge { justify-self: start; }
 .aluno-metrica-elite { border-color: #514075; }
 .aluno-metrica-elite i { color: #d5c1ff; background: #2c2340; }
+
+.aluno-avatar-cabecalho { margin-left: auto; margin-right: .55rem; }
+.aluno-avatar-cabecalho + .kd-conta { margin-left: 0; }
+.aluno-detalhe > .kd-badge { justify-self: start; }
+.aluno-semana { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .2rem; list-style: none; padding: 0; margin: .35rem 0 0; }
+.aluno-semana li { font-size: .68rem; text-align: center; padding: .25rem 0; border: 1px solid var(--kd-linha); border-radius: .35rem; color: var(--kd-suave); }
+.aluno-semana li > strong { display: block; color: var(--kd-texto); }
+.aluno-semana li[aria-current="date"] { border-color: var(--kd-verde); }
+.aluno-semana li[data-concluido] { background: #173723; color: var(--kd-verde); }
+.aluno-semana-nav { display: flex; justify-content: space-between; align-items: center; gap: .25rem; font-size: .75rem; }
+.aluno-semana-nav .kd-button { font-size: .72rem; padding: .25rem .4rem; }
+.aluno-plano-nome { font-family: 'Oswald', sans-serif; font-size: 1.8rem; line-height: 1.1; }
+[data-plano="basico"] .aluno-plano-nome { color: var(--kd-suave); }
+[data-plano="pro"] .aluno-plano-nome { color: var(--kd-verde); }
+[data-plano="elite"] .aluno-plano-nome { color: #d5c1ff; }
+.aluno-atalho { padding: .8rem; display: flex; align-items: center; gap: .55rem; }
+.aluno-atalho > i { flex: 0 0 2rem; margin: 0; }
+.aluno-atalho h3 { font-size: .9rem; }

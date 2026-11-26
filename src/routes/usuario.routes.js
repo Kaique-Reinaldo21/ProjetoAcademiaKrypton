@@ -4,10 +4,12 @@ import authMiddleware from '../middleware/auth.js';
 import adminMiddleware from '../middleware/admin.js';
 import perfilAlunoRoutes from './perfil-aluno.routes.js';
 
+import treinosAlunoRoutes from './treinos-aluno.routes.js';
 const router = express.Router();
 
 router.use(authMiddleware);
 router.use(perfilAlunoRoutes);
+router.use(treinosAlunoRoutes);
 
 const PLANOS_INFO = {
   basico: {

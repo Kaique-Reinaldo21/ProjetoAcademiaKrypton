@@ -64,7 +64,7 @@ async function carregarFoto() {
 
 function renderizar(navegacao = false) {
   if (!contexto.usuario) return;
-  let chave = location.hash.slice(1);
+  let chave = location.hash.slice(1).split('/')[0];
   if (chave === 'conteudo' && abaAtual) return;
   if (!Object.hasOwn(abas, chave)) chave = 'inicio';
 
@@ -101,24 +101,24 @@ async function verificarPagamento() {
     if (dados.status === 'confirmado') {
       localStorage.removeItem('checkout_tentativa_id');
       contexto.pagamento = {
-        mensagem: demo ? 'Pagamento simulado aprovado.' : 'Pagamento confirmado.',
+        mensagem: demo ? 'Simulação aprovada. Confira seu plano em Faturas.' : 'Pagamento confirmado. Confira seu plano em Faturas.',
         tom: 'positivo',
       };
       contexto.dados.invalidar('plano', 'historico');
     } else if (dados.status === 'recusado') {
       localStorage.removeItem('checkout_tentativa_id');
-      contexto.pagamento = { mensagem: 'Pagamento recusado. Seu plano anterior continua válido.', tom: 'erro' };
+      contexto.pagamento = { mensagem: demo ? 'Simulação recusada. Seu plano não foi alterado.' : 'Pagamento recusado. Seu plano não foi alterado.', tom: 'erro' };
       contexto.dados.invalidar('historico');
     } else {
       contexto.pagamento = {
-        mensagem: 'Pagamento pendente. Seu plano atual continua válido.',
+        mensagem: demo ? 'Simulação pendente. Retome o checkout para concluir.' : 'Pagamento pendente. Seu plano permanece igual até a confirmação.',
         tom: 'atencao',
         ...(demo && { url: '/checkout-demo.html?tentativa=' + encodeURIComponent(id) }),
       };
     }
   } catch (falha) {
     if (falha.status === 404) localStorage.removeItem('checkout_tentativa_id');
-    contexto.pagamento = { mensagem: falha.message, tom: 'erro' };
+    contexto.pagamento = { mensagem: falha.status === 404 ? 'Esta tentativa não está mais disponível.' : 'Não foi possível verificar o pagamento. Tente novamente em Faturas.', tom: 'erro' };
   } finally {
     contexto.verificando = false;
     if (['inicio', 'faturas'].includes(abaAtual)) renderizar();
