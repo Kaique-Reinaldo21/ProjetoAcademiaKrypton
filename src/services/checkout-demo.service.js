@@ -3,7 +3,10 @@ import { accessSync, constants, statSync } from 'node:fs';
 import path from 'node:path';
 import prisma from '../lib/prisma.js';
 import { ErroCheckout } from './checkout.service.js';
-import { DESTINOS_DEMO_APROVADOS } from '../config/demo-hosts.js';
+import { DESTINO_DEMO_TLS_SEM_VALIDACAO, DESTINOS_DEMO_APROVADOS } from '../config/demo-hosts.js';
+
+const TLS_SEM_VALIDACAO = 'accept_invalid_certs';
+export const AVISO_TLS_DEMO = 'Ambiente demonstrativo isolado: validação de identidade TLS do banco desativada.';
 
 const planos = { basico: { nome: 'Básico', centavos: 8900 }, pro: { nome: 'Pro', centavos: 14900 }, elite: { nome: 'Elite', centavos: 24900 } };
 export function validarModoDemo(env = process.env, destinosAprovados = DESTINOS_DEMO_APROVADOS) {
@@ -24,7 +27,26 @@ export function validarModoDemo(env = process.env, destinosAprovados = DESTINOS_
   const params = url.searchParams;
   if ([...params.keys()].some(p => !['sslcert', 'sslaccept'].includes(p))) return negar('PARAMETRO_NAO_PERMITIDO');
   if (params.getAll('sslcert').length > 1 || (params.has('sslcert') && !params.get('sslcert'))) return negar('SSLCERT_VAZIO_OU_DUPLICADO');
-  if (params.get('sslaccept') !== 'strict' || params.getAll('sslaccept').length !== 1) return negar('SSLACCEPT_INVALIDO');
+  if (params.getAll('sslaccept').length !== 1) return negar('SSLACCEPT_INVALIDO');
+  const sslaccept = params.get('sslaccept');
+  if (sslaccept === 'strict') return;
+  const destino = DESTINO_DEMO_TLS_SEM_VALIDACAO;
+  if (sslaccept !== TLS_SEM_VALIDACAO ||
+      env.DEMO_ALLOW_UNVERIFIED_TLS !== 'I_UNDERSTAND_TEST_ONLY' ||
+      host !== destino.host || banco !== destino.banco || url.port !== destino.porta) {
+    return negar('SSLACCEPT_INVALIDO');
+  }
+  return sslaccept;
+}
+
+export function validarTlsBanco(env = process.env) {
+  // Inspeciona todas as ocorrências, inclusive quando PAYMENT_MODE não é demo.
+  const url = URL.canParse(env.DATABASE_URL) ? new URL(env.DATABASE_URL) : null;
+  if (env.PAYMENT_MODE === 'demo' || url?.searchParams.getAll('sslaccept').includes(TLS_SEM_VALIDACAO)) {
+    const sslaccept = validarModoDemo(env);
+    validarArquivoCaDemo(env);
+    return sslaccept;
+  }
 }
 
 // Prisma resolve caminhos relativos de certificado a partir do diretório prisma/.

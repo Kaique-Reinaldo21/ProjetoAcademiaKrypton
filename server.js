@@ -34,7 +34,7 @@ import { authMiddleware as isAuthenticated } from './src/middleware/authMiddlewa
 // Rota de Assinatura - Mercado Pago
 import { consultarFatura } from './src/gatewary/mercadopago.js';
 import { confirmarCheckoutPorAssinatura } from './src/services/checkout.service.js';
-import { validarModoDemo, validarArquivoCaDemo } from './src/services/checkout-demo.service.js';
+import { AVISO_TLS_DEMO, validarTlsBanco } from './src/services/checkout-demo.service.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -251,7 +251,7 @@ app.use((err, req, res, next) => {
 // ─────────────────────────────────────────
 async function iniciarServidor() {
   try {
-    if (process.env.PAYMENT_MODE === 'demo') { validarModoDemo(); validarArquivoCaDemo(); }
+    if (validarTlsBanco()) console.warn(AVISO_TLS_DEMO);
     await prisma.$connect();
 
     app.listen(PORT, () => {
