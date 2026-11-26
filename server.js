@@ -20,7 +20,7 @@ import authRoutes from './src/routes/auth.routes.js';
 import usuarioRoutes from './src/routes/usuario.routes.js';
 import adminRoutes from './src/routes/admin.routes.js';
 import publicRoutes from './src/routes/public.routes.js';
-import checkoutRoutes from './src/routes/checkout.routes.js';
+import checkoutRoutes, { criarRotasQrDemo } from './src/routes/checkout.routes.js';
 
 
 // Configuração do Passport / Google OAuth
@@ -34,7 +34,7 @@ import { authMiddleware as isAuthenticated } from './src/middleware/authMiddlewa
 // Rota de Assinatura - Mercado Pago
 import { consultarFatura } from './src/gatewary/mercadopago.js';
 import { confirmarCheckoutPorAssinatura } from './src/services/checkout.service.js';
-import { validarModoDemo, validarArquivoCaDemo } from './src/services/checkout-demo.service.js';
+import { AVISO_TLS_DEMO, validarTlsBanco } from './src/services/checkout-demo.service.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -108,6 +108,7 @@ app.get('/dashboard', isAuthenticated, (req, res) => {
 // Checkout autenticado — nunca usar IDs de usuários fictícios.
 // ─────────────────────────────────────────
 app.use('/api/checkout', checkoutRoutes);
+app.use('/checkout-qr', criarRotasQrDemo());
 
 // Retorno do navegador: consulta o provedor; não considera a query como prova de pagamento.
 app.get('/checkout/success', async (req, res) => {
@@ -251,7 +252,7 @@ app.use((err, req, res, next) => {
 // ─────────────────────────────────────────
 async function iniciarServidor() {
   try {
-    if (process.env.PAYMENT_MODE === 'demo') { validarModoDemo(); validarArquivoCaDemo(); }
+    if (validarTlsBanco()) console.warn(AVISO_TLS_DEMO);
     await prisma.$connect();
 
     app.listen(PORT, () => {
