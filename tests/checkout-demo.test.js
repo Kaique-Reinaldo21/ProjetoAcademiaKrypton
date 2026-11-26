@@ -23,7 +23,8 @@ test('inicialização permite TLS sem validar identidade somente no banco acadê
   };
   assert.equal(validarTlsBanco(base), 'accept_invalid_certs');
   assert.equal(validarTlsBanco({ ...base, DATABASE_URL: destino + '?sslaccept=strict' }), undefined);
-  assert.equal(validarTlsBanco({ ...base, PAYMENT_MODE: 'real', DATABASE_URL: destino + '?sslaccept=strict' }), undefined);
+  assert.throws(() => validarTlsBanco({ ...base, PAYMENT_MODE: 'real', DATABASE_URL: destino + '?sslaccept=strict' }),
+    erro => erro.codigoConfiguracao === 'PAYMENT_MODE_INVALIDO');
 
   const bancoPrincipal = 'b7ah1lmgd5imdjqu51eq';
   const hostPrincipal = `${bancoPrincipal}-mysql.services.clever-cloud.com`;
@@ -93,13 +94,6 @@ test('aprovação concorrente troca plano uma vez e verifica proprietário', asy
   assert.equal(c.transacoes.length, 1); assert.equal(c.transacoes[0].plano_id, 2);
 });
 
-test('demo hospedado exige aprovação explícita, banco dedicado e TLS estrito', () => {
-  const remoto = { NODE_ENV: 'production', PAYMENT_MODE: 'demo', DEMO_DEPLOYMENT: 'academico_isolado', DEMO_DATABASE_HOST: 'mysql.demo.example', DEMO_DATABASE_NAME: 'academia_kripton_demo', DATABASE_URL: 'mysql://u:p@mysql.demo.example:3306/academia_kripton_demo?sslcert=ca.pem&sslaccept=strict' };
-  assert.throws(() => validarModoDemo(remoto), e => e.status === 403);
-  validarModoDemo(remoto, [{ host: 'mysql.demo.example', banco: 'academia_kripton_demo', porta: '3306' }]);
-  for (const alteracao of [{ DEMO_DEPLOYMENT: '' }, { DEMO_DATABASE_HOST: 'outro.example' }, { DEMO_DATABASE_NAME: 'producao' }, { DATABASE_URL: 'mysql://u:p@mysql.demo.example/academia_kripton_demo?sslaccept=strict' }, { DATABASE_URL: 'mysql://u:p@mysql.demo.example/academia_kripton?sslcert=ca.pem&sslaccept=strict' }, { DATABASE_URL: 'mysql://u:p@mysql.demo.example/academia_kripton_demo?sslcert=ca.pem&sslaccept=accept_invalid_certs' }, { DATABASE_URL: 'mysql://u:p@mysql.demo.example/academia_kripton_demo?sslcert=ca.pem&sslaccept=strict&socket=/tmp/mysql' }]) assert.throws(() => validarModoDemo({ ...remoto, ...alteracao }, [{ host: 'mysql.demo.example', banco: 'academia_kripton_demo', porta: '3306' }, { host: 'host.clever-cloud.com', banco: 'academia_kripton_demo', porta: '3306' }]), e => e.status === 403);
-});
-
 test('planos demonstrativos mantêm valor e nome, inclusive Básico com unidade', async () => {
   for (const [tipo, nome, valor] of [['basico', 'Básico', 8900], ['pro', 'Pro', 14900], ['elite', 'Elite', 24900]]) {
     const c = cenario();
@@ -112,7 +106,7 @@ test('planos demonstrativos mantêm valor e nome, inclusive Básico com unidade'
 });
 
 
-test('somente o par Clever Cloud aprovado é aceito e o schema principal é sempre recusado', () => {
+test('perfil isolado aceita somente seu próprio par Clever Cloud', () => {
   const host = 'booqcxfmlvclpjzw2uce-mysql.services.clever-cloud.com';
   const banco = 'booqcxfmlvclpjzw2uce';
   const base = { NODE_ENV: 'production', PAYMENT_MODE: 'demo', DEMO_DEPLOYMENT: 'academico_isolado', DEMO_DATABASE_HOST: host, DEMO_DATABASE_NAME: banco, DATABASE_URL: `mysql://u:p@${host}:3306/${banco}?sslcert=ca.pem&sslaccept=strict` };

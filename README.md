@@ -137,7 +137,7 @@ JWT_SECRET=SUBSTITUA_POR_SEGREDO_ALEATORIO_FORTE
 JWT_EXPIRES_IN=7d
 ```
 
-- `DATABASE_URL` é a conexão efetivamente utilizada pelo Prisma. As variáveis `DB_HOST`, `DB_USER` etc. existentes no exemplo não substituem essa URL.
+- `DATABASE_URL` é a conexão efetivamente utilizada pelo Prisma. As antigas variáveis `DB_HOST`, `DB_HOSTNAME`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` e `DB_PORT` não são lidas pela aplicação nem pelos scripts versionados.
 - A senha embutida na URL deve usar codificação percentual quando contiver caracteres reservados (por exemplo, `@`, `#`, `%` e `/`).
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` e `GOOGLE_CALLBACK_URL` são necessários para o login Google.
 - Configure `PAYMENT_MODE=demo` e o destino autorizado conforme o [guia de checkout](docs/checkout-e-confirmacao.md) para usar os dois métodos acadêmicos. Mantenha as credenciais do gateway externo ausentes nesse ambiente.
