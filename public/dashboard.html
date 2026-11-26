@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+  <link rel="icon" type="image/png" href="/logo.png">
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Meu Plano — Academia Krypton</title>
@@ -74,6 +75,7 @@
   </a>
   <div class="ms-auto d-flex align-items-center gap-3">
     <span id="nav-nome" class="text-secondary" style="font-size:.83rem;"></span>
+    <a class="btn-logout text-decoration-none" href="/configuracoes-conta.html">Configurações</a>
     <button class="btn-logout" onclick="logout()"><i class="bi bi-box-arrow-right me-1"></i>Sair</button>
   </div>
 </nav>
@@ -235,7 +237,9 @@ async function carregarHistorico() {
     if (!transacoes.length) { const vazio = document.createElement('p'); vazio.textContent = 'Nenhuma transação registrada.'; lista.appendChild(vazio); }
     for (const t of transacoes) {
       const item = document.createElement('p');
-      item.textContent = (t.origem === 'demo' ? 'SIMULADA' : 'Mercado Pago') + ' — ' + t.tentativa.tipo + ' — ' + (t.valor_centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) + ' — ' + ({ approved: 'aprovada', pending: 'pendente', rejected: 'recusada' }[t.status] || t.status);
+      const metodo = t.tentativa.metodo === 'qr_krypton' ? 'QR Code Krypton' : 'Mercado Pago';
+      const simulada = t.origem === 'demo' || t.origem === 'demo_mercadopago';
+      item.textContent = (simulada ? 'SIMULADA (' + metodo + ')' : metodo) + ' — ' + t.tentativa.tipo + ' — ' + (t.valor_centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) + ' — ' + ({ approved: 'aprovada', pending: 'pendente', rejected: 'recusada' }[t.status] || t.status);
       lista.appendChild(item);
     }
   } catch (_) { /* Histórico indisponível. */ }
@@ -448,19 +452,20 @@ async function verificarPagamento() {
     });
     const dados = await resposta.json();
     if (!resposta.ok) throw new Error(dados.erro || 'Não foi possível verificar o pagamento.');
+    const simulada = dados.origem === 'demo' || dados.origem === 'demo_mercadopago';
     if (dados.status === 'confirmado') {
       localStorage.removeItem('checkout_tentativa_id');
-      window.location.replace('/dashboard.html?pagamento=' + (dados.origem === 'demo' ? 'simulado' : 'aprovado'));
+      window.location.replace('/dashboard.html?pagamento=' + (simulada ? 'simulado' : 'aprovado'));
       return;
     }
     if (dados.status === 'aguardando' || dados.status === 'pendente') {
-      texto.textContent = dados.origem === 'demo' ? 'Pagamento simulado pendente. Seu plano atual continua válido.' : 'Pagamento pendente. Seu plano atual continua válido enquanto aguardamos a confirmação.';
-      if (dados.origem === 'demo') {
+      texto.textContent = simulada ? 'Pagamento simulado pendente. Seu plano atual continua válido.' : 'Pagamento pendente. Seu plano atual continua válido enquanto aguardamos a confirmação.';
+      if (simulada) {
         const link = document.getElementById('retomar-checkout-demo');
         link.href = '/checkout-demo.html?tentativa=' + encodeURIComponent(id);
         link.style.display = '';
       }
-    } else if (dados.origem === 'demo' && dados.status === 'recusado') {
+    } else if (simulada && dados.status === 'recusado') {
       localStorage.removeItem('checkout_tentativa_id');
       texto.textContent = 'Pagamento simulado recusado. Nenhum valor foi cobrado.';
       botao.style.display = 'none';

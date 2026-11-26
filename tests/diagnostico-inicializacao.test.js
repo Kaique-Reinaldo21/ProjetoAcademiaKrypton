@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { diagnosticarInicializacao } from '../src/lib/diagnostico-inicializacao.js';
 
 test('classifica códigos Prisma sem incluir mensagem ou credenciais', () => {
-  for (const [codigo, categoria] of [['P1000', 'autenticacao'], ['P1001', 'servidor_inalcancavel'], ['P1002', 'tempo_de_conexao_esgotado'], ['P1011', 'tls'], ['P1017', 'prisma_outro']]) {
+  for (const [codigo, categoria] of [['P1000', 'autenticacao'], ['P1001', 'servidor_inalcancavel'], ['P1002', 'tempo_de_conexao_esgotado'], ['P1011', 'tls'], ['P1017', 'prisma_outro'], ['P2021', 'tabela_ausente'], ['P2022', 'coluna_ausente'], ['P2024', 'pool_esgotado']]) {
     const dados = diagnosticarInicializacao({ name: 'PrismaClientInitializationError', errorCode: codigo, message: 'mysql://usuario:senha@host/banco', stack: 'token privado' });
     assert.deepEqual(dados, { categoria, classe: 'PrismaClientInitializationError', codigo });
     assert.doesNotMatch(JSON.stringify(dados), /senha|usuario|host|token/);

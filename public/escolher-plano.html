@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+  <link rel="icon" type="image/png" href="/logo.png">
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Escolher Plano — Academia Krypton</title>
@@ -244,14 +245,14 @@
           'Authorization': 'Bearer ' + token,
         },
         credentials: 'include',
-        body: JSON.stringify({ tipoPlano: planoSelecionado, unidade_id }),
+        body: JSON.stringify({ tipoPlano: planoSelecionado, unidade_id, escolherMetodo: true }),
       });
       const data = await res.json();
       if (!res.ok) {
         mostrarErro(data.erro || 'Não foi possível iniciar o pagamento.');
         return;
       }
-      if (!data.url || !data.tentativaId) {
+      if (!data.url) {
         mostrarErro('O servidor não retornou o checkout corretamente.');
         return;
       }
@@ -264,7 +265,11 @@
         mostrarErro('A URL de pagamento recebida é inválida.');
         return;
       }
-      localStorage.setItem('checkout_tentativa_id', data.tentativaId);
+      if (data.tentativaId) localStorage.setItem('checkout_tentativa_id', data.tentativaId);
+      else if (!demonstracao) {
+        mostrarErro('O servidor não retornou a tentativa.');
+        return;
+      }
       mostrarOk(demonstracao ? 'Abrindo demonstração...' : 'Redirecionando para o Mercado Pago...');
       window.location.assign(destino.href);
     } catch (erro) {

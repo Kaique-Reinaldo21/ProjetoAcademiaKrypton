@@ -1,4 +1,7 @@
 import express from 'express';
+import QRCode from 'qrcode';
+import { checkoutMetodos } from '../services/checkout-metodos.service.js';
+import { fileURLToPath } from 'node:url';
 import authMiddleware from '../middleware/auth.js';
 import { servicoDemo, validarModoDemo } from '../services/checkout-demo.service.js';
 import { ErroGatewayCheckout } from '../gatewary/erros-checkout.js';
@@ -9,7 +12,6 @@ import {
 } from '../services/checkout.service.js';
 
 const router = express.Router();
-router.use(authMiddleware);
 
 function erroCheckout(res, error) {
   if (error instanceof ErroCheckout) {
@@ -24,11 +26,49 @@ function erroCheckout(res, error) {
   return res.status(502).json({ erro: 'Não foi possível processar o checkout. Se uma tentativa foi iniciada, entre em contato com o suporte antes de tentar novamente.' });
 }
 
+export function criarRotasQrDemo(servico = servicoDemo, validar = validarModoDemo) {
+  const qr = express.Router();
+  qr.use((req, res, next) => {
+    res.set({
+      'Cache-Control': 'no-store',
+      'Referrer-Policy': 'no-referrer',
+      'X-Robots-Tag': 'noindex, nofollow, noarchive',
+      'Content-Security-Policy': "default-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
+    });
+    next();
+  });
+  qr.get('/', (req, res) => {
+    try {
+      validar();
+      if (/prefetch|prerender|preview/i.test([req.get('Sec-Purpose'), req.get('Purpose')].join(' '))) {
+        return res.sendStatus(204);
+      }
+      return res.sendFile(fileURLToPath(new URL('../views/checkout-qr.html', import.meta.url)));
+    } catch (error) { return erroCheckout(res, error); }
+  });
+  qr.post('/', async (req, res) => {
+    try {
+      validar();
+      if (!req.is('application/json') || req.get('Origin') !== `${req.protocol}://${req.get('host')}`) {
+        return res.status(403).json({ erro: 'Abra o código no navegador do celular.' });
+      }
+      return res.json(await servico.confirmarQr(req.body?.tentativa, req.body?.token));
+    } catch (error) { return erroCheckout(res, error); }
+  });
+  return qr;
+}
+
+router.use(authMiddleware);
 router.post('/', async (req, res) => {
   try {
-    const { tipoPlano, unidade_id } = req.body || {};
-    const resultado = process.env.PAYMENT_MODE === 'demo'
-      ? await servicoDemo.iniciar(req.usuario.id, tipoPlano, unidade_id)
+    const { tipoPlano, unidade_id, escolherMetodo, metodo } = req.body || {};
+    const demo = process.env.PAYMENT_MODE === 'demo';
+    if (!demo && metodo !== undefined) throw new ErroCheckout('Método disponível apenas em demonstração.', 403);
+    if (demo && escolherMetodo === true && metodo === undefined) {
+      return res.json(await checkoutMetodos.abrir(req.usuario.id, tipoPlano, unidade_id));
+    }
+    const resultado = demo
+      ? await checkoutMetodos.iniciar(req.usuario.id, tipoPlano, unidade_id, metodo)
       : await iniciarCheckout(req.usuario.id, tipoPlano, unidade_id);
     return res.status(201).json(resultado);
   } catch (error) {
@@ -40,8 +80,8 @@ router.get('/status/:tentativaId', async (req, res) => {
   try {
     let resultado;
     if (process.env.PAYMENT_MODE === 'demo') {
-      const demo = await servicoDemo.consultar(req.usuario.id, req.params.tentativaId);
-      resultado = { status: demo.status === 'approved' ? 'confirmado' : demo.status === 'pending' ? 'pendente' : 'recusado', origem: 'demo' };
+      const demo = await checkoutMetodos.consultar(req.usuario.id, req.params.tentativaId);
+      resultado = { status: demo.status === 'approved' ? 'confirmado' : demo.status === 'pending' ? 'pendente' : 'recusado', origem: demo.origem, metodo: demo.metodo };
     } else resultado = await consultarCheckout(req.usuario.id, req.params.tentativaId);
     return res.json(resultado);
   } catch (error) {
@@ -53,9 +93,35 @@ router.get('/demo/historico', async (req, res) => {
   try { return res.json(await servicoDemo.historico(req.usuario.id)); }
   catch (error) { return erroCheckout(res, error); }
 });
-router.get('/demo/:id', async (req, res) => {
-  try { return res.json(await servicoDemo.consultar(req.usuario.id, req.params.id)); }
+router.get('/demo/planos/:tipo', (req, res) => {
+  try { return res.json(checkoutMetodos.resumo(req.params.tipo)); }
   catch (error) { return erroCheckout(res, error); }
+});
+router.post('/demo/:id/mercadopago', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    if (!req.is('application/json') || req.get('Origin') !== `${req.protocol}://${req.get('host')}`) {
+      throw new ErroCheckout('Origem do checkout inválida.', 403);
+    }
+    return res.json(await checkoutMetodos.simularResposta(req.usuario.id, req.params.id, req.body?.acao));
+  } catch (error) { return erroCheckout(res, error); }
+});
+router.get('/demo/:id', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try { return res.json(await checkoutMetodos.consultar(req.usuario.id, req.params.id)); }
+  catch (error) { return erroCheckout(res, error); }
+});
+router.post('/demo/:id/qr', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const origem = `${req.protocol}://${req.get('host')}`;
+    if (req.get('Origin') !== origem) return res.status(403).json({ erro: 'Origem do checkout inválida.' });
+    const { token, expiraEm } = await servicoDemo.gerarQr(req.usuario.id, req.params.id);
+    const link = new URL('/checkout-qr', origem);
+    link.hash = new URLSearchParams({ tentativa: req.params.id, token }).toString();
+    const imagem = await QRCode.toDataURL(link.href, { width: 320, margin: 4, errorCorrectionLevel: 'M' });
+    return res.status(201).json({ link: link.href, imagem, expiraEm });
+  } catch (error) { return erroCheckout(res, error); }
 });
 router.post('/demo/:id', async (req, res) => {
   try { validarModoDemo(); return res.json(await servicoDemo.decidir(req.usuario.id, req.params.id, req.body?.acao)); }

@@ -12,7 +12,7 @@ try {
   ({ default: prisma } = await import('../src/lib/prisma.js'));
   if (comando === 'listar') {
     const tentativas = await prisma.checkout_tentativas.findMany({
-      where: { status: { in: ['pendente', 'aguardando'] } },
+      where: { metodo: 'mercadopago', status: { in: ['pendente', 'aguardando'] } },
       select: { id: true, usuario_id: true, tipo: true, status: true, mp_preapproval_id: true, created_at: true, updated_at: true },
       orderBy: { created_at: 'asc' }, take: 100,
     });

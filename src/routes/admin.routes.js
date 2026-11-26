@@ -2,6 +2,7 @@ import express from 'express';
 import prisma from '../lib/prisma.js';
 import authMiddleware from '../middleware/auth.js';
 import adminMiddleware from '../middleware/admin.js';
+import { camposHistoricoPagamento } from '../services/checkout.service.js';
 
 const router = express.Router();
 
@@ -498,5 +499,20 @@ router.get(
     }
   }
 );
+
+// Leitura para o futuro painel financeiro. Identificadores do provedor ficam no banco.
+router.get('/pagamentos', async (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const pagamentos = await prisma.transacoes_pagamento.findMany({
+      select: { ...camposHistoricoPagamento, usuario_id: true },
+      orderBy: [{ criado_em: 'desc' }, { id: 'desc' }],
+      take: 100,
+    });
+    return res.json(pagamentos);
+  } catch {
+    return res.status(500).json({ erro: 'Histórico de pagamentos indisponível.' });
+  }
+});
 
 export default router;

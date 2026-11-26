@@ -1,0 +1,36 @@
+# Homologação da autenticação da Academia Krypton
+
+## Correções e compatibilidade
+
+O login anterior escolhia contas pelo e-mail retornado pelo Google, inclusive quando a conta local era administrativa. O fluxo agora exige `sub` e e-mail confirmado no UserInfo do Google, obtido no servidor com o token do fluxo de autorização. Os escopos são `openid`, `email` e `profile`. A entrada Google é restrita a alunos. Para uma nova conta exclusivamente Google, o endereço deve ser Gmail ou pertencer ao domínio Workspace informado pelo Google.
+
+O `state` dura dez minutos, fica vinculado a um cookie do navegador e é consumido uma única vez antes da troca do código. Os valores do `state` e do identificador do navegador são armazenados como hashes. No ambiente hospedado, o cookie usa `Secure`, `HttpOnly`, `SameSite=Lax` e o prefixo `__Host-`. As mensagens de erro são genéricas e os logs do OAuth se limitam ao diagnóstico sanitizado.
+
+Uma conta tradicional pode ser vinculada pelas configurações de conta apenas pelo aluno autenticado que reconfirma a senha da Krypton e seleciona o mesmo endereço confirmado no Google. O callback confere a versão da sessão original. A vinculação grava auditoria e revoga JWTs anteriores. O identificador Google é único e o ID Krypton permanece o mesmo, com seus planos e transações. A troca de senha ou redefinição continua revogando JWTs. A redefinição obrigatória bloqueia também a entrada Google. Contas criadas exclusivamente pelo Google usam a recuperação do próprio Google.
+
+A migration `20261127_google_oauth_identidade` adiciona `usuarios.google_sub` e `estados_oauth_google`, e permite data de nascimento ausente. Novas contas Google ficam sem data de nascimento. O perfil de aluno legado sem senha local omite a data fictícia anteriormente usada. O banco mantém os dados existentes, e a migration não vincula contas por e-mail.
+
+### Contas exclusivamente Google anteriores à migration
+
+Essas contas podem ter registros e histórico sem `sub` confiável armazenado. Um e-mail coincidente não autoriza a entrada ou o vínculo. O acesso Google a esses registros fica bloqueado até revisão individual. Antes da publicação oficial, inventarie essas contas em ambiente autorizado e defina como confirmar a identidade original antes de vincular um `sub` verificado ao ID existente. Preserve os IDs, vínculos e históricos. Mantenha a conta bloqueada se a origem do vínculo não puder ser comprovada.
+
+## Checklist de publicação oficial
+
+- [ ] Homologue primeiro no Render demonstrativo e confirme a revisão Git, as variáveis e o domínio HTTPS. Use `npm ci --include=dev && npx prisma generate` no build, `npm start` na inicialização e `/api/health` para saúde do processo.
+- [ ] Configure `NODE_ENV=production`, `PAYMENT_MODE=demo`, `DEMO_DEPLOYMENT=academico_isolado`, `DEMO_DATABASE_HOST`, `DEMO_DATABASE_NAME` e `DATABASE_URL` no serviço autorizado. Confira o add-on e use conta de banco restrita ao schema acadêmico. Deixe as credenciais de pagamento real fora do serviço. Verifique que as compras são rotuladas como simuladas e que o webhook real permanece bloqueado nesse modo.
+- [ ] Use TLS com validação de identidade do MySQL, incluindo certificado confiável e hostname compatível. A exceção `DEMO_ALLOW_UNVERIFIED_TLS` permanece restrita ao sandbox já aprovado, com dados e credenciais fictícios. Conta real fica condicionada a TLS verificado e à revisão da configuração. `Ssl_cipher` prova criptografia da conexão. A identidade depende da validação do certificado.
+- [ ] Configure `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` e `GOOGLE_CALLBACK_URL`. Para o domínio oficial, registre exatamente `https://academiakripton.com.br/api/auth/google/callback` no cliente Web do Google. Configure o callback demonstrativo no cliente separado de homologação e cadastre os testadores na tela de consentimento. Confira o URL no domínio efetivamente usado, incluindo esquema e hostname.
+- [ ] Configure `CONTA_ORIGEM_PUBLICA` com a origem HTTPS do serviço e os segredos `CONTA_SMTP_HOST`, `CONTA_SMTP_PORTA`, `CONTA_SMTP_USUARIO`, `CONTA_SMTP_SENHA` e `CONTA_EMAIL_REMETENTE` para o Mailtrap Email Sandbox na homologação. Confirme entrega e TLS com endereços fictícios.
+- [ ] Revogue e substitua credenciais anteriormente expostas nos provedores, incluindo chaves e senhas do banco, SMTP e OAuth quando afetados. Use segredos separados entre serviços. Na virada, rotacione `JWT_SECRET` e coordene todas as instâncias para encerrar JWTs emitidos pelo fluxo OAuth anterior. Reautentique após a rotação.
+- [ ] Confirme o destino com `node scripts/migrate-demo-hospedado.js --verificar`. Faça backup com restauração verificada e mantenha o SHA anterior para recuperação. Confirme a tabela de migrations no destino. Se as duas migrations das sprints já estiverem registradas, a nova pendência é `20261127_google_oauth_identidade`. Aplique manualmente apenas após revisão e autorização, fora do build e do pre-deploy.
+- [ ] Após deploy, valide os fluxos abaixo, revise o inventário de contas legadas e confronte o histórico de pagamentos com o backup. Para rollback, suspenda a entrada Google antes de retornar a uma revisão que aceite e-mail como identidade. Preserve o schema e os registros se a revisão de retorno tiver sido testada nessa configuração. Se for necessário restaurar o banco, coordene suspensão de escritas, verificação do backup e reconciliação das transações criadas após a cópia. Nunca volte a um segredo revogado.
+
+[Documentação do Google sobre OpenID Connect](https://developers.google.com/identity/openid-connect/openid-connect) · [Guia de segurança de contas](seguranca-contas.md) · [Operação do ambiente demonstrativo](checkout-e-confirmacao.md)
+
+## Teste manual do Google no Render demonstrativo
+
+1. Use um cliente OAuth de homologação e contas de teste. Em janela anônima, inicie o login pela Krypton. Confira que o consentimento pede somente identidade básica. Entre pela primeira vez e confirme que a conta é aluno e que a data de nascimento está vazia. Saia e repita para confirmar o mesmo ID e histórico.
+2. Teste a colisão com o Gmail de uma conta tradicional e com o e-mail de uma conta administrativa. Confirme que a entrada direta pelo Google é recusada. Entre na conta tradicional de aluno pela senha, abra Configurações da conta e confirme a senha atual em Vincular Google. Selecione o mesmo endereço e verifique que a entrada Google passa a abrir aquela conta, com o mesmo plano e histórico.
+3. Em duas sessões, altere ou recupere a senha da conta tradicional via Mailtrap. Confirme que a sessão anterior não abre mais páginas protegidas. Confirme a recuperação exclusiva pelo Google para contas sem senha local e a ausência de e-mail de redefinição no sandbox.
+4. Em outra conta de teste, inicie a redefinição administrativa autorizada. Tente entrar com Google antes de concluir a redefinição. Confira o bloqueio e a auditoria. O procedimento `npm run conta:admin-inicial` só é usado por operador autorizado, em banco isolado sem administrador existente, com senha forte fornecida pela entrada padrão.
+5. Reabra um callback já consumido e valide que ele não cria sessão. Registre os resultados sem copiar códigos, tokens, senhas ou segredos. Só marque a homologação Google como concluída após esta verificação com o provedor real.

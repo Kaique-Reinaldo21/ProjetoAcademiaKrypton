@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { obterCallbackGoogle } from '../src/config/google-oauth-config.js';
 
 test('desenvolvimento mantém retorno local padrão e aceita URL configurada', () => {
+  assert.throws(() => obterCallbackGoogle({ NODE_ENV: 'development', GOOGLE_CALLBACK_URL: 'http://exemplo.test/api/auth/google/callback' }), /GOOGLE_CALLBACK_URL/);
   assert.equal(obterCallbackGoogle({ NODE_ENV: 'development' }), 'http://localhost:3000/api/auth/google/callback');
   assert.equal(obterCallbackGoogle({ NODE_ENV: 'development', GOOGLE_CALLBACK_URL: 'http://localhost:4000/api/auth/google/callback' }), 'http://localhost:4000/api/auth/google/callback');
 });

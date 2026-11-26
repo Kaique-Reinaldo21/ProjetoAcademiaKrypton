@@ -4,9 +4,51 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { validarModoDemo, validarArquivoCaDemo, criarServicoDemo } from '../src/services/checkout-demo.service.js';
+import { validarModoDemo, validarArquivoCaDemo, validarTlsBanco, criarServicoDemo } from '../src/services/checkout-demo.service.js';
 
 const env = { NODE_ENV: 'development', PAYMENT_MODE: 'demo', DATABASE_URL: 'mysql://demo:senha@127.0.0.1:3307/academia_kripton_checkout_test' };
+
+test('inicialização permite TLS sem validar identidade somente no banco acadêmico aprovado', () => {
+  const host = 'booqcxfmlvclpjzw2uce-mysql.services.clever-cloud.com';
+  const banco = 'booqcxfmlvclpjzw2uce';
+  const destino = `mysql://u:p@${host}:3306/${banco}`;
+  const base = {
+    NODE_ENV: 'production',
+    PAYMENT_MODE: 'demo',
+    DEMO_DEPLOYMENT: 'academico_isolado',
+    DEMO_DATABASE_HOST: host,
+    DEMO_DATABASE_NAME: banco,
+    DEMO_ALLOW_UNVERIFIED_TLS: 'I_UNDERSTAND_TEST_ONLY',
+    DATABASE_URL: destino + '?sslaccept=accept_invalid_certs',
+  };
+  assert.equal(validarTlsBanco(base), 'accept_invalid_certs');
+  assert.equal(validarTlsBanco({ ...base, DATABASE_URL: destino + '?sslaccept=strict' }), undefined);
+  assert.equal(validarTlsBanco({ ...base, PAYMENT_MODE: 'real', DATABASE_URL: destino + '?sslaccept=strict' }), undefined);
+
+  const bancoPrincipal = 'b7ah1lmgd5imdjqu51eq';
+  const hostPrincipal = `${bancoPrincipal}-mysql.services.clever-cloud.com`;
+  const urlPrincipal = `mysql://u:p@${hostPrincipal}:3306/${bancoPrincipal}`;
+  for (const alteracao of [
+    { DEMO_ALLOW_UNVERIFIED_TLS: undefined },
+    { DEMO_ALLOW_UNVERIFIED_TLS: 'true' },
+    { PAYMENT_MODE: 'real' },
+    { PAYMENT_MODE: undefined },
+    { DEMO_DEPLOYMENT: undefined },
+    { NODE_ENV: 'development' },
+    { ...env, DATABASE_URL: env.DATABASE_URL + '?sslaccept=accept_invalid_certs' },
+    { DEMO_DATABASE_NAME: bancoPrincipal, DATABASE_URL: base.DATABASE_URL.replace('/' + banco, '/' + bancoPrincipal) },
+    { DEMO_DATABASE_HOST: hostPrincipal, DEMO_DATABASE_NAME: bancoPrincipal, DATABASE_URL: urlPrincipal + '?sslaccept=accept_invalid_certs' },
+    { PAYMENT_MODE: 'real', DATABASE_URL: urlPrincipal + '?sslaccept=strict&sslaccept=accept_invalid_certs' },
+    { PAYMENT_MODE: undefined, DATABASE_URL: urlPrincipal + '?ssl%61ccept=%61ccept_invalid_certs' },
+    { DEMO_DATABASE_HOST: 'outro.example', DATABASE_URL: base.DATABASE_URL.replace(host, 'outro.example') },
+    { DATABASE_URL: base.DATABASE_URL.replace(':3306/', '/') },
+    { DATABASE_URL: base.DATABASE_URL.replace(':3306/', ':3307/') },
+    { DATABASE_URL: base.DATABASE_URL + '&sslaccept=strict' },
+    { DATABASE_URL: base.DATABASE_URL + '&socket=/tmp/mysql' },
+  ]) {
+    assert.throws(() => validarTlsBanco({ ...base, ...alteracao }), { status: 403 });
+  }
+});
 test('modo demo exige desenvolvimento e o endereço do banco exato', () => {
   validarModoDemo(env);
   for (const alteracao of [{ NODE_ENV: 'production' }, { PAYMENT_MODE: 'real' }, { DATABASE_URL: 'mysql://u:p@localhost:3307/academia_kripton_checkout_test' }, { DATABASE_URL: 'mysql://u:p@127.0.0.1:3306/academia_kripton_checkout_test' }, { DATABASE_URL: 'mysql://u:p@127.0.0.1:3307/academia_kripton' }, { DATABASE_URL: env.DATABASE_URL + '?socket=x' }]) assert.throws(() => validarModoDemo({ ...env, ...alteracao }), e => e.status === 403);

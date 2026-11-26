@@ -5,7 +5,6 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import session from 'express-session';
 import passport from 'passport';
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
@@ -20,7 +19,7 @@ import authRoutes from './src/routes/auth.routes.js';
 import usuarioRoutes from './src/routes/usuario.routes.js';
 import adminRoutes from './src/routes/admin.routes.js';
 import publicRoutes from './src/routes/public.routes.js';
-import checkoutRoutes from './src/routes/checkout.routes.js';
+import checkoutRoutes, { criarRotasQrDemo } from './src/routes/checkout.routes.js';
 
 
 // Configuração do Passport / Google OAuth
@@ -28,13 +27,13 @@ import './src/config/passport.js';
 
 
 // rota middleware 
-import { authMiddleware as isAuthenticated } from './src/middleware/authMiddleware.js';
+import authMiddleware from './src/middleware/auth.js';
 
 
 // Rota de Assinatura - Mercado Pago
 import { consultarFatura } from './src/gatewary/mercadopago.js';
 import { confirmarCheckoutPorAssinatura } from './src/services/checkout.service.js';
-import { validarModoDemo, validarArquivoCaDemo } from './src/services/checkout-demo.service.js';
+import { AVISO_TLS_DEMO, validarTlsBanco } from './src/services/checkout-demo.service.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -70,44 +69,19 @@ app.use(cookieParser());
 
 
 // ─────────────────────────────────────────
-// Sessão e Passport 
+// Passport autentica o callback Google. As rotas protegidas usam JWT revogável.
 // ─────────────────────────────────────────
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'chave-secreta-padrao-dev',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias
-  },
-}));
-
 app.use(passport.initialize());
-
-app.use(passport.session());
-
-
-
-
-// ─────────────────────────────────────────
-// Rota protegida do Dashboard
-// ─────────────────────────────────────────
-
-app.get('/dashboard', isAuthenticated, (req, res) => {
-    // O req.user contém os dados do utilizador que foram buscados no banco pelo deserializeUser!
-    res.json({
-        mensagem: "Bem-vindo ao painel da Academia Kripton!",
-        aluno: req.user 
-    });
+app.get('/dashboard', authMiddleware, (req, res) => {
+  const { id, nome, email, role } = req.usuario;
+  res.json({ mensagem: 'Bem-vindo ao painel da Academia Krypton!', aluno: { id, nome, email, role } });
 });
-
 
 // ─────────────────────────────────────────
 // Checkout autenticado — nunca usar IDs de usuários fictícios.
 // ─────────────────────────────────────────
 app.use('/api/checkout', checkoutRoutes);
+app.use('/checkout-qr', criarRotasQrDemo());
 
 // Retorno do navegador: consulta o provedor; não considera a query como prova de pagamento.
 app.get('/checkout/success', async (req, res) => {
@@ -233,12 +207,10 @@ app.use((req, res) => {
 
 app.use((err, req, res, next) => {
 
-  console.error(
-    'Erro não tratado:',
-    err
-  );
-
-  res.status(500).json({
+  if (err.type === 'entity.parse.failed') return res.status(400).json({ erro: 'Corpo da solicitação inválido.' });
+  if (err.type === 'entity.too.large') return res.status(413).json({ erro: 'Corpo da solicitação muito grande.' });
+  console.error('Erro não tratado:', diagnosticarInicializacao(err));
+  return res.status(500).json({
     erro: 'Erro interno do servidor.',
   });
 
@@ -251,7 +223,7 @@ app.use((err, req, res, next) => {
 // ─────────────────────────────────────────
 async function iniciarServidor() {
   try {
-    if (process.env.PAYMENT_MODE === 'demo') { validarModoDemo(); validarArquivoCaDemo(); }
+    if (validarTlsBanco()) console.warn(AVISO_TLS_DEMO);
     await prisma.$connect();
 
     app.listen(PORT, () => {

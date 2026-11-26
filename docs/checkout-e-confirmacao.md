@@ -11,7 +11,7 @@ A confirmação pode ocorrer no retorno do navegador (GET /checkout/success) ou 
 ## Preparação
 
 1. Execute npm ci, npx prisma migrate deploy, npx prisma generate e npm run dev.
-2. Configure DATABASE_URL, JWT_SECRET, SESSION_SECRET, mercado_pago_access_token, MP_BACK_URL e MP_WEBHOOK_SECRET em seu .env.
+2. Configure DATABASE_URL, JWT_SECRET, mercado_pago_access_token, MP_BACK_URL e MP_WEBHOOK_SECRET em seu .env.
 3. Configure um webhook público HTTPS apontando para /api/webhooks/mercadopago e habilite os eventos de assinatura e fatura autorizada no painel Mercado Pago.
 4. A URL de retorno local pode ser http://localhost:3000/checkout/success se aceita pelo provedor. O webhook exige domínio ou túnel HTTPS publicamente acessível.
 5. Use contas e credenciais de teste. Nunca compartilhe o .env ou execute pagamentos reais durante os testes.
@@ -134,7 +134,6 @@ Aguarde o MySQL ficar pronto com `docker logs krypton-checkout-demo`. No shell l
 export DATABASE_URL='mysql://demo:senha-demo-descartavel@127.0.0.1:3307/academia_kripton_checkout_test'
 export NODE_ENV=development PAYMENT_MODE=demo
 export JWT_SECRET='jwt-demo-descartavel-nao-usar-em-producao'
-export SESSION_SECRET='sessao-demo-descartavel-nao-usar-em-producao'
 export GOOGLE_CLIENT_ID='' GOOGLE_CLIENT_SECRET='' mercado_pago_access_token=''
 npm run test:integration:migrate
 npx prisma generate
@@ -151,25 +150,74 @@ docker exec -i krypton-checkout-demo mysql -udemo -psenha-demo-descartavel acade
 
 ## Preparação de demonstração hospedada no Render
 
-A demonstração hospedada requer uma **instância acadêmica e um MySQL 8 novos, exclusivos e previamente aprovados**. O serviço recusa a inicialização em modo demo se a configuração não passar pela validação: `NODE_ENV=production`, `PAYMENT_MODE=demo`, `DEMO_DEPLOYMENT=academico_isolado`, `DEMO_DATABASE_HOST` exatamente igual ao host da URL, nome do banco em `DEMO_DATABASE_NAME`, coincidente com o par aprovado, `sslaccept=strict` e, quando necessária, CA explícita em `sslcert`. A lista versionada `src/config/demo-hosts.js` autoriza apenas o add-on acadêmico `krypton-demo-faculdade`, recurso `mysql_6fb6e7f4-a51c-4e30-8623-3d4698453556`, host `booqcxfmlvclpjzw2uce-mysql.services.clever-cloud.com`, porta `3306` e banco `booqcxfmlvclpjzw2uce`. O schema principal `b7ah1lmgd5imdjqu51eq` é recusado; nenhum outro destino Clever Cloud está autorizado.
+A demonstração hospedada requer um serviço Render separado e o MySQL 8 exclusivo do add-on acadêmico `krypton-demo-faculdade` (`mysql_6fb6e7f4-a51c-4e30-8623-3d4698453556`). A validação exige o host, a porta e o schema aprovados em `src/config/demo-hosts.js`. Confira o recurso no painel do Clever Cloud e use uma conta restrita ao schema demonstrativo.
 
-A comparação de nomes não prova a identidade física do banco nem detecta alias DNS, proxy ou túnel; o administrador deve confirmar independentemente que o host aprovado e seu certificado apontam para o novo banco e não para o Clever Cloud existente. A conta de banco deve ter acesso somente ao banco demonstrativo, e deve-se confirmar a autenticação TLS no servidor. Nunca habilite a demonstração no serviço atual apontado para o banco de produção.
+`sslaccept=strict` continua sendo a configuração padrão da demonstração hospedada. Quando houver uma CA específica e compatível com o hostname, informe opcionalmente `sslcert` com o caminho de um arquivo legível. O Prisma resolve caminhos relativos a partir de `prisma/`.
 
-1. Após revisão e publicação autorizadas, crie um **segundo** Web Service no Render com runtime Node. Desative deploy automático durante a validação. Build: `npm ci --include=dev && npx prisma generate`; start: `npm start`. O build gera o cliente Prisma e não aplica migrations.
-2. Configure no painel do segundo serviço: `NODE_ENV=production`, `PAYMENT_MODE=demo`, `DEMO_DEPLOYMENT=academico_isolado`, `DEMO_DATABASE_HOST` e `DEMO_DATABASE_NAME` com o par exclusivo aprovado, e `DATABASE_URL` com o padrão `mysql://USUARIO:SENHA@HOST:3306/NOME_DO_BANCO?sslaccept=strict` (acrescente `sslcert=CAMINHO_DA_CA` quando necessário). Use certificado de CA fornecido pelo banco, disponível no caminho da aplicação; não publique senha ou chave. Configure `JWT_SECRET` e `SESSION_SECRET` novos e fortes, próprios desse serviço. Não configure token Mercado Pago ou credenciais Google reais.
-3. Com o banco novo já criado e após conferir host, conta, nome e certificado, execute manualmente no ambiente autorizado `node scripts/migrate-demo-hospedado.js`. O script valida a configuração e conecta ao banco existente antes de aplicar as migrations; não o coloque no build, start ou pre-deploy automático. Revise o SQL e faça backup conforme a política do banco antes da execução. Use uma conta de migration restrita ao banco demo e uma conta de aplicação de privilégios mínimos.
-4. Acesse o domínio HTTPS do segundo serviço pelo computador e pelo celular. Cadastre usuários fictícios; para Básico, cadastre uma unidade fictícia no banco demonstrativo por procedimento administrativo autorizado. Verifique aprovação, pendência, recusa, repetição, troca de plano, isolamento entre alunos e os rótulos SIMULADA. Reinicie o serviço e confira novamente histórico e plano. Nenhum pagamento real deve ocorrer.
-5. Somente depois da revisão do resultado, decida como disponibilizar a versão aprovada. Manter o segundo serviço e banco demo isolados é a opção segura; para usar o domínio principal, planeje explicitamente o roteamento e confirme que nenhuma instância demo usa o banco ou credenciais de produção. Não altere o serviço principal apenas para ativar `PAYMENT_MODE=demo`.
+O certificado atual do add-on é autoassinado e não cobre o hostname. Para usar temporariamente TLS sem validação de identidade, configure **somente no Render demonstrativo**:
+
+```dotenv
+NODE_ENV=production
+PAYMENT_MODE=demo
+DEMO_DEPLOYMENT=academico_isolado
+DEMO_DATABASE_HOST=booqcxfmlvclpjzw2uce-mysql.services.clever-cloud.com
+DEMO_DATABASE_NAME=booqcxfmlvclpjzw2uce
+DEMO_ALLOW_UNVERIFIED_TLS=I_UNDERSTAND_TEST_ONLY
+DATABASE_URL=mysql://USUARIO:SENHA@booqcxfmlvclpjzw2uce-mysql.services.clever-cloud.com:3306/booqcxfmlvclpjzw2uce?sslaccept=accept_invalid_certs
+```
+
+Use as credenciais do add-on demo, com caracteres reservados do usuário e da senha codificados para URL. Guarde a URL como segredo. Configure um `JWT_SECRET` próprio do serviço e deixe as credenciais reais de Mercado Pago e Google fora desse ambiente. Quando o banco oferecer um certificado confiável e compatível com o hostname, volte para `sslaccept=strict` e remova `DEMO_ALLOW_UNVERIFIED_TLS`.
+
+1. Aponte o segundo Web Service no Render para a branch de integração e mantenha deploy automático desativado durante a validação. Use `npm ci --include=dev && npx prisma generate` no build e `npm start` para iniciar o app.
+2. No shell do serviço demo, com o código publicado e as variáveis acima, execute `node scripts/migrate-demo-hospedado.js --verificar`. Esse modo faz consultas de leitura na mesma sessão para conferir schema, versão MySQL 8 e `Ssl_cipher`, e encerra antes do Prisma Migrate. Aguarde a confirmação de êxito e código de saída 0. A cifra confirma criptografia na sessão. Com a exceção ativa, a identidade do servidor fica sem validação.
+3. Após a verificação bem-sucedida, revise o SQL e faça backup conforme a política do banco. A aplicação das migrations é uma etapa manual separada, com uma conta restrita ao banco demo. O comando `node scripts/migrate-demo-hospedado.js` repete a verificação antes de executar o Prisma Migrate. Mantenha esse comando fora do build, start e pre-deploy.
+4. No domínio HTTPS do serviço demo, use login tradicional e contas fictícias. Confira o bloqueio sem login, aprovação, pendência, recusa, repetição, troca de plano, isolamento entre alunos e os rótulos SIMULADA. Para Básico, use uma unidade fictícia cadastrada no banco demonstrativo. Reinicie o serviço e confira novamente histórico e plano.
 
 O app usa cookies `secure` em produção e confia no primeiro proxy para sessões HTTPS no Render. Autenticação, cadastro e checkout devem ser validados no segundo serviço com dados fictícios. A persistência depende da disponibilidade e retenção do MySQL dedicado, e não do disco efêmero do Render.
 
-A verificação de saúde do serviço Render deve usar `/api/health`; o endpoint informa que o processo responde, mas não prova que o banco ou o checkout funcionam. O login tradicional usa JWT com cookie seguro em HTTPS e token no navegador; o token continua válido após reinício enquanto a chave e a validade permanecerem as mesmas. Sessões do Passport usam armazenamento em memória e são perdidas em reinícios ou entre instâncias; o login Google não está preparado para persistência distribuída. Para apresentação, use login tradicional e contas fictícias.
+A verificação de saúde do serviço Render deve usar `/api/health`; o endpoint informa que o processo responde, mas não prova que o banco ou o checkout funcionam. O login tradicional usa JWT com cookie seguro em HTTPS e token no navegador; o token continua válido após reinício enquanto a chave e a validade permanecerem as mesmas. O login Google emite o mesmo JWT revogável do login tradicional. A aplicação confere a versão da sessão no banco a cada requisição autenticada. Para apresentação, use login tradicional e contas fictícias.
 
-O add-on informado acima é a única exceção Clever Cloud. Compare identidade e certificado independentemente no painel antes de qualquer conexão ou migration; nunca acrescente uma exceção genérica.
+## Checkout Krypton por QR Code
 
+Emita o código no checkout do aluno autenticado. Um novo código revoga o anterior. A tentativa guarda somente SHA-256 do token e a expiração de cinco minutos. Escanear o código autoriza somente a aprovação dessa tentativa fictícia. O celular pode ser usado sem sessão. Trate o link como uma autorização delegada pelo aluno e compartilhe-o apenas com a pessoa que deve executar a simulação.
 
-O comando protegido de migration confere nome, versão e `Ssl_cipher` na mesma conexão antes de executar Prisma Migrate. Isso não identifica por si só o recurso no painel: confirme também o ID do add-on e a conta dedicada antes de autorizar a execução. São esperadas as cinco migrations versionadas, sem criação de outro schema; a aplicação efetiva depende de permissões DDL e do estado inicial e não foi testada remotamente.
+A página do celular recebe o token no fragmento da URL, remove o fragmento da barra de endereços e envia o token em um POST JSON da mesma origem, sem credenciais de sessão. GET, HEAD, imagens e a geração do PNG não aprovam. O GET descarta prévias identificadas pelos cabeçalhos de prefetch e o script espera visibilidade e saída do modo de pré-renderização. Um navegador automatizado capaz de executar JavaScript em uma aba visível e obter o fragmento pode agir como quem escaneou o código. Essas medidas reduzem aprovações por prévias passivas. A política `no-referrer` protege a navegação ao YouTube, cujo URL é fixo.
 
-Se a CA do sistema não for suficiente, no Render disponibilize a CA autêntica do provedor como arquivo secreto no serviço de demonstração (por exemplo, `/etc/secrets/mysql-demo-ca.pem`, se o plano suportar arquivos secretos), e informe esse caminho em `sslcert` dentro da `DATABASE_URL` secreta. Caminhos relativos são resolvidos pelo Prisma em relação a `prisma/`. Confirme com o Clever Cloud que o add-on aceita TLS para conexões externas e fornece uma CA cujo certificado corresponde ao hostname; nunca use `accept_invalid_certs`. Sem essa confirmação e uma conexão verificada, não execute a migration.
+Para homologar no Render demo, use a nova branch, mantenha o modo acadêmico isolado, gere o cliente Prisma e execute primeiro a verificação somente de leitura já descrita. Após revisão, aplique a migration aditiva do QR manualmente apenas no banco demo. Na URL HTTPS do serviço, entre com aluno de teste, inicie um plano, escaneie com celular sem sessão, confira a aprovação e o redirecionamento e confirme no desktop a atualização do plano e do histórico. Repita com código expirado, renovado e reutilizado e com as ferramentas de apresentação.
 
-Quando `sslcert` é omitido, o Prisma usa as CAs confiáveis do ambiente. Se fornecido, o caminho deve apontar para arquivo legível; a confiança do certificado e do servidor só é verificada pelo Prisma ao conectar. Não use `accept_invalid_certs`.
+## Estrutura prevista dos dashboards
+
+| Perfil | Áreas do painel |
+| --- | --- |
+| Aluno | Plano ativo, histórico, treinos e agendamentos próprios |
+| Administrador | Gestão de usuários, unidades, planos, permissões e auditoria |
+| Recepcionista | Atendimento, check-in e agenda da unidade |
+| Personal trainer | Treinos, agenda e acompanhamento de alunos atribuídos |
+| Nutricionista | Consultas e acompanhamento dos alunos atribuídos |
+
+Compartilhe cabeçalho, navegação, cartões e indicadores de estado entre os painéis. Os dados e as ações de cada perfil devem ser autorizados no backend, com escopo de aluno ou unidade conforme a função. Recepção, personal e nutrição ficam para as próximas sprints.
+
+## Métodos integrados no checkout acadêmico
+
+A tela de assinatura encaminha ao checkout Krypton para selecionar **QR Code Krypton** ou **Mercado Pago**. A reserva é criada somente após confirmar o método. Ao retornar com uma contratação pendente, a aplicação abre a tentativa existente. Para escolher outro método depois de iniciar, encerre a tentativa atual com a opção de recusa da apresentação.
+
+- O QR mantém a validade, a renovação, a aprovação pelo celular e o redirecionamento demonstrativo já homologados.
+- **Mercado Pago** usa respostas simuladas localmente. O adaptador percorre criação, consulta e confirmação pelo serviço de assinatura desenvolvido para o Mercado Pago. Os três controles representam pendência, autorização com fatura aprovada e encerramento da tentativa com recusa. A simulação não cobre todos os eventos e prazos do provedor.
+- Uma recusa ou pendência preserva o plano ativo anterior. Na aprovação, a confirmação transacional troca o plano e atualiza o histórico uma única vez. O bloqueio do aluno na reserva impede concorrência entre QR e Mercado Pago.
+- O adaptador funciona exclusivamente no modo acadêmico aprovado. Os identificadores simulados levam prefixos próprios. A confirmação e a reconciliação financeiras excluem essas tentativas, e o plano simulado fica sem identificador de cobrança recorrente.
+
+A migration `20261128_checkout_metodos` registra o método e a resposta simulada na tentativa. O preenchimento inicial identifica os QR anteriores pela origem `demo` e preserva seus registros. O histórico expõe `tentativa.metodo` e `origem`:
+
+| Método | Origem | Natureza |
+| --- | --- | --- |
+| `qr_krypton` | `demo` | Simulada |
+| `mercadopago_simulado` | `demo_mercadopago` | Simulada |
+| `mercadopago` | `mercadopago` | Integração financeira |
+
+`GET /api/admin/pagamentos` disponibiliza os 100 registros mais recentes somente a administradores, com método e origem e sem IDs do provedor. Use a origem `mercadopago` para separar a integração financeira em um futuro relatório. O histórico de alunos continua restrito ao titular.
+
+### Homologação futura com a Vitória
+
+1. Em conjunto com a Vitória, revise no painel do Mercado Pago a aplicação de **Assinaturas** e confirme com a documentação ou suporte quais credenciais e contas de teste são autorizadas para o fluxo existente de assinatura sem plano associado. Use uma aplicação e um ambiente de teste separados, com banco isolado, TLS com identidade validada e sem credenciais de produção. [API de Assinaturas](https://www.mercadopago.com.br/developers/pt/docs/subscriptions/overview) · [Credenciais](https://www.mercadopago.com.br/developers/pt/docs/subscriptions/additional-content/your-integrations/credentials)
+2. No ambiente autorizado e exclusivo desse teste futuro, configure o retorno HTTPS `/checkout/success`, o webhook com segredo próprio e o acesso do vendedor de teste conforme as instruções validadas com o provedor. Mantenha o Render acadêmico em `PAYMENT_MODE=demo`. Use comprador e meio de pagamento de teste quando o cenário pedir, diretamente na página oficial do provedor. [Teste de compra da API de Assinaturas](https://www.mercadopago.com.br/developers/pt/docs/subscriptions/integration-test/payment-approval)
+3. Verifique a criação e a consulta da assinatura, a correspondência de pagador e referência, a notificação autenticada e a confirmação de uma fatura de teste. Reenvie a notificação para verificar idempotência. Confira a operação de reconciliação primeiro em `--dry-run` e registre os resultados sem segredos.
