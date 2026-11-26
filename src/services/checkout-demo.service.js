@@ -5,6 +5,8 @@ import prisma from '../lib/prisma.js';
 import { camposHistoricoPagamento, ErroCheckout } from './checkout.service.js';
 import { TLS_SEM_VALIDACAO, validarModoDemo } from '../config/demo-db.js';
 
+import { exigeModoAcademico } from '../config/demo-hosts.js';
+
 export { validarModoDemo };
 export const AVISO_TLS_DEMO = 'Ambiente demonstrativo isolado: validação de identidade TLS do banco desativada.';
 
@@ -17,7 +19,7 @@ const planos = { basico: { nome: 'Básico', centavos: 8900 }, pro: { nome: 'Pro'
 export function validarTlsBanco(env = process.env) {
   // Inspeciona todas as ocorrências, inclusive quando PAYMENT_MODE não é demo.
   const url = URL.canParse(env.DATABASE_URL) ? new URL(env.DATABASE_URL) : null;
-  if (env.PAYMENT_MODE === 'demo' || url?.searchParams.getAll('sslaccept').includes(TLS_SEM_VALIDACAO)) {
+  if (env.PAYMENT_MODE === 'demo' || exigeModoAcademico(env) || url?.searchParams.getAll('sslaccept').includes(TLS_SEM_VALIDACAO)) {
     const sslaccept = validarModoDemo(env);
     validarArquivoCaDemo(env);
     return sslaccept;
