@@ -10,12 +10,9 @@ import {
   validarConfiguracaoCheckout,
 } from '../gatewary/mercadopago.js';
 
-export class ErroCheckout extends Error {
-  constructor(mensagem, status = 400) {
-    super(mensagem);
-    this.status = status;
-  }
-}
+import { ErroCheckout } from '../lib/erro-checkout.js';
+
+export { ErroCheckout };
 
 export const camposHistoricoPagamento = {
   id: true, origem: true, status: true, valor_centavos: true, moeda: true, criado_em: true,

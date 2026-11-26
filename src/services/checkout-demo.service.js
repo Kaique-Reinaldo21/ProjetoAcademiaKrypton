@@ -3,9 +3,9 @@ import { accessSync, constants, statSync } from 'node:fs';
 import path from 'node:path';
 import prisma from '../lib/prisma.js';
 import { camposHistoricoPagamento, ErroCheckout } from './checkout.service.js';
-import { DESTINO_DEMO_TLS_SEM_VALIDACAO, DESTINOS_DEMO_APROVADOS } from '../config/demo-hosts.js';
+import { TLS_SEM_VALIDACAO, validarModoDemo } from '../config/demo-db.js';
 
-const TLS_SEM_VALIDACAO = 'accept_invalid_certs';
+export { validarModoDemo };
 export const AVISO_TLS_DEMO = 'Ambiente demonstrativo isolado: validação de identidade TLS do banco desativada.';
 
 const validadeQrMs = 5 * 60_000;
@@ -14,36 +14,6 @@ const qrInvalido = () => new ErroCheckout('Código indisponível. Gere um novo c
 const revogarQr = { qr_token_hash: null, qr_expira_em: null };
 
 const planos = { basico: { nome: 'Básico', centavos: 8900 }, pro: { nome: 'Pro', centavos: 14900 }, elite: { nome: 'Elite', centavos: 24900 } };
-export function validarModoDemo(env = process.env, destinosAprovados = DESTINOS_DEMO_APROVADOS) {
-  const negar = codigo => { const erro = new ErroCheckout('Demonstração indisponível neste ambiente.', 403); erro.codigoConfiguracao = codigo; throw erro; };
-  if (env.PAYMENT_MODE !== 'demo') return negar('PAYMENT_MODE_INVALIDO');
-  let url;
-  try { url = new URL(env.DATABASE_URL); } catch { return negar('DATABASE_URL_INVALIDA'); }
-  if (url.protocol !== 'mysql:' || url.hash) return negar('DATABASE_URL_PROTOCOLO_OU_FRAGMENTO');
-  if (env.NODE_ENV === 'development' && url.hostname === '127.0.0.1' && url.port === '3307' && url.pathname === '/academia_kripton_checkout_test' && !url.search) return;
-  if (env.NODE_ENV !== 'production') return negar('NODE_ENV_INVALIDO');
-  if (env.DEMO_DEPLOYMENT !== 'academico_isolado') return negar('DEMO_DEPLOYMENT_INVALIDO');
-  const host = url.hostname.toLowerCase();
-  const permitido = (env.DEMO_DATABASE_HOST || '').toLowerCase();
-  const banco = env.DEMO_DATABASE_NAME || '';
-  if (!permitido || host !== permitido || host === 'localhost' || host === '127.0.0.1' || !/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(host) || !host.includes('.')) return negar('HOST_INVALIDO');
-  if (banco === 'b7ah1lmgd5imdjqu51eq' || !/^[A-Za-z0-9_]{1,64}$/.test(banco) || url.pathname !== '/' + banco) return negar('SCHEMA_INVALIDO');
-  if (!destinosAprovados.some(destino => destino.host === host && destino.banco === banco && destino.porta === url.port)) return negar('DESTINO_OU_PORTA_NAO_APROVADO');
-  const params = url.searchParams;
-  if ([...params.keys()].some(p => !['sslcert', 'sslaccept'].includes(p))) return negar('PARAMETRO_NAO_PERMITIDO');
-  if (params.getAll('sslcert').length > 1 || (params.has('sslcert') && !params.get('sslcert'))) return negar('SSLCERT_VAZIO_OU_DUPLICADO');
-  if (params.getAll('sslaccept').length !== 1) return negar('SSLACCEPT_INVALIDO');
-  const sslaccept = params.get('sslaccept');
-  if (sslaccept === 'strict') return;
-  const destino = DESTINO_DEMO_TLS_SEM_VALIDACAO;
-  if (sslaccept !== TLS_SEM_VALIDACAO ||
-      env.DEMO_ALLOW_UNVERIFIED_TLS !== 'I_UNDERSTAND_TEST_ONLY' ||
-      host !== destino.host || banco !== destino.banco || url.port !== destino.porta) {
-    return negar('SSLACCEPT_INVALIDO');
-  }
-  return sslaccept;
-}
-
 export function validarTlsBanco(env = process.env) {
   // Inspeciona todas as ocorrências, inclusive quando PAYMENT_MODE não é demo.
   const url = URL.canParse(env.DATABASE_URL) ? new URL(env.DATABASE_URL) : null;
