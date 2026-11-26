@@ -60,14 +60,15 @@ export function inicio(raiz, contexto) {
   avatar.setAttribute('aria-label', 'Editar foto de perfil');
   const apresentacao = elemento('div');
   const saudacao = elemento('h1', 'Olá, ' + (contexto.usuario.nome.trim().split(/\s+/)[0] || 'aluno') + '!');
-  apresentacao.append(saudacao, elemento('p', 'Acompanhe seu plano e organize sua rotina na Krypton.', 'kd-texto-suave'));
+  apresentacao.append(saudacao, elemento('p', 'Acompanhe seu plano e seus treinos.', 'kd-texto-suave'));
   hero.append(avatar, apresentacao);
   raiz.append(hero);
 
   const resumo = elemento('div', null, 'kd-grid aluno-resumo');
-  const plano = elemento('div');
-  const agenda = elemento('div');
+  const plano = elemento('div', null, 'aluno-resumo-plano');
+  const agenda = elemento('div', null, 'aluno-resumo-agenda');
   const frequencia = card('Frequência semanal', calendarioTreinos());
+  frequencia.classList.add('aluno-resumo-frequencia');
   resumo.append(plano, frequencia, agenda);
   raiz.append(resumo);
   carregar(plano, contexto, 'plano', p => {
