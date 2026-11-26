@@ -1,6 +1,7 @@
 import express from 'express';
 import passport from 'passport';
 import prisma from '../lib/prisma.js';
+import { criarRotasContas } from './contas.routes.js';
 import authMiddleware from '../middleware/auth.js';
 
 import {
@@ -12,6 +13,7 @@ import {
 
 
 const router = express.Router();
+router.use(criarRotasContas());
 
 
 // Login tradicional
@@ -44,6 +46,7 @@ router.get('/me', authMiddleware, async (req, res) => {
         nome: true,
         email: true,
         role: true,
+        senha_hash: true,
       },
     });
 
@@ -51,7 +54,8 @@ router.get('/me', authMiddleware, async (req, res) => {
       return res.status(404).json({ erro: 'Usuário não encontrado.' });
     }
 
-    return res.json({ usuario });
+    const { senha_hash, ...dados } = usuario;
+    return res.json({ usuario: { ...dados, possuiSenhaLocal: Boolean(senha_hash) } });
   } catch (error) {
     return res.status(500).json({ erro: 'Erro ao validar sessão.' });
   }
@@ -87,7 +91,7 @@ router.get(
     }
 
     passport.authenticate('google', {
-      session: true,
+      session: false,
       failureRedirect:
         '/login.html?tab=cadastro&erro=' +
         encodeURIComponent('Falha na autenticação com Google.'),

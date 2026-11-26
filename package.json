@@ -15,8 +15,9 @@
     "test": "node --import ./tests/setup-isolamento.js --test",
     "setup:local": "node scripts/setup-local.js",
     "demo:unidades:local": "node scripts/seed-local-unidades.js",
-    "test:integration": "node --test integration/checkout.mysql.mjs",
-    "test:integration:migrate": "node integration/migrate.mjs"
+    "test:integration": "node --test integration/*.mysql.mjs",
+    "test:integration:migrate": "node integration/migrate.mjs",
+    "conta:admin-inicial": "node scripts/criar-admin-inicial.js"
   },
   "dependencies": {
     "@nestjs/jwt": "^12.0.3",
@@ -30,6 +31,7 @@
     "express-session": "^1.19.0",
     "jsonwebtoken": "^9.0.3",
     "mercadopago": "^3.6.1",
+    "nodemailer": "^10.6.1",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0"
   },
