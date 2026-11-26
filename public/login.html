@@ -238,8 +238,8 @@
       <p class="hint"><i class="bi bi-info-circle"></i> Idade mínima: 14 anos.</p>
     </div>
     <div class="mb-4">
-      <label class="form-label">Senha <span style="color:rgba(255,255,255,.35)">(mín. 12 caracteres)</span></label>
-      <input type="password" id="cad-senha" class="form-control" placeholder="••••••••" required minlength="12" autocomplete="new-password"/>
+      <label class="form-label">Senha <span style="color:rgba(255,255,255,.35)">(mín. 6 caracteres)</span></label>
+      <input type="password" id="cad-senha" class="form-control" placeholder="••••••••" required minlength="6" autocomplete="new-password"/>
     </div>
     <button type="submit" class="btn-submit" id="btn-cadastro">
       <span id="btn-cad-txt">Criar Conta</span>
@@ -365,8 +365,8 @@
     }
 
     const senhaCadastro = document.getElementById('cad-senha').value;
-    if ([...senhaCadastro].length < 12 || new TextEncoder().encode(senhaCadastro).length > 72) {
-      mostrarErro('Use pelo menos 12 caracteres, com limite de 72 bytes em UTF-8.');
+    if ([...senhaCadastro].length < 6 || new TextEncoder().encode(senhaCadastro).length > 72) {
+      mostrarErro('Use pelo menos 6 caracteres, com limite de 72 bytes em UTF-8.');
       return;
     }
 

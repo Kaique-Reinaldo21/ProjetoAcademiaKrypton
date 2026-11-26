@@ -6,7 +6,10 @@ import { criarEmailRecuperacao } from '../src/services/recuperacao-email.service
 
 test('política aceita frases longas e rejeita truncamento do bcrypt por byte', async () => {
   const caracteres = 'ç'.repeat(36);
-  assert.equal(erroNovaSenha('a'.repeat(11)), 'Use pelo menos 12 caracteres.');
+  assert.equal(erroNovaSenha('a'.repeat(5), undefined, 'aluno'), 'Use pelo menos 6 caracteres.');
+  assert.equal(erroNovaSenha('a'.repeat(6), undefined, 'aluno'), null);
+  assert.equal(erroNovaSenha('é'.repeat(37), undefined, 'aluno'), 'A senha pode ter até 72 bytes em UTF-8.');
+  assert.equal(erroNovaSenha('a'.repeat(11), undefined, 'admin'), 'Use pelo menos 12 caracteres.');
   assert.equal(erroNovaSenha(caracteres), null);
   assert.match(erroNovaSenha(caracteres + 'a'), /72 bytes/);
   assert.match(erroNovaSenha('uma frase comprida', 'outra frase comprida'), /iguais/);

@@ -21,9 +21,9 @@ export function normalizarEmail(email) {
     ? normalizado : null;
 }
 
-function exigirSenha(senha, confirmacao) {
+function exigirSenha(senha, confirmacao, role) {
   if (typeof confirmacao !== 'string') throw new ErroConta('Confirme a nova senha.');
-  const erro = erroNovaSenha(senha, confirmacao);
+  const erro = erroNovaSenha(senha, confirmacao, role);
   if (erro) throw new ErroConta(erro);
 }
 
@@ -120,13 +120,22 @@ export function criarServicoContas({
 
   async function redefinir(token, senha, confirmacao) {
     if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token)) throw tokenInvalido();
-    exigirSenha(senha, confirmacao);
     const token_hash = hashToken(token);
-    const recuperacao = await db.recuperacoes_senha.findUnique({ where: { token_hash } });
+    const recuperacao = await db.recuperacoes_senha.findUnique({
+      where: { token_hash },
+      include: { usuario: { select: { role: true } } },
+    });
     if (!recuperacao || recuperacao.expira_em <= agora()) throw tokenInvalido();
+    exigirSenha(senha, confirmacao, recuperacao.usuario.role);
     const senhaHash = await gerarHashSenha(senha);
     await db.$transaction(async tx => {
       await bloquearUsuarios(tx, recuperacao.usuario_id);
+      const conta = await tx.usuarios.findUnique({
+        where: { id: recuperacao.usuario_id },
+        select: { role: true },
+      });
+      if (!conta) throw tokenInvalido();
+      exigirSenha(senha, confirmacao, conta.role);
       const consumido = await tx.recuperacoes_senha.deleteMany({
         where: { usuario_id: recuperacao.usuario_id, token_hash, expira_em: { gt: agora() } },
       });
@@ -136,16 +145,18 @@ export function criarServicoContas({
   }
 
   async function alterar(sessao, senhaAtual, senha, confirmacao) {
-    exigirSenha(senha, confirmacao);
     const conta = await db.usuarios.findUnique({ where: { id: sessao.id } });
     exigirSessao(conta, sessao);
+    exigirSenha(senha, confirmacao, conta.role);
     if (!conta.senha_hash) throw new ErroConta('Sua conta usa Google. Gerencie a senha na conta Google.', 409);
     if (!await conferirSenha(senhaAtual, conta.senha_hash)) throw new ErroConta('Senha atual incorreta.', 403);
     if (senha === senhaAtual) throw new ErroConta('Escolha uma senha diferente da atual.');
     const senhaHash = await gerarHashSenha(senha);
     await db.$transaction(async tx => {
       await bloquearUsuarios(tx, sessao.id);
-      exigirSessao(await tx.usuarios.findUnique({ where: { id: sessao.id } }), sessao);
+      const atual = await tx.usuarios.findUnique({ where: { id: sessao.id } });
+      exigirSessao(atual, sessao);
+      exigirSenha(senha, confirmacao, atual.role);
       await tx.recuperacoes_senha.deleteMany({ where: { usuario_id: sessao.id } });
       await trocarSenha(tx, sessao.id, senhaHash, 'senha_alterada');
     });

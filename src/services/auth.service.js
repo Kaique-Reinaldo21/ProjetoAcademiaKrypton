@@ -67,7 +67,7 @@ export async function cadastrar(dados) {
     data_nascimento,
   } = dados;
 
-  const erro = erroNovaSenha(senha);
+  const erro = erroNovaSenha(senha, senha, 'aluno');
   if (erro) throw new Error(erro);
 
   const usuarioExistente = await prisma.usuarios.findUnique({

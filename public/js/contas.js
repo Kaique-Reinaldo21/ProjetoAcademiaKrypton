@@ -26,10 +26,11 @@ function avaliar() {
   const senha = nova.value;
   const comprimento = [...senha].length;
   const bytes = new TextEncoder().encode(senha).length;
-  const erro = bytes > 72 ? 'Use até 72 bytes em UTF-8.' : comprimento < 12 ? 'Use pelo menos 12 caracteres.' : '';
+  const minimo = nova.minLength;
+  const erro = bytes > 72 ? 'Use até 72 bytes em UTF-8.' : comprimento < minimo ? `Use pelo menos ${minimo} caracteres.` : '';
   nova.setCustomValidity(erro);
   confirmacao.setCustomValidity(confirmacao.value === senha ? '' : 'As senhas precisam ser iguais.');
-  const forca = erro ? (senha ? 1 : 0) : comprimento >= 18 ? 3 : 2;
+  const forca = !senha ? 0 : erro || comprimento < 12 ? 1 : comprimento >= 18 ? 3 : 2;
   document.getElementById('forca').value = forca;
   document.getElementById('forca-texto').textContent = ['Força da senha', 'Considere uma senha mais longa', 'Comprimento adequado', 'Bom comprimento'][forca];
 }
@@ -102,6 +103,10 @@ ligarFormulario('recuperar-admin', '/admin/recuperacao');
 async function carregarConta() {
   try {
     const { usuario } = await api('/me');
+    const minimo = usuario.role === 'aluno' ? 6 : 12;
+    nova.minLength = confirmacao.minLength = minimo;
+    document.getElementById('politica').textContent =
+      `Use ao menos ${minimo} caracteres, até 72 bytes em UTF-8. Prefira uma frase longa e exclusiva.`;
     document.getElementById('alterar').hidden = !usuario.possuiSenhaLocal;
     document.getElementById('conta-google').hidden = usuario.possuiSenhaLocal;
     document.getElementById('administracao').hidden = usuario.role !== 'admin' || !usuario.possuiSenhaLocal;

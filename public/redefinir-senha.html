@@ -21,17 +21,17 @@
     <form method="post" id="redefinir">
       <div class="mb-3">
         <label class="form-label" for="novaSenha">Nova senha</label>
-        <input class="form-control" id="novaSenha" name="novaSenha" type="password" autocomplete="new-password" aria-describedby="politica" required minlength="12">
+        <input class="form-control" id="novaSenha" name="novaSenha" type="password" autocomplete="new-password" aria-describedby="politica" required minlength="6">
         <div class="senha-opcoes">
           <span id="forca-texto">Força da senha</span>
           <button class="mostrar-senha" type="button" data-mostrar="novaSenha">Mostrar senha</button>
         </div>
         <meter id="forca" min="0" max="3" value="0" aria-labelledby="forca-texto"></meter>
-        <p class="hint" id="politica">Use ao menos 12 caracteres, até 72 bytes em UTF-8. Uma frase longa ajuda a proteger a conta.</p>
+        <p class="hint" id="politica">Alunos precisam de ao menos 6 caracteres. Os demais perfis precisam de 12. Limite de 72 bytes em UTF-8. Prefira uma frase longa e exclusiva.</p>
       </div>
       <div class="mb-3">
         <label class="form-label" for="confirmacao">Confirmar nova senha</label>
-        <input class="form-control" id="confirmacao" name="confirmacao" type="password" autocomplete="new-password" required minlength="12">
+        <input class="form-control" id="confirmacao" name="confirmacao" type="password" autocomplete="new-password" required minlength="6">
       </div>
       <button class="btn-submit" type="submit">Salvar nova senha</button>
     </form>

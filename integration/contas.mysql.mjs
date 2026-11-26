@@ -14,7 +14,7 @@ const { default: prisma } = await import('../src/lib/prisma.js');
 const { criarServicoContas } = await import('../src/services/contas.service.js');
 const { conferirSenha, gerarHashSenha } = await import('../src/services/politica-senha.js');
 const { criarRotasContas } = await import('../src/routes/contas.routes.js');
-const { login } = await import('../src/controllers/auth.controller.js');
+const { login, cadastrar } = await import('../src/controllers/auth.controller.js');
 const { default: authMiddleware } = await import('../src/middleware/auth.js');
 
 test('recuperação, alteração e redefinição administrativa no MySQL 8', { timeout: 20000 }, async () => {
@@ -35,6 +35,7 @@ test('recuperação, alteração e redefinição administrativa no MySQL 8', { t
   });
   app.use('/api/auth', criarRotasContas(servico));
   app.post('/api/auth/login', login);
+  app.post('/api/auth/cadastro', cadastrar);
   app.get('/api/auth/me', authMiddleware, (req, res) => res.json({ id: req.usuario.id, role: req.usuario.role }));
   const server = app.listen(0, '127.0.0.1');
   const unicos = [];
@@ -50,9 +51,7 @@ test('recuperação, alteração e redefinição administrativa no MySQL 8', { t
       },
       body: dados ? JSON.stringify(dados) : undefined,
     });
-    const senhaInicial = randomBytes(22).toString('base64url');
-    const novaSenha = randomBytes(22).toString('base64url');
-    const outraSenha = randomBytes(22).toString('base64url');
+    const [senhaInicial, novaSenha, outraSenha] = Array.from({ length: 3 }, () => randomBytes(4).toString('base64url'));
     const hashInicial = await gerarHashSenha(senhaInicial);
     const usuario = async (role, senha_hash = hashInicial) => {
       const u = await prisma.usuarios.create({
@@ -61,7 +60,15 @@ test('recuperação, alteração e redefinição administrativa no MySQL 8', { t
       unicos.push(u.id);
       return u;
     };
-    const aluno = await usuario('aluno');
+    const cadastro = { nome: 'Aluno fictício', email: randomUUID() + '@example.invalid', data_nascimento: '2001-01-01' };
+    const cadastroCurto = await chamar('/cadastro', { ...cadastro, senha: senhaInicial.slice(1) });
+    assert.equal(cadastroCurto.status, 400);
+    assert.deepEqual(await cadastroCurto.json(), { erro: 'Use pelo menos 6 caracteres.' });
+    const cadastroValido = await chamar('/cadastro', { ...cadastro, senha: senhaInicial });
+    assert.equal(cadastroValido.status, 201);
+    const { usuario: aluno } = await cadastroValido.json();
+    unicos.push(aluno.id);
+    assert.equal((await chamar('/login', { email: aluno.email, senha: senhaInicial })).status, 200);
     const admin = await usuario('admin');
     const google = await usuario('aluno', null);
     for (const alvo of [aluno, admin, google]) {
@@ -106,6 +113,7 @@ test('recuperação, alteração e redefinição administrativa no MySQL 8', { t
     const terceiro = await aguardarEmail(aluno, 3);
     await chamar('/recuperacao', { email: aluno.email });
     assert.equal((await redefinir(segundo, novaSenha)).status, 410);
+    assert.equal((await redefinir(terceiro, novaSenha.slice(1))).status, 400);
     const concorrentes = await Promise.all([redefinir(terceiro, novaSenha), redefinir(terceiro, novaSenha)]);
     assert.deepEqual(concorrentes.map(r => r.status).sort(), [200, 410]);
     assert.equal((await redefinir(terceiro, novaSenha)).status, 410);
@@ -119,6 +127,7 @@ test('recuperação, alteração e redefinição administrativa no MySQL 8', { t
     assert.equal((await alterar(undefined, novaSenha, outraSenha)).status, 401);
     assert.equal((await alterar(sessaoPosReset, senhaInicial, outraSenha)).status, 403);
     assert.equal((await alterar(sessao(google), senhaInicial, outraSenha)).status, 409);
+    assert.equal((await alterar(sessaoPosReset, novaSenha, outraSenha.slice(1))).status, 400);
     assert.equal((await alterar(sessaoPosReset, novaSenha, outraSenha)).status, 200);
     assert.equal((await chamar('/me', null, sessaoPosReset)).status, 401);
     const loginAlterado = await chamar('/login', { email: aluno.email, senha: outraSenha });
@@ -136,6 +145,16 @@ test('recuperação, alteração e redefinição administrativa no MySQL 8', { t
     assert.equal((await redefinir(await aguardarEmail(aluno, 4), novaSenha)).status, 200);
     assert.equal((await atual(aluno)).role, 'aluno');
     assert.equal((await atual(admin)).role, 'admin');
+    assert.equal((await chamar('/login', { email: admin.email, senha: senhaInicial })).status, 200);
+    const adminCurta = await alterar(sessao(admin), senhaInicial, outraSenha);
+    assert.equal(adminCurta.status, 400);
+    assert.deepEqual(await adminCurta.json(), { erro: 'Use pelo menos 12 caracteres.' });
+    await chamar('/recuperacao', { email: admin.email });
+    const tokenAdmin = await aguardarEmail(admin, 1);
+    const resetAdminCurto = await redefinir(tokenAdmin, novaSenha);
+    assert.equal(resetAdminCurto.status, 400);
+    assert.deepEqual(await resetAdminCurto.json(), { erro: 'Use pelo menos 12 caracteres.' });
+    assert.equal((await redefinir(tokenAdmin, randomBytes(22).toString('base64url'))).status, 200);
     assert.equal((await atual(google)).senha_hash, null);
     const eventos = await prisma.auditoria_contas.findMany({ where: { usuario_id: aluno.id }, orderBy: { id: 'asc' } });
     assert.deepEqual(eventos.map(e => e.evento), ['senha_redefinida', 'senha_alterada', 'recuperacao_administrativa', 'senha_redefinida']);

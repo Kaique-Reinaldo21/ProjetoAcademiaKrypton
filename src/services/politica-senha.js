@@ -4,8 +4,13 @@ export function senhaCabeNoBcrypt(senha) {
   return typeof senha === 'string' && Buffer.byteLength(senha, 'utf8') <= 72;
 }
 
-export function erroNovaSenha(senha, confirmacao = senha) {
-  if (typeof senha !== 'string' || [...senha].length < 12) return 'Use pelo menos 12 caracteres.';
+export function minimoSenha(role) {
+  return role === 'aluno' ? 6 : 12;
+}
+
+export function erroNovaSenha(senha, confirmacao = senha, role) {
+  const minimo = minimoSenha(role);
+  if (typeof senha !== 'string' || [...senha].length < minimo) return `Use pelo menos ${minimo} caracteres.`;
   if (!senhaCabeNoBcrypt(senha)) return 'A senha pode ter até 72 bytes em UTF-8.';
   if (senha !== confirmacao) return 'As senhas precisam ser iguais.';
   return null;

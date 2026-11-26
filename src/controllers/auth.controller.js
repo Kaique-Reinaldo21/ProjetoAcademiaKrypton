@@ -88,7 +88,7 @@ export async function cadastrar(req, res) {
     });
 
   } catch (error) {
-    const validacao = ['E-mail já cadastrado', 'Use pelo menos 12 caracteres.', 'A senha pode ter até 72 bytes em UTF-8.'];
+    const validacao = ['E-mail já cadastrado', 'Use pelo menos 6 caracteres.', 'A senha pode ter até 72 bytes em UTF-8.'];
     return res.status(400).json({
       erro: validacao.includes(error.message) ? error.message : 'Não foi possível concluir o cadastro.',
     });
