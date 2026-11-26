@@ -76,6 +76,14 @@ model usuarios {
   transacoes_pagamento transacoes_pagamento[]
   checkout_tentativas checkout_tentativas[]
   recuperacao_senha recuperacoes_senha?
+  foto_perfil fotos_perfil?
+  treinos_concluidos treinos_concluidos[]
+}
+
+model fotos_perfil {
+  usuario_id Int      @id @db.UnsignedInt
+  imagem     Bytes    @db.MediumBlob
+  usuario    usuarios @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
 }
 
 model estados_oauth_google {
@@ -184,4 +192,13 @@ model transacoes_pagamento {
   @@index([usuario_id])
   @@index([tentativa_id])
   @@index([plano_id])
+}
+
+model treinos_concluidos {
+  usuario_id    Int      @db.UnsignedInt
+  dia           DateTime @db.Date
+  registrado_em DateTime @db.DateTime(3)
+  usuario       usuarios @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@id([usuario_id, dia])
 }
