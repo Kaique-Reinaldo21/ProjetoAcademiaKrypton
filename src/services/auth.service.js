@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import prisma from '../lib/prisma.js';
+import { diagnosticarInicializacao } from '../lib/diagnostico-inicializacao.js';
 import { conferirSenha, erroNovaSenha, gerarHashSenha } from './politica-senha.js';
 
 
@@ -126,7 +127,7 @@ export async function registrarLogin(
     // Falha no histórico não deve impedir o usuário de entrar.
     console.error(
       'Erro ao registrar histórico de login:',
-      error
+      diagnosticarInicializacao(error)
     );
   }
 }

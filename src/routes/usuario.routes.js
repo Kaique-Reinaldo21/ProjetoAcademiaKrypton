@@ -66,6 +66,8 @@ router.get('/perfil', async (req, res) => {
         nome: true,
         email: true,
         data_nascimento: true,
+        senha_hash: true,
+        role: true,
         created_at: true,
       },
     });
@@ -76,7 +78,12 @@ router.get('/perfil', async (req, res) => {
       });
     }
 
-    return res.json({ usuario });
+    const { senha_hash, role, ...perfil } = usuario;
+    // O cadastro Google legado usava esta data como valor ficticio.
+    if (role === 'aluno' && !senha_hash && formatarData(perfil.data_nascimento) === '2000-01-01') {
+      perfil.data_nascimento = null;
+    }
+    return res.json({ usuario: perfil });
   } catch (error) {
     console.error('Erro ao buscar perfil:', error);
 

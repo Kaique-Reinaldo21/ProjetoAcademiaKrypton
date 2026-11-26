@@ -64,9 +64,10 @@ model usuarios {
   nome             String             @db.VarChar(120)
   email            String             @unique(map: "email") @db.VarChar(180)
   senha_hash       String?            @db.VarChar(255)
+  google_sub       String?            @unique @db.VarChar(255)
   versao_sessao    Int                @default(0) @db.UnsignedInt
   senha_redefinicao_obrigatoria Boolean @default(false)
-  data_nascimento  DateTime           @db.Date
+  data_nascimento  DateTime?          @db.Date
   role             usuarios_role      @default(aluno)
   created_at       DateTime?          @default(now()) @db.DateTime(0)
   agendamentos     agendamentos[]
@@ -75,6 +76,16 @@ model usuarios {
   transacoes_pagamento transacoes_pagamento[]
   checkout_tentativas checkout_tentativas[]
   recuperacao_senha recuperacoes_senha?
+}
+
+model estados_oauth_google {
+  state_hash     String   @id @db.Char(64)
+  navegador_hash String  @db.Char(64)
+  expira_em      DateTime @db.DateTime(3)
+  usuario_id     Int?     @db.UnsignedInt
+  versao_sessao  Int?     @db.UnsignedInt
+
+  @@index([expira_em])
 }
 
 model recuperacoes_senha {

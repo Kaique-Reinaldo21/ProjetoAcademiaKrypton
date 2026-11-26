@@ -1,4 +1,5 @@
 import prisma from '../lib/prisma.js';
+import { diagnosticarInicializacao } from '../lib/diagnostico-inicializacao.js';
 import * as authService from '../services/auth.service.js';
 
 // Duração padrão da sessão: 7 dias em milissegundos
@@ -108,59 +109,25 @@ export function logout(req, res) {
 // ─────────────────────────────────────────
 // Callback do Google OAuth
 // ─────────────────────────────────────────
-export async function googleCallback(req, res) {
+export async function googleCallback(req, res, vinculo = false) {
   try {
-    if (!req.user) {
-      return res.redirect('/login.html?tab=cadastro&erro=' + encodeURIComponent('Falha ao autenticar com o Google.'));
+    const usuario = req.user;
+    if (usuario?.role !== 'aluno' || !usuario.google_sub) throw new Error('Identidade Google inválida.');
+    const token = authService.gerarToken(usuario);
+    const userId = usuario.id;
+    await authService.registrarLogin(userId, req.ip, req.get('user-agent'));
+
+    let destino = '/configuracoes-conta.html?google=vinculado';
+    if (!vinculo) {
+      const plano = await prisma.planos.findFirst({ where: { usuario_id: userId, ativo: true } });
+      destino = plano ? '/dashboard.html' : '/escolher-plano.html';
     }
 
-    const userId = Number(req.user.id);
-
-    try {
-      await authService.registrarLogin(
-        userId,
-        req.ip,
-        req.get('user-agent')
-      );
-    } catch (logErr) {
-      console.warn('Aviso: falha ao registrar login:', logErr.message);
-    }
-
-    const token = authService.gerarToken(req.user);
-
+    res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
     res.cookie('token', token, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: SETE_DIAS_MS,
+      httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: SETE_DIAS_MS,
     });
-
-    const usuarioFront = {
-      id: userId,
-      nome: req.user.nome,
-      email: req.user.email,
-      role: req.user.role || 'aluno',
-    };
-
-    let destino = '/dashboard.html';
-    if (req.user.role === 'admin') {
-      destino = '/admin.html';
-    } else {
-      try {
-        const planoAtivo = await prisma.planos.findFirst({
-          where: {
-            usuario_id: userId,
-            ativo: true,
-          },
-        });
-
-        if (!planoAtivo) {
-          destino = '/escolher-plano.html';
-        }
-      } catch (planoErr) {
-        console.warn('Aviso ao consultar plano:', planoErr.message);
-      }
-    }
+    const usuarioFront = { id: userId, nome: usuario.nome, email: usuario.email, role: usuario.role };
 
     return res.send(`<!DOCTYPE html>
 <html lang="pt-BR">
@@ -175,16 +142,14 @@ export async function googleCallback(req, res) {
     try {
       localStorage.setItem('token', ${JSON.stringify(token)});
       localStorage.setItem('usuario', JSON.stringify(${JSON.stringify(usuarioFront).replaceAll('<', '\\u003c')}));
-    } catch (e) {
-      console.error('Erro ao salvar dados de autenticação:', e);
-    }
+    } catch {}
     window.location.href = ${JSON.stringify(destino)};
   </script>
 </body>
 </html>`);
 
   } catch (error) {
-    console.error('Falha ao concluir login com Google.');
+    console.error('Falha ao concluir login com Google:', diagnosticarInicializacao(error));
     const mensagem = req.user?.senha_redefinicao_obrigatoria
       ? 'Redefina sua senha pelo e-mail para voltar a entrar.'
       : 'Não foi possível concluir o login com Google.';

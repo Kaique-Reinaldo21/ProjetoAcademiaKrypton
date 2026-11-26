@@ -15,8 +15,9 @@ export function obterCallbackGoogle(env = process.env) {
   if (ambiente !== 'development' && (url.protocol !== 'https:' || host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal') || !host.includes('.') || isIP(host))) {
     throw new Error('GOOGLE_CALLBACK_URL deve usar HTTPS e um domínio público fora do ambiente de desenvolvimento.');
   }
-  if (ambiente === 'development' && !['http:', 'https:'].includes(url.protocol)) {
-    throw new Error('GOOGLE_CALLBACK_URL deve usar HTTP ou HTTPS.');
+  if (ambiente === 'development' && url.protocol !== 'https:' &&
+      (url.protocol !== 'http:' || !['localhost', '127.0.0.1', '::1'].includes(host))) {
+    throw new Error('GOOGLE_CALLBACK_URL deve usar HTTPS ou HTTP em loopback no desenvolvimento.');
   }
   return url.toString();
 }

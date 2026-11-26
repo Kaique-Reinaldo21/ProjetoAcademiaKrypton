@@ -1,5 +1,6 @@
 import express from 'express';
-import passport from 'passport';
+import { criarRotasGoogle } from './google-oauth.routes.js';
+import { googleConfigurado } from '../config/passport.js';
 import prisma from '../lib/prisma.js';
 import { criarRotasContas } from './contas.routes.js';
 import authMiddleware from '../middleware/auth.js';
@@ -8,12 +9,12 @@ import {
   login,
   cadastrar,
   logout,
-  googleCallback,
 } from '../controllers/auth.controller.js';
 
 
 const router = express.Router();
 router.use(criarRotasContas());
+router.use(criarRotasGoogle());
 
 
 // Login tradicional
@@ -47,6 +48,7 @@ router.get('/me', authMiddleware, async (req, res) => {
         email: true,
         role: true,
         senha_hash: true,
+        google_sub: true,
       },
     });
 
@@ -54,51 +56,15 @@ router.get('/me', authMiddleware, async (req, res) => {
       return res.status(404).json({ erro: 'Usuário não encontrado.' });
     }
 
-    const { senha_hash, ...dados } = usuario;
-    return res.json({ usuario: { ...dados, possuiSenhaLocal: Boolean(senha_hash) } });
+    const { senha_hash, google_sub, ...dados } = usuario;
+    return res.json({ usuario: {
+      ...dados, possuiSenhaLocal: Boolean(senha_hash),
+      podeVincularGoogle: googleConfigurado && dados.role === 'aluno' && Boolean(senha_hash) && !google_sub,
+    } });
   } catch (error) {
     return res.status(500).json({ erro: 'Erro ao validar sessão.' });
   }
 });
-
-
-// ─────────────────────────────
-// Google OAuth
-// ─────────────────────────────
-
-router.get('/google', (req, res, next) => {
-  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-    return res.redirect(
-      '/login.html?tab=cadastro&erro=' +
-        encodeURIComponent('Google OAuth ainda não foi configurado no servidor (.env).')
-    );
-  }
-
-  passport.authenticate('google', {
-    scope: ['profile', 'email'],
-  })(req, res, next);
-});
-
-
-router.get(
-  ['/google/callback', '/callback/google'],
-  (req, res, next) => {
-    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-      return res.redirect(
-        '/login.html?tab=cadastro&erro=' +
-          encodeURIComponent('Google OAuth não configurado.')
-      );
-    }
-
-    passport.authenticate('google', {
-      session: false,
-      failureRedirect:
-        '/login.html?tab=cadastro&erro=' +
-        encodeURIComponent('Falha na autenticação com Google.'),
-    })(req, res, next);
-  },
-  googleCallback
-);
 
 
 export default router;

@@ -103,6 +103,10 @@ ligarFormulario('recuperar-admin', '/admin/recuperacao');
 async function carregarConta() {
   try {
     const { usuario } = await api('/me');
+    document.getElementById('vincular-google').hidden = !usuario.podeVincularGoogle;
+    const vinculo = new URLSearchParams(location.search).get('google');
+    if (vinculo === 'vinculado') mostrar('Conta Google vinculada.', false);
+    if (vinculo === 'falha') mostrar('Vínculo não concluído. Confira a senha atual e o e-mail da conta Google.', true);
     const minimo = usuario.role === 'aluno' ? 6 : 12;
     nova.minLength = confirmacao.minLength = minimo;
     document.getElementById('politica').textContent =
