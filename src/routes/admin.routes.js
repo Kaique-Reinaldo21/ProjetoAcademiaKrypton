@@ -4,11 +4,18 @@ import authMiddleware from '../middleware/auth.js';
 import adminMiddleware from '../middleware/admin.js';
 import { camposHistoricoPagamento } from '../services/checkout.service.js';
 
+import painelRoutes from './admin-painel.routes.js';
+
 const router = express.Router();
 
 // Todas as rotas deste arquivo exigem login + admin
 router.use(authMiddleware);
 router.use(adminMiddleware);
+router.use((_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
+router.use(painelRoutes);
 
 // Preços atuais dos planos
 const PRECOS = {
@@ -131,11 +138,8 @@ router.get('/resumo', async (req, res) => {
       planos_por_tipo: planosPorTipo,
       precos: PRECOS,
     });
-  } catch (err) {
-    console.error(
-      'Erro ao carregar resumo administrativo:',
-      err
-    );
+  } catch {
+    console.error('Erro ao carregar resumo administrativo.');
 
     return res.status(500).json({
       erro: 'Erro ao carregar dados administrativos.',
@@ -148,17 +152,23 @@ router.get('/resumo', async (req, res) => {
 // ========================================================
 
 router.get('/alunos', async (req, res) => {
+  const busca = req.query.busca ?? '';
+  const pagina = req.query.pagina ?? '1';
+  if (typeof busca !== 'string' || busca.length > 180 ||
+      typeof pagina !== 'string' || !/^[1-9]\d{0,4}$/.test(pagina)) {
+    return res.status(400).json({ erro: 'Filtro de alunos inválido.' });
+  }
+  const termo = busca.trim();
   try {
     const usuarios = await prisma.usuarios.findMany({
       where: {
         role: 'aluno',
+        ...(termo && { OR: [{ nome: { contains: termo } }, { email: { contains: termo } }] }),
       },
 
-      orderBy: {
-        created_at: 'desc',
-      },
-
-      take: 10,
+      orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
+      skip: (Number(pagina) - 1) * 10,
+      take: 11,
 
       select: {
         id: true,
@@ -190,7 +200,7 @@ router.get('/alunos', async (req, res) => {
       evitando duplicar o aluno caso ele possua
       registros antigos de plano.
     */
-    const alunos = usuarios.map((usuario) => {
+    const alunos = usuarios.slice(0, 10).map((usuario) => {
       const planoAtual =
         usuario.planos.length > 0
           ? usuario.planos[0]
@@ -211,12 +221,10 @@ router.get('/alunos', async (req, res) => {
 
     return res.json({
       alunos,
+      tem_proxima: usuarios.length > 10,
     });
-  } catch (err) {
-    console.error(
-      'Erro ao listar alunos:',
-      err
-    );
+  } catch {
+    console.error('Erro ao listar alunos.');
 
     return res.status(500).json({
       erro: 'Erro ao carregar alunos.',
@@ -241,13 +249,10 @@ router.get('/logins', async (req, res) => {
         select: {
           id: true,
           data_login: true,
-          ip: true,
-          user_agent: true,
 
           usuarios: {
             select: {
               nome: true,
-              email: true,
               role: true,
             },
           },
@@ -257,22 +262,16 @@ router.get('/logins', async (req, res) => {
     const logins = registros.map((registro) => ({
       id: registro.id,
       data_login: registro.data_login,
-      ip: registro.ip,
-      user_agent: registro.user_agent,
 
       nome: registro.usuarios.nome,
-      email: registro.usuarios.email,
       role: registro.usuarios.role,
     }));
 
     return res.json({
       logins,
     });
-  } catch (err) {
-    console.error(
-      'Erro ao buscar histórico de login:',
-      err
-    );
+  } catch {
+    console.error('Erro ao buscar histórico de login.');
 
     return res.status(500).json({
       erro: 'Erro ao carregar histórico de login.',
@@ -291,6 +290,7 @@ router.get(
       const registros =
         await prisma.agendamentos.findMany({
           where: {
+            usuarios: { role: 'aluno' },
             data_hora: {
               gte: new Date(),
             },
@@ -306,12 +306,10 @@ router.get(
             id: true,
             tipo: true,
             data_hora: true,
-            observacao: true,
 
             usuarios: {
               select: {
                 nome: true,
-                email: true,
               },
             },
           },
@@ -322,21 +320,16 @@ router.get(
           id: registro.id,
           tipo: registro.tipo,
           data_hora: registro.data_hora,
-          observacao: registro.observacao,
 
           nome: registro.usuarios.nome,
-          email: registro.usuarios.email,
         })
       );
 
       return res.json({
         agendamentos,
       });
-    } catch (err) {
-      console.error(
-        'Erro ao carregar agendamentos:',
-        err
-      );
+    } catch {
+      console.error('Erro ao carregar agendamentos.');
 
       return res.status(500).json({
         erro: 'Erro ao carregar agendamentos.',
@@ -385,7 +378,6 @@ router.get('/vencimentos', async (req, res) => {
           usuarios: {
             select: {
               nome: true,
-              email: true,
             },
           },
         },
@@ -394,7 +386,6 @@ router.get('/vencimentos', async (req, res) => {
     const vencimentos = registros.map(
       (registro) => ({
         nome: registro.usuarios.nome,
-        email: registro.usuarios.email,
         tipo: registro.tipo,
         vencimento: registro.vencimento,
       })
@@ -403,11 +394,8 @@ router.get('/vencimentos', async (req, res) => {
     return res.json({
       vencimentos,
     });
-  } catch (err) {
-    console.error(
-      'Erro ao carregar vencimentos:',
-      err
-    );
+  } catch {
+    console.error('Erro ao carregar vencimentos.');
 
     return res.status(500).json({
       erro: 'Erro ao carregar vencimentos.',
@@ -430,6 +418,8 @@ router.get(
         seisDiasAtras.getDate() - 6
       );
 
+      const amanha = new Date(hoje);
+      amanha.setDate(amanha.getDate() + 1);
       const usuarios =
         await prisma.usuarios.findMany({
           where: {
@@ -437,6 +427,7 @@ router.get(
 
             created_at: {
               gte: seisDiasAtras,
+              lt: amanha,
             },
           },
 
@@ -461,6 +452,9 @@ router.get(
         esse agrupamento em JavaScript.
       */
       const agrupados = {};
+      for (const data = new Date(seisDiasAtras); data < amanha; data.setDate(data.getDate() + 1)) {
+        agrupados[formatarDataLocal(data)] = 0;
+      }
 
       for (const usuario of usuarios) {
         if (!usuario.created_at) continue;
@@ -487,11 +481,8 @@ router.get(
       return res.json({
         cadastros,
       });
-    } catch (err) {
-      console.error(
-        'Erro ao carregar cadastros:',
-        err
-      );
+    } catch {
+      console.error('Erro ao carregar cadastros.');
 
       return res.status(500).json({
         erro: 'Erro ao carregar cadastros.',
@@ -502,10 +493,9 @@ router.get(
 
 // Leitura para o futuro painel financeiro. Identificadores do provedor ficam no banco.
 router.get('/pagamentos', async (_req, res) => {
-  res.set('Cache-Control', 'no-store');
   try {
     const pagamentos = await prisma.transacoes_pagamento.findMany({
-      select: { ...camposHistoricoPagamento, usuario_id: true },
+      select: camposHistoricoPagamento,
       orderBy: [{ criado_em: 'desc' }, { id: 'desc' }],
       take: 100,
     });

@@ -1,0 +1,26 @@
+.admin-topo { display: grid; gap: .45rem; margin-bottom: 1.3rem; }
+.admin-card { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: .85rem; }
+.kd-conteudo > .admin-card, .kd-conteudo > .kd-grid, .kd-conteudo > div:has(> .admin-indicadores) { margin-bottom: 1rem; }
+.admin-indicadores { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.admin-metrica { display: grid; grid-template-columns: 1fr auto; gap: .45rem; }
+.admin-metrica > i { color: var(--kd-verde); grid-column: 2; grid-row: 1; font-size: 1.1rem; }
+.admin-metrica h2 { grid-column: 1; grid-row: 1; font-size: .9rem; }
+.admin-metrica strong { font-size: 2.2rem; grid-column: 1 / -1; }
+.admin-metrica p, .admin-valores p { font-size: .8rem; grid-column: 1 / -1; }
+.admin-valores { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.admin-total { border-left: 2px solid var(--kd-roxo); padding-left: .75rem; }
+.admin-total:nth-child(2) { border-color: var(--kd-verde); }
+.admin-total strong { display: block; font-size: 1.3rem; margin-top: .25rem; }
+.admin-tabela { min-width: 26rem; }
+.admin-grafico { height: 13rem; position: relative; min-width: 0; }
+.admin-card summary { color: var(--kd-suave); font-size: .85rem; }
+.admin-filtros, .admin-paginacao { display: flex; flex-wrap: wrap; align-items: end; gap: .65rem; }
+.admin-filtros select { width: auto; }
+.admin-paginacao { align-items: center; margin-top: .8rem; }
+.admin-filtros + .kd-tabela-scroll { margin-top: .6rem; }
+@media (max-width: 650px) {
+  .admin-indicadores { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
+  .admin-metrica { padding: .75rem; }
+  .admin-metrica h2 { font-size: .82rem; }
+  .admin-filtros label:has(+ select) { align-self: center; }
+}
