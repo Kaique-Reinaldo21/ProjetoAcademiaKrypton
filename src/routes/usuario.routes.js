@@ -2,10 +2,12 @@ import express from 'express';
 import prisma from '../lib/prisma.js';
 import authMiddleware from '../middleware/auth.js';
 import adminMiddleware from '../middleware/admin.js';
+import perfilAlunoRoutes from './perfil-aluno.routes.js';
 
 const router = express.Router();
 
 router.use(authMiddleware);
+router.use(perfilAlunoRoutes);
 
 const PLANOS_INFO = {
   basico: {
@@ -65,6 +67,7 @@ router.get('/perfil', async (req, res) => {
         id: true,
         nome: true,
         email: true,
+        foto_perfil: { select: { usuario_id: true } },
         data_nascimento: true,
         senha_hash: true,
         role: true,
@@ -78,12 +81,12 @@ router.get('/perfil', async (req, res) => {
       });
     }
 
-    const { senha_hash, role, ...perfil } = usuario;
+    const { senha_hash, role, foto_perfil, ...perfil } = usuario;
     // O cadastro Google legado usava esta data como valor ficticio.
     if (role === 'aluno' && !senha_hash && formatarData(perfil.data_nascimento) === '2000-01-01') {
       perfil.data_nascimento = null;
     }
-    return res.json({ usuario: perfil });
+    return res.json({ usuario: { ...perfil, possui_foto: Boolean(foto_perfil) } });
   } catch (error) {
     console.error('Erro ao buscar perfil:', error);
 
@@ -304,7 +307,8 @@ router.post('/agendamento', async (req, res) => {
     if (
       !plano ||
       plano.tipo !== 'elite' ||
-      !plano.ativo
+      !plano.ativo ||
+      (plano.vencimento && new Date(plano.vencimento) < new Date())
     ) {
       return res.status(403).json({
         erro:

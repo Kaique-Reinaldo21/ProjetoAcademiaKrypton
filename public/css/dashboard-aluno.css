@@ -1,0 +1,60 @@
+.aluno-topo { display: grid; gap: .45rem; margin-bottom: 1.35rem; }
+.aluno-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 12.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  padding: clamp(1.15rem, 3.7vw, 2.7rem);
+  margin-bottom: 1rem;
+  background: radial-gradient(ellipse at 98% 45%, #1c4a2a, transparent 65%), #121c16;
+  border-color: #294333;
+}
+.aluno-hero::after {
+  content: '';
+  position: absolute;
+  inset: -65% -9rem -65% 61%;
+  transform: rotate(24deg);
+  opacity: .52;
+  background: repeating-linear-gradient(90deg, transparent 0 16px, #3cf98432 16px 17px, transparent 17px 34px);
+  pointer-events: none;
+}
+.aluno-hero > * { position: relative; z-index: 1; }
+.aluno-hero .kd-avatar { width: clamp(3.4rem, 7.4vw, 5.2rem); height: clamp(3.4rem, 7.4vw, 5.2rem); border: 1px solid #408155; font-size: 1.7rem; }
+.aluno-hero h1 { margin-bottom: .45rem; overflow-wrap: anywhere; }
+.aluno-hero .kd-texto-suave { max-width: 25rem; }
+.aluno-resumo { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.aluno-metrica { display: flex; flex-direction: column; gap: .38rem; }
+.aluno-metrica i, .aluno-atalho > i { color: var(--kd-verde); display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: .5rem; background: #193120; font-size: 1.05rem; margin-bottom: .28rem; }
+.aluno-metrica h2, .aluno-pendencia h2 { font-size: .92rem; }
+.aluno-metrica strong { font-size: 1.13rem; }
+.aluno-metrica p, .aluno-atalho p, .aluno-pendencia p { font-size: .84rem; }
+.aluno-area { display: grid; gap: .85rem; margin-top: 1.45rem; }
+.aluno-atalhos { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.aluno-atalho { position: relative; }
+.aluno-atalho .bi-arrow-up-right { position: absolute; top: 1rem; right: 1rem; width: auto; height: auto; background: transparent; color: var(--kd-suave); }
+.aluno-pendencia { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; }
+.aluno-acoes, .aluno-filtros { display: flex; align-items: end; flex-wrap: wrap; gap: .6rem; }
+.aluno-filtros label { flex: 1 1 9rem; max-width: 14rem; }
+.aluno-detalhe { display: grid; gap: .75rem; }
+.aluno-detalhe dl { display: flex; flex-wrap: wrap; gap: .75rem 1.8rem; margin: 0; }
+.aluno-detalhe dt { color: var(--kd-suave); font-size: .78rem; }
+.aluno-detalhe dd { margin: 0; font-weight: 800; }
+.aluno-lista { display: grid; gap: .6rem; padding-left: 1.15rem; margin: 0; }
+.aluno-card-titulo { display: flex; align-items: center; justify-content: space-between; gap: .65rem; flex-wrap: wrap; }
+.aluno-card-vazio { margin-top: .75rem; }
+.aluno-perfil-avatar { width: 4rem; height: 4rem; font-size: 1.3rem; }
+.aluno-perfil-topo { display: flex; align-items: center; gap: 1rem; }
+.aluno-feedback { margin-top: .85rem !important; }
+@media (max-width: 900px) { .aluno-atalhos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) {
+  .aluno-hero { min-height: 9.5rem; gap: .85rem; }
+  .aluno-resumo { grid-template-columns: 1fr; }
+  .aluno-metrica { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: .75rem; }
+  .aluno-metrica i { grid-row: span 3; margin: 0; }
+  .aluno-metrica p { grid-column: 2; }
+}
+.aluno-detalhe > .kd-button, .aluno-detalhe > .kd-badge { justify-self: start; }
+.aluno-metrica-elite { border-color: #514075; }
+.aluno-metrica-elite i { color: #d5c1ff; background: #2c2340; }

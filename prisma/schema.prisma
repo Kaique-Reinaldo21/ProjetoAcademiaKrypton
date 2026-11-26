@@ -76,6 +76,13 @@ model usuarios {
   transacoes_pagamento transacoes_pagamento[]
   checkout_tentativas checkout_tentativas[]
   recuperacao_senha recuperacoes_senha?
+  foto_perfil fotos_perfil?
+}
+
+model fotos_perfil {
+  usuario_id Int      @id @db.UnsignedInt
+  imagem     Bytes    @db.MediumBlob
+  usuario    usuarios @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
 }
 
 model estados_oauth_google {
