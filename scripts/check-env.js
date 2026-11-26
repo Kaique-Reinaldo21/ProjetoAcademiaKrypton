@@ -1,7 +1,7 @@
 // Diagnostico local: verifica configuracoes sem exibir credenciais.
 import 'dotenv/config';
 
-const obrigatorias = ['DATABASE_URL', 'JWT_SECRET', 'SESSION_SECRET'];
+const obrigatorias = ['DATABASE_URL', 'JWT_SECRET'];
 const faltando = obrigatorias.filter((nome) => !process.env[nome]?.trim());
 
 let banco = 'nao configurado';

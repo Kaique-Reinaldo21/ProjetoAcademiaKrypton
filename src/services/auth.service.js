@@ -1,13 +1,15 @@
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../lib/prisma.js';
+import { conferirSenha, erroNovaSenha, gerarHashSenha } from './politica-senha.js';
 
 
 export function gerarToken(usuario) {
+  if (usuario.senha_redefinicao_obrigatoria) throw new Error('Redefina sua senha pelo e-mail para voltar a entrar.');
   return jwt.sign(
     {
       id: usuario.id,
       role: usuario.role,
+      versao_sessao: usuario.versao_sessao,
     },
     process.env.JWT_SECRET,
     {
@@ -34,10 +36,7 @@ export async function login(email, senha) {
     throw new Error('Esta conta foi cadastrada com o Google. Use o botão "Entrar com o Google".');
   }
 
-  const senhaValida = await bcrypt.compare(
-    senha,
-    usuario.senha_hash
-  );
+  const senhaValida = await conferirSenha(senha, usuario.senha_hash);
 
   if (!senhaValida) {
     throw new Error('E-mail ou senha inválidos');
@@ -68,6 +67,9 @@ export async function cadastrar(dados) {
     data_nascimento,
   } = dados;
 
+  const erro = erroNovaSenha(senha);
+  if (erro) throw new Error(erro);
+
   const usuarioExistente = await prisma.usuarios.findUnique({
     where: {
       email,
@@ -78,7 +80,7 @@ export async function cadastrar(dados) {
     throw new Error('E-mail já cadastrado');
   }
 
-  const senhaHash = await bcrypt.hash(senha, 10);
+  const senhaHash = await gerarHashSenha(senha);
 
   const usuario = await prisma.usuarios.create({
     data: {

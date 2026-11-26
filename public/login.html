@@ -196,6 +196,7 @@
       <label class="form-label">Senha</label>
       <input type="password" id="login-senha" class="form-control" placeholder="••••••••" required/>
     </div>
+    <p class="mb-3 text-end"><a class="link-alt" href="/recuperar-senha.html">Esqueci minha senha</a></p>
     <button type="submit" class="btn-submit" id="btn-login">
       <span id="btn-login-txt">Entrar</span>
       <span id="btn-login-load" style="display:none"><i class="bi bi-arrow-repeat" style="animation:spin .8s linear infinite"></i> Entrando...</span>
@@ -237,8 +238,8 @@
       <p class="hint"><i class="bi bi-info-circle"></i> Idade mínima: 14 anos.</p>
     </div>
     <div class="mb-4">
-      <label class="form-label">Senha <span style="color:rgba(255,255,255,.35)">(mín. 6 caracteres)</span></label>
-      <input type="password" id="cad-senha" class="form-control" placeholder="••••••••" required minlength="6"/>
+      <label class="form-label">Senha <span style="color:rgba(255,255,255,.35)">(mín. 12 caracteres)</span></label>
+      <input type="password" id="cad-senha" class="form-control" placeholder="••••••••" required minlength="12" autocomplete="new-password"/>
     </div>
     <button type="submit" class="btn-submit" id="btn-cadastro">
       <span id="btn-cad-txt">Criar Conta</span>
@@ -363,6 +364,12 @@
       return;
     }
 
+    const senhaCadastro = document.getElementById('cad-senha').value;
+    if ([...senhaCadastro].length < 12 || new TextEncoder().encode(senhaCadastro).length > 72) {
+      mostrarErro('Use pelo menos 12 caracteres, com limite de 72 bytes em UTF-8.');
+      return;
+    }
+
     setLoading('cad', true);
     try {
       const res  = await fetch('/api/auth/cadastro', {
@@ -372,7 +379,7 @@
         body: JSON.stringify({
           nome:             document.getElementById('cad-nome').value,
           email:            document.getElementById('cad-email').value,
-          senha:            document.getElementById('cad-senha').value,
+          senha:            senhaCadastro,
           data_nascimento:  document.getElementById('cad-nasc').value,
         }),
       });

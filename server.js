@@ -5,7 +5,6 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import session from 'express-session';
 import passport from 'passport';
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
@@ -28,7 +27,7 @@ import './src/config/passport.js';
 
 
 // rota middleware 
-import { authMiddleware as isAuthenticated } from './src/middleware/authMiddleware.js';
+import authMiddleware from './src/middleware/auth.js';
 
 
 // Rota de Assinatura - Mercado Pago
@@ -70,39 +69,13 @@ app.use(cookieParser());
 
 
 // ─────────────────────────────────────────
-// Sessão e Passport 
+// Passport autentica o callback Google. As rotas protegidas usam JWT revogável.
 // ─────────────────────────────────────────
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'chave-secreta-padrao-dev',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias
-  },
-}));
-
 app.use(passport.initialize());
-
-app.use(passport.session());
-
-
-
-
-// ─────────────────────────────────────────
-// Rota protegida do Dashboard
-// ─────────────────────────────────────────
-
-app.get('/dashboard', isAuthenticated, (req, res) => {
-    // O req.user contém os dados do utilizador que foram buscados no banco pelo deserializeUser!
-    res.json({
-        mensagem: "Bem-vindo ao painel da Academia Kripton!",
-        aluno: req.user 
-    });
+app.get('/dashboard', authMiddleware, (req, res) => {
+  const { id, nome, email, role } = req.usuario;
+  res.json({ mensagem: 'Bem-vindo ao painel da Academia Krypton!', aluno: { id, nome, email, role } });
 });
-
 
 // ─────────────────────────────────────────
 // Checkout autenticado — nunca usar IDs de usuários fictícios.
@@ -234,12 +207,10 @@ app.use((req, res) => {
 
 app.use((err, req, res, next) => {
 
-  console.error(
-    'Erro não tratado:',
-    err
-  );
-
-  res.status(500).json({
+  if (err.type === 'entity.parse.failed') return res.status(400).json({ erro: 'Corpo da solicitação inválido.' });
+  if (err.type === 'entity.too.large') return res.status(413).json({ erro: 'Corpo da solicitação muito grande.' });
+  console.error('Erro não tratado:', diagnosticarInicializacao(err));
+  return res.status(500).json({
     erro: 'Erro interno do servidor.',
   });
 

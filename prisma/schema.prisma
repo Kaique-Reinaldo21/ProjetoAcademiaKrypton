@@ -64,6 +64,8 @@ model usuarios {
   nome             String             @db.VarChar(120)
   email            String             @unique(map: "email") @db.VarChar(180)
   senha_hash       String?            @db.VarChar(255)
+  versao_sessao    Int                @default(0) @db.UnsignedInt
+  senha_redefinicao_obrigatoria Boolean @default(false)
   data_nascimento  DateTime           @db.Date
   role             usuarios_role      @default(aluno)
   created_at       DateTime?          @default(now()) @db.DateTime(0)
@@ -72,6 +74,32 @@ model usuarios {
   planos           planos[]
   transacoes_pagamento transacoes_pagamento[]
   checkout_tentativas checkout_tentativas[]
+  recuperacao_senha recuperacoes_senha?
+}
+
+model recuperacoes_senha {
+  usuario_id Int      @id @db.UnsignedInt
+  token_hash String   @unique @db.Char(64)
+  expira_em  DateTime @db.DateTime(3)
+  usuario    usuarios @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+}
+
+model limites_conta {
+  chave     String   @id @db.Char(64)
+  contador  Int      @db.UnsignedInt
+  expira_em DateTime @db.DateTime(3)
+
+  @@index([expira_em])
+}
+
+model auditoria_contas {
+  id         Int      @id @default(autoincrement()) @db.UnsignedInt
+  autor_id   Int?     @db.UnsignedInt
+  usuario_id Int      @db.UnsignedInt
+  evento     String   @db.VarChar(40)
+  criado_em  DateTime @default(now()) @db.DateTime(3)
+
+  @@index([usuario_id, criado_em])
 }
 
 enum agendamentos_tipo {

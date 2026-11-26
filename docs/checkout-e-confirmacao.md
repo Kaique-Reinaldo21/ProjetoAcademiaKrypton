@@ -11,7 +11,7 @@ A confirmação pode ocorrer no retorno do navegador (GET /checkout/success) ou 
 ## Preparação
 
 1. Execute npm ci, npx prisma migrate deploy, npx prisma generate e npm run dev.
-2. Configure DATABASE_URL, JWT_SECRET, SESSION_SECRET, mercado_pago_access_token, MP_BACK_URL e MP_WEBHOOK_SECRET em seu .env.
+2. Configure DATABASE_URL, JWT_SECRET, mercado_pago_access_token, MP_BACK_URL e MP_WEBHOOK_SECRET em seu .env.
 3. Configure um webhook público HTTPS apontando para /api/webhooks/mercadopago e habilite os eventos de assinatura e fatura autorizada no painel Mercado Pago.
 4. A URL de retorno local pode ser http://localhost:3000/checkout/success se aceita pelo provedor. O webhook exige domínio ou túnel HTTPS publicamente acessível.
 5. Use contas e credenciais de teste. Nunca compartilhe o .env ou execute pagamentos reais durante os testes.
@@ -134,7 +134,6 @@ Aguarde o MySQL ficar pronto com `docker logs krypton-checkout-demo`. No shell l
 export DATABASE_URL='mysql://demo:senha-demo-descartavel@127.0.0.1:3307/academia_kripton_checkout_test'
 export NODE_ENV=development PAYMENT_MODE=demo
 export JWT_SECRET='jwt-demo-descartavel-nao-usar-em-producao'
-export SESSION_SECRET='sessao-demo-descartavel-nao-usar-em-producao'
 export GOOGLE_CLIENT_ID='' GOOGLE_CLIENT_SECRET='' mercado_pago_access_token=''
 npm run test:integration:migrate
 npx prisma generate
@@ -167,16 +166,16 @@ DEMO_ALLOW_UNVERIFIED_TLS=I_UNDERSTAND_TEST_ONLY
 DATABASE_URL=mysql://USUARIO:SENHA@booqcxfmlvclpjzw2uce-mysql.services.clever-cloud.com:3306/booqcxfmlvclpjzw2uce?sslaccept=accept_invalid_certs
 ```
 
-Use as credenciais do add-on demo, com caracteres reservados do usuário e da senha codificados para URL. Guarde a URL como segredo. Configure `JWT_SECRET` e `SESSION_SECRET` próprios do serviço e deixe as credenciais reais de Mercado Pago e Google fora desse ambiente. Quando o banco oferecer um certificado confiável e compatível com o hostname, volte para `sslaccept=strict` e remova `DEMO_ALLOW_UNVERIFIED_TLS`.
+Use as credenciais do add-on demo, com caracteres reservados do usuário e da senha codificados para URL. Guarde a URL como segredo. Configure um `JWT_SECRET` próprio do serviço e deixe as credenciais reais de Mercado Pago e Google fora desse ambiente. Quando o banco oferecer um certificado confiável e compatível com o hostname, volte para `sslaccept=strict` e remova `DEMO_ALLOW_UNVERIFIED_TLS`.
 
-1. Aponte o segundo Web Service no Render para a branch de checkout e mantenha deploy automático desativado durante a validação. Use `npm ci --include=dev && npx prisma generate` no build e `npm start` para iniciar o app.
+1. Aponte o segundo Web Service no Render para a branch de integração e mantenha deploy automático desativado durante a validação. Use `npm ci --include=dev && npx prisma generate` no build e `npm start` para iniciar o app.
 2. No shell do serviço demo, com o código publicado e as variáveis acima, execute `node scripts/migrate-demo-hospedado.js --verificar`. Esse modo faz consultas de leitura na mesma sessão para conferir schema, versão MySQL 8 e `Ssl_cipher`, e encerra antes do Prisma Migrate. Aguarde a confirmação de êxito e código de saída 0. A cifra confirma criptografia na sessão. Com a exceção ativa, a identidade do servidor fica sem validação.
 3. Após a verificação bem-sucedida, revise o SQL e faça backup conforme a política do banco. A aplicação das migrations é uma etapa manual separada, com uma conta restrita ao banco demo. O comando `node scripts/migrate-demo-hospedado.js` repete a verificação antes de executar o Prisma Migrate. Mantenha esse comando fora do build, start e pre-deploy.
 4. No domínio HTTPS do serviço demo, use login tradicional e contas fictícias. Confira o bloqueio sem login, aprovação, pendência, recusa, repetição, troca de plano, isolamento entre alunos e os rótulos SIMULADA. Para Básico, use uma unidade fictícia cadastrada no banco demonstrativo. Reinicie o serviço e confira novamente histórico e plano.
 
 O app usa cookies `secure` em produção e confia no primeiro proxy para sessões HTTPS no Render. Autenticação, cadastro e checkout devem ser validados no segundo serviço com dados fictícios. A persistência depende da disponibilidade e retenção do MySQL dedicado, e não do disco efêmero do Render.
 
-A verificação de saúde do serviço Render deve usar `/api/health`; o endpoint informa que o processo responde, mas não prova que o banco ou o checkout funcionam. O login tradicional usa JWT com cookie seguro em HTTPS e token no navegador; o token continua válido após reinício enquanto a chave e a validade permanecerem as mesmas. Sessões do Passport usam armazenamento em memória e são perdidas em reinícios ou entre instâncias; o login Google não está preparado para persistência distribuída. Para apresentação, use login tradicional e contas fictícias.
+A verificação de saúde do serviço Render deve usar `/api/health`; o endpoint informa que o processo responde, mas não prova que o banco ou o checkout funcionam. O login tradicional usa JWT com cookie seguro em HTTPS e token no navegador; o token continua válido após reinício enquanto a chave e a validade permanecerem as mesmas. O login Google emite o mesmo JWT revogável do login tradicional. A aplicação confere a versão da sessão no banco a cada requisição autenticada. Para apresentação, use login tradicional e contas fictícias.
 
 ## Checkout Krypton por QR Code
 

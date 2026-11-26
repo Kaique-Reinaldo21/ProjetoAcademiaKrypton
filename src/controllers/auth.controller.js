@@ -42,8 +42,9 @@ export async function login(req, res) {
     });
 
   } catch (error) {
+    const mensagens = ['E-mail ou senha inválidos', 'Esta conta foi cadastrada com o Google. Use o botão "Entrar com o Google".', 'Redefina sua senha pelo e-mail para voltar a entrar.'];
     return res.status(401).json({
-      erro: error.message,
+      erro: mensagens.includes(error.message) ? error.message : 'E-mail ou senha inválidos',
     });
   }
 }
@@ -87,13 +88,9 @@ export async function cadastrar(req, res) {
     });
 
   } catch (error) {
-    console.error(
-      'Erro ao cadastrar:',
-      error
-    );
-
+    const validacao = ['E-mail já cadastrado', 'Use pelo menos 12 caracteres.', 'A senha pode ter até 72 bytes em UTF-8.'];
     return res.status(400).json({
-      erro: error.message,
+      erro: validacao.includes(error.message) ? error.message : 'Não foi possível concluir o cadastro.',
     });
   }
 }
@@ -102,30 +99,11 @@ export async function cadastrar(req, res) {
 // ─────────────────────────────────────────
 // Logout
 // ─────────────────────────────────────────
-export function logout(req, res, next) {
-  // Remove JWT
+export function logout(req, res) {
   res.clearCookie('token');
-
-  // Se estiver autenticado pelo Passport/Google
-  if (req.isAuthenticated?.()) {
-    return req.logout((error) => {
-      if (error) {
-        return next(error);
-      }
-
-      req.session?.destroy(() => {
-        return res.status(200).json({
-          mensagem: 'Logout realizado com sucesso',
-        });
-      });
-    });
-  }
-
-  return res.status(200).json({
-    mensagem: 'Logout realizado com sucesso',
-  });
+  res.clearCookie('connect.sid');
+  return res.json({ mensagem: 'Logout realizado com sucesso' });
 }
-
 
 // ─────────────────────────────────────────
 // Callback do Google OAuth
@@ -189,13 +167,14 @@ export async function googleCallback(req, res) {
 <head>
   <meta charset="UTF-8">
   <title>Autenticando...</title>
+  <link rel="icon" href="/logo.png">
 </head>
 <body style="background:#0a0a0a;color:#2dff7a;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;">
   <p>Autenticando com Google...</p>
   <script>
     try {
       localStorage.setItem('token', ${JSON.stringify(token)});
-      localStorage.setItem('usuario', JSON.stringify(${JSON.stringify(usuarioFront)}));
+      localStorage.setItem('usuario', JSON.stringify(${JSON.stringify(usuarioFront).replaceAll('<', '\\u003c')}));
     } catch (e) {
       console.error('Erro ao salvar dados de autenticação:', e);
     }
@@ -205,7 +184,10 @@ export async function googleCallback(req, res) {
 </html>`);
 
   } catch (error) {
-    console.error('Erro no callback do Google:', error);
-    return res.redirect('/login.html?tab=cadastro&erro=' + encodeURIComponent('Erro ao concluir login com Google: ' + error.message));
+    console.error('Falha ao concluir login com Google.');
+    const mensagem = req.user?.senha_redefinicao_obrigatoria
+      ? 'Redefina sua senha pelo e-mail para voltar a entrar.'
+      : 'Não foi possível concluir o login com Google.';
+    return res.redirect('/login.html?tab=cadastro&erro=' + encodeURIComponent(mensagem));
   }
 }
