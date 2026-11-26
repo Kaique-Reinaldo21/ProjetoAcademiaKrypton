@@ -196,3 +196,28 @@ Para homologar no Render demo, use a nova branch, mantenha o modo acadêmico iso
 | Nutricionista | Consultas e acompanhamento dos alunos atribuídos |
 
 Compartilhe cabeçalho, navegação, cartões e indicadores de estado entre os painéis. Os dados e as ações de cada perfil devem ser autorizados no backend, com escopo de aluno ou unidade conforme a função. Recepção, personal e nutrição ficam para as próximas sprints.
+
+## Métodos integrados no checkout acadêmico
+
+A tela de assinatura encaminha ao checkout Krypton para selecionar **QR Code Krypton** ou **Mercado Pago**. A reserva é criada somente após confirmar o método. Ao retornar com uma contratação pendente, a aplicação abre a tentativa existente. Para escolher outro método depois de iniciar, encerre a tentativa atual com a opção de recusa da apresentação.
+
+- O QR mantém a validade, a renovação, a aprovação pelo celular e o redirecionamento demonstrativo já homologados.
+- **Mercado Pago** usa respostas simuladas localmente. O adaptador percorre criação, consulta e confirmação pelo serviço de assinatura desenvolvido para o Mercado Pago. Os três controles representam pendência, autorização com fatura aprovada e encerramento da tentativa com recusa. A simulação não cobre todos os eventos e prazos do provedor.
+- Uma recusa ou pendência preserva o plano ativo anterior. Na aprovação, a confirmação transacional troca o plano e atualiza o histórico uma única vez. O bloqueio do aluno na reserva impede concorrência entre QR e Mercado Pago.
+- O adaptador funciona exclusivamente no modo acadêmico aprovado. Os identificadores simulados levam prefixos próprios. A confirmação e a reconciliação financeiras excluem essas tentativas, e o plano simulado fica sem identificador de cobrança recorrente.
+
+A migration `20261128_checkout_metodos` registra o método e a resposta simulada na tentativa. O preenchimento inicial identifica os QR anteriores pela origem `demo` e preserva seus registros. O histórico expõe `tentativa.metodo` e `origem`:
+
+| Método | Origem | Natureza |
+| --- | --- | --- |
+| `qr_krypton` | `demo` | Simulada |
+| `mercadopago_simulado` | `demo_mercadopago` | Simulada |
+| `mercadopago` | `mercadopago` | Integração financeira |
+
+`GET /api/admin/pagamentos` disponibiliza os 100 registros mais recentes somente a administradores, com método e origem e sem IDs do provedor. Use a origem `mercadopago` para separar a integração financeira em um futuro relatório. O histórico de alunos continua restrito ao titular.
+
+### Homologação futura com a Vitória
+
+1. Em conjunto com a Vitória, revise no painel do Mercado Pago a aplicação de **Assinaturas** e confirme com a documentação ou suporte quais credenciais e contas de teste são autorizadas para o fluxo existente de assinatura sem plano associado. Use uma aplicação e um ambiente de teste separados, com banco isolado, TLS com identidade validada e sem credenciais de produção. [API de Assinaturas](https://www.mercadopago.com.br/developers/pt/docs/subscriptions/overview) · [Credenciais](https://www.mercadopago.com.br/developers/pt/docs/subscriptions/additional-content/your-integrations/credentials)
+2. No ambiente autorizado e exclusivo desse teste futuro, configure o retorno HTTPS `/checkout/success`, o webhook com segredo próprio e o acesso do vendedor de teste conforme as instruções validadas com o provedor. Mantenha o Render acadêmico em `PAYMENT_MODE=demo`. Use comprador e meio de pagamento de teste quando o cenário pedir, diretamente na página oficial do provedor. [Teste de compra da API de Assinaturas](https://www.mercadopago.com.br/developers/pt/docs/subscriptions/integration-test/payment-approval)
+3. Verifique a criação e a consulta da assinatura, a correspondência de pagador e referência, a notificação autenticada e a confirmação de uma fatura de teste. Reenvie a notificação para verificar idempotência. Confira a operação de reconciliação primeiro em `--dry-run` e registre os resultados sem segredos.

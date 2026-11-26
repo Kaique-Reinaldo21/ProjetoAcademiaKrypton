@@ -2,7 +2,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { accessSync, constants, statSync } from 'node:fs';
 import path from 'node:path';
 import prisma from '../lib/prisma.js';
-import { ErroCheckout } from './checkout.service.js';
+import { camposHistoricoPagamento, ErroCheckout } from './checkout.service.js';
 import { DESTINO_DEMO_TLS_SEM_VALIDACAO, DESTINOS_DEMO_APROVADOS } from '../config/demo-hosts.js';
 
 const TLS_SEM_VALIDACAO = 'accept_invalid_certs';
@@ -80,7 +80,7 @@ export function criarServicoDemo(db = prisma, validar = validarModoDemo) {
       if (!aluno || aluno.role !== 'aluno') throw new ErroCheckout('Somente alunos podem contratar planos.', 403);
       if (unidade && !await tx.unidades.findUnique({ where: { id: unidade } })) throw new ErroCheckout('Unidade não encontrada.', 404);
       if (await tx.checkout_tentativas.findFirst({ where: { usuario_id: aluno.id, status: { in: ['pendente', 'aguardando'] } } })) throw new ErroCheckout('Já existe um checkout em andamento.', 409);
-      await tx.checkout_tentativas.create({ data: { id, usuario_id: aluno.id, tipo, unidade_id: unidade, status: 'pendente' } });
+      await tx.checkout_tentativas.create({ data: { id, usuario_id: aluno.id, tipo, unidade_id: unidade, status: 'pendente', metodo: 'qr_krypton' } });
       await tx.transacoes_pagamento.create({ data: { mp_payment_id: 'demo_' + id, usuario_id: aluno.id, tentativa_id: id, valor_centavos: planos[tipo].centavos, moeda: 'BRL', status: 'pending', origem: 'demo' } });
     }, { isolationLevel: 'ReadCommitted' });
     return { url: '/checkout-demo.html?tentativa=' + encodeURIComponent(id), tentativaId: id };
@@ -90,7 +90,7 @@ export function criarServicoDemo(db = prisma, validar = validarModoDemo) {
     const transacao = await db.transacoes_pagamento.findFirst({ where: { tentativa_id: id, usuario_id: Number(usuarioId), origem: 'demo' }, include: { tentativa: true } });
     if (!transacao) throw new ErroCheckout('Checkout não encontrado.', 404);
     const plano = planos[transacao.tentativa.tipo];
-    return { tentativaId: id, tipo: transacao.tentativa.tipo, plano: plano.nome, valor_centavos: transacao.valor_centavos, status: transacao.status };
+    return { tentativaId: id, tipo: transacao.tentativa.tipo, plano: plano.nome, valor_centavos: transacao.valor_centavos, status: transacao.status, metodo: 'qr_krypton', origem: 'demo' };
   }
   function buscarTransacao(tx, usuarioId, id) {
     return tx.transacoes_pagamento.findFirst({
@@ -180,7 +180,7 @@ export function criarServicoDemo(db = prisma, validar = validarModoDemo) {
 
   async function historico(usuarioId) {
     validar();
-    return db.transacoes_pagamento.findMany({ where: { usuario_id: Number(usuarioId) }, select: { id: true, origem: true, status: true, valor_centavos: true, moeda: true, criado_em: true, tentativa: { select: { tipo: true } } }, orderBy: { criado_em: 'desc' }, take: 100 });
+    return db.transacoes_pagamento.findMany({ where: { usuario_id: Number(usuarioId) }, select: camposHistoricoPagamento, orderBy: { criado_em: 'desc' }, take: 100 });
   }
   return { iniciar, consultar, decidir, historico, gerarQr, confirmarQr };
 }

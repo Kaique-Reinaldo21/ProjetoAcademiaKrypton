@@ -25,18 +25,37 @@
         <ul class="beneficios" id="beneficios"></ul>
       </section>
       <section class="painel pagamento" aria-labelledby="titulo-pagamento">
-        <h2 id="titulo-pagamento">Pagamento por QR Code</h2>
-        <p>Aponte a câmera do celular para aprovar a simulação.</p>
-        <div class="quadro-qr"><img id="qr" alt="QR Code da tentativa de checkout" width="224" height="224" hidden></div>
-        <p class="nota" id="validade" aria-live="polite">O código tem validade de 5 minutos.</p>
-        <div class="acoes-qr">
-          <button id="copiar" class="botao primario" disabled>Copiar link</button>
-          <button id="renovar" class="botao" disabled>Gerar novo código</button>
+        <h2 id="titulo-pagamento">Método de pagamento</h2>
+        <fieldset class="metodos" id="metodos" disabled aria-label="Escolha o método de pagamento">
+          <label class="metodo"><input type="radio" name="metodo" value="qr_krypton" checked><span>QR Code Krypton</span></label>
+          <label class="metodo metodo-mp"><input type="radio" name="metodo" value="mercadopago_simulado"><span>Mercado Pago</span></label>
+        </fieldset>
+        <div id="selecao" hidden>
+          <p id="instrucao-metodo" class="nota"></p>
+          <button id="continuar" class="botao primario">Continuar com QR Code</button>
         </div>
-        <p class="nota">Simulação acadêmica. Sem cobrança real.</p>
+        <div id="painel-qr" hidden>
+          <p>Aponte a câmera do celular para aprovar a simulação.</p>
+          <div class="quadro-qr"><img id="qr" alt="QR Code da tentativa de checkout" width="224" height="224" hidden></div>
+          <p class="nota" id="validade" aria-live="polite">O código tem validade de 5 minutos.</p>
+          <div class="acoes-qr">
+            <button id="copiar" class="botao primario" disabled>Copiar link</button>
+            <button id="renovar" class="botao" disabled>Gerar novo código</button>
+          </div>
+        </div>
+        <div id="painel-mp" class="painel-mp" hidden>
+          <p class="marca-mp">Mercado Pago</p>
+          <p>Assinatura em teste. As respostas do provedor são simuladas pela Krypton.</p>
+          <div class="acoes-qr" aria-label="Respostas simuladas do Mercado Pago">
+            <button class="botao primario-mp" data-resposta-mp="aprovar" disabled>Simular aprovação</button>
+            <button class="botao" data-resposta-mp="pendente" disabled>Simular pendência</button>
+            <button class="botao" data-resposta-mp="recusar" disabled>Simular recusa</button>
+          </div>
+        </div>
+        <p class="nota nota-academica">Simulação acadêmica. Sem cobrança real.</p>
       </section>
     </div>
-    <section class="ferramentas" aria-labelledby="titulo-ferramentas">
+    <section id="ferramentas-qr" class="ferramentas" hidden aria-labelledby="titulo-ferramentas">
       <h2 id="titulo-ferramentas">Ferramentas de apresentação</h2>
       <div class="acoes-qr">
         <button class="botao" data-acao="aprovar" disabled>Aprovar</button>

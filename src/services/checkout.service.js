@@ -17,15 +17,23 @@ export class ErroCheckout extends Error {
   }
 }
 
-export function criarServicoCheckout({ prisma, criarCheckoutAssinatura, consultarAssinatura, possuiPagamentoAprovado, obterPagamentoAprovado, buscarAssinaturasPorPagador, validarConfiguracaoCheckout }) {
+export const camposHistoricoPagamento = {
+  id: true, origem: true, status: true, valor_centavos: true, moeda: true, criado_em: true,
+  tentativa: { select: { tipo: true, metodo: true } },
+};
+
+export function criarServicoCheckout({ prisma, criarCheckoutAssinatura, consultarAssinatura, possuiPagamentoAprovado, obterPagamentoAprovado, buscarAssinaturasPorPagador, validarConfiguracaoCheckout, simulado = false }) {
+const metodo = simulado ? 'mercadopago_simulado' : 'mercadopago';
+const pagamentoDemoId = id => 'demo_mp_' + id;
+
 async function iniciarCheckout(usuarioId, tipo, unidadeIdInformada) {
-  if (typeof tipo !== 'string' || !PLANOS_MP[tipo]) {
+  if (typeof tipo !== 'string' || !Object.hasOwn(PLANOS_MP, tipo)) {
     throw new ErroCheckout('Selecione um plano válido (basico, pro ou elite).');
   }
 
   if (validarConfiguracaoCheckout) validarConfiguracaoCheckout();
 
-  const { usuario, tentativa } = await prisma.$transaction(async tx => {
+  const { usuario, tentativa, checkoutDemo } = await prisma.$transaction(async tx => {
   // O bloqueio serializa as reservas do mesmo aluno antes de consultar tentativas.
   await tx.$queryRaw`SELECT id FROM usuarios WHERE id = ${Number(usuarioId)} FOR UPDATE`;
   const usuario = await tx.usuarios.findUnique({
@@ -72,18 +80,32 @@ async function iniciarCheckout(usuarioId, tipo, unidadeIdInformada) {
     );
   }
 
+  const id = randomUUID();
+  // O adaptador de demonstração é local e permite persistir reserva e resposta inicial em uma transação.
+  const checkoutDemo = simulado ? await criarCheckoutAssinatura({ tipo, email: usuario.email, tentativaId: id }) : null;
   const tentativa = await tx.checkout_tentativas.create({
     data: {
-      id: randomUUID(),
+      id,
       usuario_id: usuario.id,
       tipo,
       unidade_id: unidadeId,
-      status: 'pendente',
+      status: checkoutDemo ? 'aguardando' : 'pendente',
+      metodo,
+      ...(checkoutDemo && { mp_preapproval_id: checkoutDemo.id, resposta_mp_demo: 'pendente' }),
     },
   });
+  if (checkoutDemo) {
+    await tx.transacoes_pagamento.create({ data: {
+      mp_payment_id: pagamentoDemoId(id), mp_preapproval_id: checkoutDemo.id,
+      usuario_id: usuario.id, tentativa_id: id, valor_centavos: Math.round(PLANOS_MP[tipo].valor * 100),
+      moeda: 'BRL', status: 'pending', origem: 'demo_mercadopago',
+    } });
+  }
 
-  return { usuario, tentativa };
+  return { usuario, tentativa, checkoutDemo };
   }, { isolationLevel: 'ReadCommitted' });
+
+  if (checkoutDemo) return { url: checkoutDemo.url, tentativaId: tentativa.id };
 
   // Uma falha ou timeout do provedor pode ocorrer depois da criação remota.
   // Mantenha a reserva pendente para reconciliação manual, evitando nova cobrança.
@@ -110,7 +132,7 @@ async function confirmarCheckoutPorAssinatura(preapprovalId) {
     throw new ErroCheckout('Identificador de assinatura inválido.');
   }
   const tentativa = await prisma.checkout_tentativas.findUnique({
-    where: { mp_preapproval_id: preapprovalId },
+    where: { mp_preapproval_id: preapprovalId, metodo },
   });
   if (!tentativa) return { status: 'desconhecido' };
   if (tentativa.status === 'confirmado') return { status: 'confirmado' };
@@ -120,7 +142,7 @@ async function confirmarCheckoutPorAssinatura(preapprovalId) {
   const assinatura = await consultarAssinatura(preapprovalId);
   if (
     String(assinatura.id) !== preapprovalId ||
-    assinatura.status !== 'authorized' ||
+    (assinatura.status !== 'authorized' && !(simulado && assinatura.status === 'canceled')) ||
     assinatura.external_reference !== tentativa.id
   ) {
     return { status: 'aguardando' };
@@ -132,6 +154,24 @@ async function confirmarCheckoutPorAssinatura(preapprovalId) {
   });
   if (!usuario || String(assinatura.payer_email || '').toLowerCase() !== usuario.email.toLowerCase()) {
     throw new ErroCheckout('Dados do pagador incompatíveis com a tentativa.', 409);
+  }
+
+  if (simulado && assinatura.status === 'canceled') {
+    const status = await prisma.$transaction(async tx => {
+      const recusada = await tx.checkout_tentativas.updateMany({
+        where: { id: tentativa.id, metodo, status: 'aguardando' },
+        data: { status: 'recusado' },
+      });
+      if (!recusada.count) {
+        return (await tx.checkout_tentativas.findUnique({ where: { id: tentativa.id } }))?.status || 'desconhecido';
+      }
+      await tx.transacoes_pagamento.update({
+        where: { mp_payment_id: pagamentoDemoId(tentativa.id) },
+        data: { status: 'rejected', atualizado_em: new Date() },
+      });
+      return 'recusado';
+    });
+    return { status };
   }
 
   const pago = await obterPagamentoAprovado(preapprovalId, tentativa.tipo);
@@ -181,10 +221,15 @@ async function confirmarCheckoutPorAssinatura(preapprovalId) {
         ativo: true,
         inicio,
         vencimento,
-        mp_preapproval_id: preapprovalId,
+        mp_preapproval_id: simulado ? null : preapprovalId,
       },
     });
-    await tx.transacoes_pagamento.create({ data: {
+    if (simulado) {
+      await tx.transacoes_pagamento.update({
+        where: { mp_payment_id: pagamentoDemoId(tentativa.id) },
+        data: { plano_id: planoCriado.id, status: 'approved', atualizado_em: new Date() },
+      });
+    } else await tx.transacoes_pagamento.create({ data: {
       mp_payment_id: pago.id, mp_preapproval_id: preapprovalId,
       usuario_id: usuario.id, tentativa_id: tentativa.id, plano_id: planoCriado.id,
       valor_centavos: pago.valor_centavos, moeda: pago.moeda, status: pago.status,
@@ -198,7 +243,7 @@ async function confirmarCheckoutPorAssinatura(preapprovalId) {
 
 // Retorna motivos operacionais sem criar cobranças nem liberar reservas incertas.
 async function reconciliarCheckout(tentativaId, { dryRun = false } = {}) {
-  const tentativa = await prisma.checkout_tentativas.findUnique({ where: { id: tentativaId } });
+  const tentativa = await prisma.checkout_tentativas.findUnique({ where: { id: tentativaId, metodo } });
   if (!tentativa) return { status: 'desconhecido' };
   if (!['pendente', 'aguardando'].includes(tentativa.status)) return { status: tentativa.status };
   const usuario = await prisma.usuarios.findUnique({ where: { id: tentativa.usuario_id }, select: { id: true, email: true } });
@@ -265,7 +310,7 @@ async function reconciliarCheckout(tentativaId, { dryRun = false } = {}) {
 
 async function consultarCheckout(usuarioId, tentativaId) {
   const tentativa = await prisma.checkout_tentativas.findFirst({
-    where: { id: tentativaId, usuario_id: Number(usuarioId) },
+    where: { id: tentativaId, usuario_id: Number(usuarioId), metodo },
     select: { status: true, mp_preapproval_id: true },
   });
   if (!tentativa) throw new ErroCheckout('Checkout não encontrado.', 404);
