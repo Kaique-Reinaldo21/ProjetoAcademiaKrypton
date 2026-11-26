@@ -4,6 +4,7 @@ import authMiddleware from '../middleware/auth.js';
 import adminMiddleware from '../middleware/admin.js';
 import { camposHistoricoPagamento } from '../services/checkout.service.js';
 
+import { consultarCamposAdmin } from '../lib/consultas-admin.js';
 import painelRoutes from './admin-painel.routes.js';
 
 const router = express.Router();
@@ -48,103 +49,40 @@ function formatarDataLocal(data) {
 // GET /api/admin/resumo
 // ========================================================
 
-router.get('/resumo', async (req, res) => {
-  try {
-    const hoje = inicioDoDia();
+router.get('/resumo', async (_req, res) => {
+  const hoje = inicioDoDia();
+  const amanha = new Date(hoje);
+  amanha.setDate(amanha.getDate() + 1);
 
-    const amanha = new Date(hoje);
-    amanha.setDate(amanha.getDate() + 1);
-
-    const [
-      totalAlunos,
-      planos,
-      loginsHoje,
-    ] = await Promise.all([
-      prisma.usuarios.count({
-        where: {
-          role: 'aluno',
-        },
-      }),
-
-      prisma.planos.findMany({
+  const dados = await consultarCamposAdmin('resumo', {
+    total_alunos: () => prisma.usuarios.count({ where: { role: 'aluno' } }),
+    planos_por_tipo: async () => {
+      const grupos = await prisma.planos.groupBy({
+        by: ['tipo'],
         where: {
           ativo: true,
-
-          usuarios: {
-            role: 'aluno',
-          },
-
-          OR: [
-            {
-              vencimento: null,
-            },
-            {
-              vencimento: {
-                gte: hoje,
-              },
-            },
-          ],
+          usuarios: { role: 'aluno' },
+          OR: [{ vencimento: null }, { vencimento: { gte: hoje } }],
         },
-
-        select: {
-          tipo: true,
-        },
-      }),
-
-      prisma.historico_logins.count({
-        where: {
-          data_login: {
-            gte: hoje,
-            lt: amanha,
-          },
-        },
-      }),
-    ]);
-
-    const contagem = {
-      basico: 0,
-      pro: 0,
-      elite: 0,
-    };
-
-    for (const plano of planos) {
-      contagem[plano.tipo]++;
-    }
-
-    let planosAtivos = 0;
-    let receitaEstimada = 0;
-
-    const planosPorTipo = Object.entries(contagem)
-      .filter(([, quantidade]) => quantidade > 0)
-      .map(([tipo, quantidade]) => {
-        const valorEstimado =
-          quantidade * PRECOS[tipo];
-
-        planosAtivos += quantidade;
-        receitaEstimada += valorEstimado;
-
-        return {
-          tipo,
-          quantidade,
-          valor_estimado: valorEstimado,
-        };
+        _count: { _all: true },
       });
+      return Object.keys(PRECOS).flatMap(tipo => {
+        const quantidade = grupos.find(plano => plano.tipo === tipo)?._count._all;
+        return quantidade ? [{ tipo, quantidade, valor_estimado: quantidade * PRECOS[tipo] }] : [];
+      });
+    },
+    logins_hoje: () => prisma.historico_logins.count({ where: { data_login: { gte: hoje, lt: amanha } } }),
+  });
 
-    return res.json({
-      total_alunos: totalAlunos,
-      planos_ativos: planosAtivos,
-      logins_hoje: loginsHoje,
-      receita_estimada: receitaEstimada,
-      planos_por_tipo: planosPorTipo,
-      precos: PRECOS,
-    });
-  } catch {
-    console.error('Erro ao carregar resumo administrativo.');
-
-    return res.status(500).json({
-      erro: 'Erro ao carregar dados administrativos.',
-    });
+  if (Object.values(dados).every(valor => valor === null)) {
+    return res.status(503).json({ erro: 'Resumo indisponível. Tente novamente.' });
   }
+  return res.json({
+    ...dados,
+    planos_ativos: dados.planos_por_tipo?.reduce((total, plano) => total + plano.quantidade, 0) ?? null,
+    receita_estimada: dados.planos_por_tipo?.reduce((total, plano) => total + plano.valor_estimado, 0) ?? null,
+    precos: PRECOS,
+  });
 });
 
 // ========================================================

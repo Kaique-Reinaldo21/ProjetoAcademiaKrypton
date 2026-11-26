@@ -32,10 +32,7 @@ function link(texto, href) {
 
 function fonte(caminho) {
   let consulta;
-  return () => consulta ??= buscar(caminho).catch(falha => {
-    consulta = undefined;
-    throw falha;
-  });
+  return () => consulta ??= buscar(caminho).finally(() => { consulta = undefined; });
 }
 
 function carregar(consulta, desenhar) {
@@ -117,6 +114,7 @@ function grafico(serie, titulo, tipo, instancias) {
 }
 
 function distribuicao(dados, instancias) {
+  if (!Array.isArray(dados.planos_por_tipo)) throw new Error('Distribuição indisponível.');
   const serie = Object.entries(planos).map(([tipo, rotulo]) => ({
     rotulo, valor: dados.planos_por_tipo.find(plano => plano.tipo === tipo)?.quantidade || 0,
   }));
@@ -131,22 +129,24 @@ function cadastros(dados, instancias) {
 function cardsIndicadores({ resumo, indicadores: i }) {
   const area = elemento('div', null, 'kd-grid admin-indicadores');
   const valores = [
-    ['people', 'Total de alunos', resumo.total_alunos, 'Contas de aluno'],
-    ['person-check', 'Alunos ativos', i.ativos, 'Com plano ativo'],
-    ['person-plus', 'Novos cadastros', i.novos, 'Últimos sete dias'],
-    ['clock-history', 'Pagamentos pendentes', i.pendentes, 'Transações registradas'],
-    ['calendar2-week', 'Planos a vencer', i.vencimentos, 'Próximos sete dias'],
-    ['calendar-event', 'Agendamentos', i.agendamentos, 'Próximos sete dias'],
+    ['people', 'Total de alunos', resumo?.total_alunos, 'Contas de aluno'],
+    ['person-check', 'Alunos ativos', i?.ativos, 'Com plano ativo'],
+    ['person-plus', 'Novos cadastros', i?.novos, 'Últimos sete dias'],
+    ['clock-history', 'Pagamentos pendentes', i?.pendentes, 'Transações registradas'],
+    ['calendar2-week', 'Planos a vencer', i?.vencimentos, 'Próximos sete dias'],
+    ['calendar-event', 'Agendamentos', i?.agendamentos, 'Próximos sete dias'],
   ];
   for (const [simbolo, nome, valor, legenda] of valores) {
     const item = elemento('section', null, 'kd-card admin-metrica');
-    item.append(icone(simbolo), elemento('h2', nome), elemento('strong', valor, 'kd-display'), elemento('p', legenda, 'kd-texto-suave'));
+    const exibicao = valor == null ? elemento('p', 'Indisponível') : elemento('strong', valor, 'kd-display');
+    item.append(icone(simbolo), elemento('h2', nome), exibicao, elemento('p', legenda, 'kd-texto-suave'));
     area.append(item);
   }
   return area;
 }
 
 function valoresAprovados({ valores }) {
+  if (!Array.isArray(valores)) throw new Error('Valores indisponíveis.');
   const area = elemento('div', null, 'kd-grid admin-valores');
   for (const [nome, filtrar] of [
     ['Simulados', item => ['demo', 'demo_mercadopago'].includes(item.origem)],
@@ -178,8 +178,11 @@ function visaoGeral(raiz) {
   const lerResumo = fonte('resumo');
   const lerIndicadores = fonte('indicadores');
   const { area, destruir } = areaGraficos(lerResumo);
-  raiz.append(carregar(() => Promise.all([lerResumo(), lerIndicadores()]),
-    ([resumo, indicadores]) => cardsIndicadores({ resumo, indicadores })));
+  raiz.append(carregar(async () => {
+    const [resumo, indicadores] = await Promise.allSettled([lerResumo(), lerIndicadores()]);
+    if (resumo.status === 'rejected' && indicadores.status === 'rejected') throw new Error('Indicadores indisponíveis.');
+    return { resumo: resumo.value, indicadores: indicadores.value };
+  }, cardsIndicadores));
   raiz.append(cartao('Valores transacionados', carregar(lerIndicadores, valoresAprovados)), area);
   const recentes = elemento('div', null, 'kd-grid kd-grid-dois');
   recentes.append(
@@ -256,7 +259,7 @@ function visualizarPlanos(raiz) {
   cabecalho(raiz, 'Planos', 'Valores atuais e vencimentos mais próximos.');
   raiz.append(cartao('Catálogo', carregar(() => buscar('resumo'), dados =>
     tabela('Catálogo de planos', ['Plano', 'Mensalidade', 'Planos ativos'], Object.entries(planos).map(([tipo, nome]) =>
-      [nome, moeda(dados.precos[tipo] * 100, 'BRL'), dados.planos_por_tipo.find(p => p.tipo === tipo)?.quantidade || 0]), 'Nenhum plano.'))),
+      [nome, moeda(dados.precos[tipo] * 100, 'BRL'), dados.planos_por_tipo?.find(p => p.tipo === tipo)?.quantidade ?? (Array.isArray(dados.planos_por_tipo) ? 0 : 'Indisponível')]), 'Nenhum plano.'))),
   cartao('Próximos vencimentos', carregar(() => buscar('vencimentos'), dados =>
     tabela('Próximos vencimentos', ['Aluno', 'Plano', 'Vencimento'],
       dados.vencimentos.map(v => [v.nome, planos[v.tipo], dia(v.vencimento)]), 'Nenhum vencimento próximo.'))));

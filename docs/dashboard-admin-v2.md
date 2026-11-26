@@ -19,3 +19,11 @@ Todas as rotas administrativas exigem sessão válida e papel de administrador v
 - Sessão, alteração de senha e recuperação administrativa usam os fluxos existentes de `/api/auth`.
 
 O extrato apresenta as 100 transações mais recentes, a agenda apresenta até seis sessões futuras e a auditoria lista as 30 recuperações mais recentes. Funcionários fica disponível como seção informativa até que exista backend de gestão de equipe. O painel administrativo não adiciona migration.
+
+## Pool Prisma no Render demonstrativo
+
+No serviço demonstrativo autorizado, configure `DEMO_PRISMA_POOL=serial`. Mantenha a `DATABASE_URL` original e a política TLS já aprovada. O Prisma acrescenta `connection_limit=1` e `pool_timeout=30` somente ao datasource interno, depois de validar destino, porta, schema e TLS. Não acrescente esses parâmetros à `DATABASE_URL`. A configuração é optativa e não se aplica aos outros ambientes.
+
+`/api/admin/resumo` e `/api/admin/indicadores` executam suas consultas uma por vez por processo. Uma resposta parcial retorna HTTP 200 com `null` nos campos indisponíveis. Se nenhuma consulta do endpoint passar, a resposta é HTTP 503. O painel mantém os dados disponíveis e distingue zero de indisponibilidade.
+
+Os logs incluem a operação, a classe do erro, o código Prisma ou de rede e um código MySQL conhecido quando disponível nos campos estruturados. `P2024` indica tempo de espera esgotado no pool. Um erro Prisma desconhecido sem código estruturado não identifica a causa no MySQL.
