@@ -177,3 +177,23 @@ Use as credenciais do add-on demo, com caracteres reservados do usuário e da se
 O app usa cookies `secure` em produção e confia no primeiro proxy para sessões HTTPS no Render. Autenticação, cadastro e checkout devem ser validados no segundo serviço com dados fictícios. A persistência depende da disponibilidade e retenção do MySQL dedicado, e não do disco efêmero do Render.
 
 A verificação de saúde do serviço Render deve usar `/api/health`; o endpoint informa que o processo responde, mas não prova que o banco ou o checkout funcionam. O login tradicional usa JWT com cookie seguro em HTTPS e token no navegador; o token continua válido após reinício enquanto a chave e a validade permanecerem as mesmas. Sessões do Passport usam armazenamento em memória e são perdidas em reinícios ou entre instâncias; o login Google não está preparado para persistência distribuída. Para apresentação, use login tradicional e contas fictícias.
+
+## Checkout Krypton por QR Code
+
+Emita o código no checkout do aluno autenticado. Um novo código revoga o anterior. A tentativa guarda somente SHA-256 do token e a expiração de cinco minutos. Escanear o código autoriza somente a aprovação dessa tentativa fictícia. O celular pode ser usado sem sessão. Trate o link como uma autorização delegada pelo aluno e compartilhe-o apenas com a pessoa que deve executar a simulação.
+
+A página do celular recebe o token no fragmento da URL, remove o fragmento da barra de endereços e envia o token em um POST JSON da mesma origem, sem credenciais de sessão. GET, HEAD, imagens e a geração do PNG não aprovam. O GET descarta prévias identificadas pelos cabeçalhos de prefetch e o script espera visibilidade e saída do modo de pré-renderização. Um navegador automatizado capaz de executar JavaScript em uma aba visível e obter o fragmento pode agir como quem escaneou o código. Essas medidas reduzem aprovações por prévias passivas. A política `no-referrer` protege a navegação ao YouTube, cujo URL é fixo.
+
+Para homologar no Render demo, use a nova branch, mantenha o modo acadêmico isolado, gere o cliente Prisma e execute primeiro a verificação somente de leitura já descrita. Após revisão, aplique a migration aditiva do QR manualmente apenas no banco demo. Na URL HTTPS do serviço, entre com aluno de teste, inicie um plano, escaneie com celular sem sessão, confira a aprovação e o redirecionamento e confirme no desktop a atualização do plano e do histórico. Repita com código expirado, renovado e reutilizado e com as ferramentas de apresentação.
+
+## Estrutura prevista dos dashboards
+
+| Perfil | Áreas do painel |
+| --- | --- |
+| Aluno | Plano ativo, histórico, treinos e agendamentos próprios |
+| Administrador | Gestão de usuários, unidades, planos, permissões e auditoria |
+| Recepcionista | Atendimento, check-in e agenda da unidade |
+| Personal trainer | Treinos, agenda e acompanhamento de alunos atribuídos |
+| Nutricionista | Consultas e acompanhamento dos alunos atribuídos |
+
+Compartilhe cabeçalho, navegação, cartões e indicadores de estado entre os painéis. Os dados e as ações de cada perfil devem ser autorizados no backend, com escopo de aluno ou unidade conforme a função. Recepção, personal e nutrição ficam para as próximas sprints.

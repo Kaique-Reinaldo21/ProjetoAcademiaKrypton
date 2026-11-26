@@ -1,26 +1,50 @@
 <!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Checkout de demonstração</title>
-<style>body{font-family:Arial,sans-serif;background:#10151d;color:#fff;margin:0;padding:2rem}main{max-width:34rem;margin:3rem auto;padding:2rem;background:#202b37;border-radius:12px}button,a{display:inline-block;padding:.8rem;margin:.35rem;border:0;border-radius:6px;cursor:pointer}button{background:#2dff7a;color:#111;font-weight:bold}a{color:#fff}strong{color:#ffdb73}</style></head>
-<body><main><h1>Checkout de demonstração</h1><p><strong>PAGAMENTO SIMULADO — NENHUM VALOR SERÁ COBRADO.</strong></p><p id="detalhes">Carregando...</p><p id="status" role="status"></p><div><button data-acao="aprovar">Simular aprovação</button><button data-acao="pendente">Manter pendente</button><button data-acao="recusar">Simular recusa</button></div><p><a href="/dashboard.html">Voltar ao dashboard</a></p></main>
-<script>
-const id = new URLSearchParams(location.search).get('tentativa');
-const token = localStorage.getItem('token');
-const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) };
-async function carregar() {
-  const response = await fetch('/api/checkout/demo/' + encodeURIComponent(id || ''), { headers, credentials: 'include' });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.erro || 'Checkout indisponível.');
-  document.getElementById('detalhes').textContent = 'Plano ' + data.plano + ' — ' + (data.valor_centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  document.getElementById('status').textContent = 'Situação: ' + ({ pending: 'pendente', approved: 'aprovada', rejected: 'recusada' }[data.status] || data.status);
-  document.querySelectorAll('button').forEach(b => { b.disabled = data.status !== 'pending'; });
-}
-document.querySelectorAll('button').forEach(button => button.addEventListener('click', async () => {
-  document.querySelectorAll('button').forEach(b => { b.disabled = true; });
-  try {
-    const response = await fetch('/api/checkout/demo/' + encodeURIComponent(id || ''), { method: 'POST', headers, credentials: 'include', body: JSON.stringify({ acao: button.dataset.acao }) });
-    const data = await response.json(); if (!response.ok) throw new Error(data.erro || 'Não foi possível simular.');
-    await carregar();
-  } catch (error) { document.getElementById('status').textContent = error.message; }
-}));
-carregar().catch(error => { document.getElementById('detalhes').textContent = error.message; document.querySelectorAll('button').forEach(b => { b.disabled = true; }); });
-</script></body></html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Checkout | Academia Krypton</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&family=Oswald:wght@500;600;700&display=swap">
+  <link rel="stylesheet" href="/css/checkout-krypton.css">
+  <script defer src="/js/checkout-demo.js"></script>
+</head>
+<body>
+  <header class="marca"><img src="/logo.png" alt="" width="42" height="42"> Academia Krypton</header>
+  <main class="checkout">
+    <h1>Finalizar assinatura</h1>
+    <p id="situacao" class="situacao" role="status">Carregando…</p>
+    <div class="checkout-grid">
+      <section class="painel resumo" id="resumo" aria-labelledby="titulo-resumo">
+        <h2 id="titulo-resumo">Resumo da assinatura</h2>
+        <p class="plano" id="plano">—</p>
+        <p class="valor"><span id="valor">—</span><small> / mês</small></p>
+        <ul class="beneficios" id="beneficios"></ul>
+      </section>
+      <section class="painel pagamento" aria-labelledby="titulo-pagamento">
+        <h2 id="titulo-pagamento">Pagamento por QR Code</h2>
+        <p>Aponte a câmera do celular para aprovar a simulação.</p>
+        <div class="quadro-qr"><img id="qr" alt="QR Code da tentativa de checkout" width="224" height="224" hidden></div>
+        <p class="nota" id="validade" aria-live="polite">O código tem validade de 5 minutos.</p>
+        <div class="acoes-qr">
+          <button id="copiar" class="botao primario" disabled>Copiar link</button>
+          <button id="renovar" class="botao" disabled>Gerar novo código</button>
+        </div>
+        <p class="nota">Simulação acadêmica. Sem cobrança real.</p>
+      </section>
+    </div>
+    <section class="ferramentas" aria-labelledby="titulo-ferramentas">
+      <h2 id="titulo-ferramentas">Ferramentas de apresentação</h2>
+      <div class="acoes-qr">
+        <button class="botao" data-acao="aprovar" disabled>Aprovar</button>
+        <button class="botao" data-acao="pendente" disabled>Manter pendente</button>
+        <button class="botao" data-acao="recusar" disabled>Recusar</button>
+      </div>
+    </section>
+    <p id="mensagem" class="nota" role="status"></p>
+  </main>
+</body>
+</html>

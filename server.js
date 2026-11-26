@@ -20,7 +20,7 @@ import authRoutes from './src/routes/auth.routes.js';
 import usuarioRoutes from './src/routes/usuario.routes.js';
 import adminRoutes from './src/routes/admin.routes.js';
 import publicRoutes from './src/routes/public.routes.js';
-import checkoutRoutes from './src/routes/checkout.routes.js';
+import checkoutRoutes, { criarRotasQrDemo } from './src/routes/checkout.routes.js';
 
 
 // Configuração do Passport / Google OAuth
@@ -108,6 +108,7 @@ app.get('/dashboard', isAuthenticated, (req, res) => {
 // Checkout autenticado — nunca usar IDs de usuários fictícios.
 // ─────────────────────────────────────────
 app.use('/api/checkout', checkoutRoutes);
+app.use('/checkout-qr', criarRotasQrDemo());
 
 // Retorno do navegador: consulta o provedor; não considera a query como prova de pagamento.
 app.get('/checkout/success', async (req, res) => {
