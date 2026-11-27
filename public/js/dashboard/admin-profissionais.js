@@ -4,6 +4,7 @@ import { api } from './aluno-dados.js';
 
 export function gerirProfissionais(raiz) {
   let ativo = true;
+  const avisosVinculos = new Map();
   async function carregar() {
     if (!ativo) return;
     raiz.replaceChildren(elemento('p', 'Carregando profissionais…'));
@@ -33,24 +34,50 @@ export function gerirProfissionais(raiz) {
         if (c.role !== 'recepcao') {
           const statusVinculo = elemento('p');
           statusVinculo.setAttribute('role', 'status');
-          perfil.append(formulario([campo('aluno_id', 'ID do aluno')], 'Vincular aluno', async d => {
-            await salvar('/contas/' + c.id + '/alunos/' + encodeURIComponent(d.aluno_id), {}, 'PUT');
-            await carregar();
-          }), statusVinculo);
-          for (const { aluno } of c.vinculos_profissional) {
-            const linha = elemento('p', aluno.nome + ' ');
-            linha.append(acao('Remover vínculo', async e => {
-              e.target.disabled = true;
+          statusVinculo.textContent = avisosVinculos.get(c.id) || '';
+          avisosVinculos.delete(c.id);
+          const busca = elemento('input', null, 'kd-input');
+          busca.type = 'search'; busca.placeholder = 'Digite o nome do aluno'; busca.setAttribute('aria-label', 'Pesquisar aluno para vincular');
+          const seletor = elemento('select', null, 'kd-input');
+          seletor.setAttribute('aria-label', 'Selecionar aluno');
+          seletor.append(new Option('Pesquise e selecione um aluno', ''));
+          const vincular = acao('Vincular aluno selecionado', async botao => {
+            const alunoId = seletor.value;
+            if (!alunoId) { statusVinculo.textContent = 'Selecione um aluno pelos resultados da pesquisa.'; return; }
+            botao.target.disabled = true;
+            try {
+              const resultado = await salvar('/contas/' + c.id + '/alunos/' + encodeURIComponent(alunoId), {}, 'PUT');
+              avisosVinculos.set(c.id, resultado.existente ? 'Este vínculo já estava ativo.' : 'Aluno vinculado com sucesso.');
+              await carregar();
+            } catch (falha) { statusVinculo.textContent = falha.message; botao.target.disabled = false; }
+          });
+          vincular.setAttribute('aria-label', 'Vincular aluno selecionado ao profissional');
+          const resultados = elemento('div');
+          let timer;
+          busca.addEventListener('input', () => {
+            clearTimeout(timer);
+            timer = setTimeout(async () => {
+              const termo = busca.value.trim();
+              seletor.replaceChildren(new Option(termo ? 'Carregando resultados…' : 'Pesquise e selecione um aluno', ''));
+              if (!termo) return;
               try {
-                await api(base + '/contas/' + c.id + '/alunos/' + aluno.id, { method: 'DELETE' });
-                await carregar();
-              } catch (erro) {
-                statusVinculo.textContent = erro.message;
-                e.target.disabled = false;
-              }
+                const alunos = await ler('/alunos?busca=' + encodeURIComponent(termo));
+                seletor.replaceChildren(new Option(alunos.length ? 'Selecione um aluno' : 'Nenhum aluno encontrado', ''));
+                for (const aluno of alunos) seletor.append(new Option(aluno.nome, aluno.id));
+              } catch (falha) { statusVinculo.textContent = falha.message; }
+            }, 250);
+          });
+          const existentes = c.vinculos_profissional.map(({ aluno }) => {
+            const linha = elemento('p', aluno.nome, 'kd-vinculo-existente');
+            linha.append(acao('Remover vínculo', async botao => {
+              botao.target.disabled = true;
+              try { await api(base + '/contas/' + c.id + '/alunos/' + aluno.id, { method: 'DELETE' }); avisosVinculos.set(c.id, 'Vínculo removido.'); await carregar(); }
+              catch (falha) { statusVinculo.textContent = falha.message; botao.target.disabled = false; }
             }));
-            perfil.append(linha);
-          }
+            return linha;
+          });
+          resultados.append(...(existentes.length ? existentes : [elemento('p', 'Nenhum aluno vinculado.') ]));
+          perfil.append(bloco('Vínculos com alunos', busca, seletor, vincular, statusVinculo, resultados));
         }
         raiz.append(perfil);
       }

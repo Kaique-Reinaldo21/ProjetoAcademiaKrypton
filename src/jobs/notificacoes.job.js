@@ -12,16 +12,21 @@ const titulos = Object.freeze({
   documento_disponivel: 'Documento profissional disponível',
 });
 
-function destino(role, tipo) {
+function destino(role, tipo, tipoDocumento) {
   if (role === 'admin') return '/admin.html';
   if (role !== 'aluno') return '/profissional.html';
   if (tipo.startsWith('consulta')) return '/dashboard.html#agendamentos';
-  if (tipo.startsWith('documento')) return '/dashboard.html#arquivos';
+  if (tipo === 'documento_disponivel') {
+    if (tipoDocumento === 'personal') return '/dashboard.html#treinos-extras';
+    if (tipoDocumento === 'nutricionista') return '/dashboard.html#nutricao';
+    return '/dashboard.html#arquivos';
+  }
   return tipo.startsWith('treino') ? '/dashboard.html#treinos' : '/dashboard.html#nutricao';
 }
 
 export async function processarNotificacao(db, job) {
   if (!Object.hasOwn(titulos, job.tipo) || !Array.isArray(job.payload?.destinatarios)) throw new Error('JOB_INVALIDO');
+  if (job.tipo === 'documento_disponivel' && !['personal', 'nutricionista'].includes(job.payload.documento_tipo)) throw new Error('JOB_INVALIDO');
   const titulo = titulos[job.tipo];
   await db.$transaction(async tx => {
     // Finalização e entrega compartilham a mesma transação. Um worker que perdeu a posse não entrega.
@@ -37,7 +42,7 @@ export async function processarNotificacao(db, job) {
     await tx.notificacoes.createMany({ skipDuplicates: true, data: destinatarios.map(usuario => ({
       job_id: job.id, destinatario_id: usuario.id, categoria: job.tipo, titulo,
       mensagem: 'Há uma atualização disponível no seu painel.',
-      destino: destino(usuario.role, job.tipo),
+      destino: destino(usuario.role, job.tipo, job.payload.documento_tipo),
     })) });
   });
 }

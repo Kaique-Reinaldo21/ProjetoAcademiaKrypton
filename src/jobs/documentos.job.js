@@ -22,7 +22,7 @@ export async function processarDocumentoPdf(db, job) {
       situacao: 'disponivel', disponibilizado_em: new Date(),
     } });
     if (!atualizado.count) throw new Error('DOCUMENTO_INDISPONIVEL');
-    await enfileirar(tx, 'documento_disponivel', `documento_disponivel:${documento.id}`, [documento.aluno_id]);
+    await enfileirar(tx, 'documento_disponivel', `documento_disponivel:${documento.id}`, [documento.aluno_id], { documento_tipo: documento.tipo });
   });
 }
 

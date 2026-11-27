@@ -763,7 +763,8 @@
           },
           "destino": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "description": "Destino interno autorizado; documentos de treino apontam para Treinos extras e documentos alimentares para Nutrição."
           },
           "criado_em": {
             "type": "string",
@@ -4063,8 +4064,13 @@
           "Recepção"
         ],
         "summary": "Consultar resumo da recepção",
-        "description": "Somente recepcao; retorna contagem de hoje, próximas consultas e até 15 atendimentos recentes.",
+        "description": "Somente recepcao; retorna indicadores, cadastros, matrículas e atendimentos em conjuntos separados. Aceita busca por aluno e período nos atendimentos recentes.",
         "operationId": "Recepo_41",
+        "parameters": [
+          { "name": "busca", "in": "query", "required": false, "schema": { "type": "string", "maxLength": 120 } },
+          { "name": "de", "in": "query", "required": false, "schema": { "type": "string", "format": "date" } },
+          { "name": "ate", "in": "query", "required": false, "schema": { "type": "string", "format": "date" } }
+        ],
         "responses": {
           "200": {
             "description": "Operação concluída.",
@@ -4084,7 +4090,9 @@
                       "items": {
                         "$ref": "#/components/schemas/Atendimento"
                       }
-                    }
+                    },
+                    "cadastrosRecentes": { "type": "array", "items": { "type": "object", "properties": { "id": { "type": "integer" }, "nome": { "type": "string" }, "created_at": { "type": "string", "format": "date-time", "nullable": true } } } },
+                    "matriculasRecentes": { "type": "array", "items": { "type": "object", "properties": { "id": { "type": "integer" }, "tipo": { "type": "string", "enum": ["basico", "pro", "elite"] }, "ativo": { "type": "boolean" }, "inicio": { "type": "string", "format": "date" }, "vencimento": { "type": "string", "format": "date", "nullable": true }, "unidade_id": { "type": "integer", "nullable": true }, "usuarios": { "type": "object", "properties": { "id": { "type": "integer" }, "nome": { "type": "string" } } } } } }
                   }
                 }
               }
@@ -6596,7 +6604,7 @@
           "Recepção"
         ],
         "summary": "Cadastrar aluno presencialmente",
-        "description": "Somente recepção autenticada. O servidor define obrigatoriamente role=aluno; não cria plano, vínculo, pagamento ou sessão e não retorna hash de senha. A duplicidade do e-mail é rejeitada.",
+        "description": "Somente recepção autenticada. O servidor define obrigatoriamente role=aluno; não cria vínculo ou sessão e não retorna hash de senha. Após o cadastro, a recepção pode registrar uma contratação simulada separada com confirmação do aluno.",
         "operationId": "recepcaoCadastrarAluno",
         "security": [
           {
@@ -6677,6 +6685,39 @@
               }
             }
           }
+        }
+      }
+    },
+    "/api/profissionais/recepcao/matricula-simulada": {
+      "post": {
+        "tags": ["Recepção"],
+        "summary": "Registrar matrícula presencial simulada",
+        "description": "Somente recepção autenticada no PAYMENT_MODE=demo. Exige confirmação explícita do aluno e registra o operador na auditoria existente. Reutiliza a transação acadêmica simulada; não chama Mercado Pago nem cria cobrança real. Rejeita checkout pendente e matrícula idêntica já ativa.",
+        "operationId": "recepcaoMatriculaPresencialSimulada",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["aluno_id", "tipoPlano", "confirmacao"],
+                "properties": {
+                  "aluno_id": { "type": "integer", "minimum": 1 },
+                  "tipoPlano": { "type": "string", "enum": ["basico", "pro", "elite"] },
+                  "unidade_id": { "type": "integer", "minimum": 1, "description": "Obrigatória para o plano Básico." },
+                  "confirmacao": { "type": "boolean", "const": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Matrícula acadêmica simulada confirmada; operador gravado na auditoria.", "content": { "application/json": { "schema": { "type": "object", "required": ["tentativaId", "status", "origem"], "properties": { "tentativaId": { "type": "string", "format": "uuid" }, "status": { "type": "string", "enum": ["approved"] }, "origem": { "type": "string", "enum": ["demo"] } } } } } },
+          "403": { "description": "Papel, origem ou modo de pagamento não autorizado." },
+          "409": { "description": "Já existe checkout pendente ou matrícula idêntica ativa." },
+          "400": { "description": "Plano, unidade ou confirmação inválidos." }
         }
       }
     },

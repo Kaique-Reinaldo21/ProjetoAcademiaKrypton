@@ -92,10 +92,27 @@ export async function publicarNoAluno(destino, tipo) {
 
 export function editor(alunos, tipo, ficha, concluir) {
   const itens = elemento('div');
+  let numeroItem = 0;
   function adicionar(item = {}) {
+    numeroItem += 1;
+    const idAjudaSeries = `ajuda-series-${numeroItem}`;
     const grupo = elemento('fieldset', null, 'kd-card mb-2');
     grupo.append(elemento('legend', tipo === 'personal' ? 'Exercício' : 'Refeição'));
-    for (const [nome, rotulo, formato, opcional] of definicao(tipo)) grupo.append(campo(nome, rotulo, formato, item[nome], opcional));
+    for (const [nome, rotulo, formato, opcional] of definicao(tipo)) {
+      const controle = campo(nome, rotulo, formato, item[nome] ?? (tipo === 'personal' && nome === 'series' ? '3' : ''), opcional);
+      const input = controle.querySelector('input');
+      if (tipo === 'personal' && nome === 'series') {
+        input.min = '1'; input.max = '30'; input.step = '1'; input.required = true;
+        input.setAttribute('aria-describedby', idAjudaSeries);
+      }
+      const exemplos = { divisao: 'Ex.: Treino A — membros superiores', nome: 'Ex.: Agachamento livre', repeticoes: 'Ex.: 8 a 12', carga: 'Ex.: carga confortável', descanso: 'Ex.: 60 segundos', orientacoes: 'Ex.: manter a postura e interromper se houver dor' };
+      if (tipo === 'personal' && exemplos[nome]) input.placeholder = exemplos[nome];
+      grupo.append(controle);
+    }
+    if (tipo === 'personal') {
+      const ajuda = elemento('small', 'Use um número inteiro de 1 a 30 séries.', 'kd-texto-suave');
+      ajuda.id = idAjudaSeries; grupo.append(ajuda);
+    }
     grupo.append(acao('Remover item', () => { if (itens.children.length > 1) grupo.remove(); }));
     itens.append(grupo);
   }

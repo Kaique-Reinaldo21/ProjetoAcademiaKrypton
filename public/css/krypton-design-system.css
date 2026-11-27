@@ -76,7 +76,10 @@
 .kd-perfil-pessoal > p { margin-top: .35rem; color: var(--kd-suave); }
 .kd-perfil-pessoal > .kd-grid { align-items: center; margin-top: 1rem; }
 .kd-perfil-foto { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; }
-.kd-perfil-avatar { width: 4.25rem; height: 4.25rem; font-size: 1.3rem; }
+.kd-perfil-avatar { width: clamp(6rem, 18vw, 9rem); height: clamp(6rem, 18vw, 9rem); font-size: clamp(1.7rem, 5vw, 2.5rem); }
+.kd-perfil-avatar { border: 0; padding: 0; cursor: zoom-in; }
+.kd-perfil-ampliar { display: block; margin: .65rem 0; }
+.kd-perfil-previa { display: block; width: min(100%, 22rem); max-height: 55vh; aspect-ratio: 1; object-fit: contain; margin: .5rem auto; border-radius: 1rem; background: #080b09; }
 .kd-perfil-acoes { display: flex; align-items: center; flex-wrap: wrap; gap: .55rem; }
 .kd-sair { margin-top: .8rem; width: 100%; justify-content: flex-start !important; }
 .kd-hamburguer, .kd-backdrop { display: none !important; }

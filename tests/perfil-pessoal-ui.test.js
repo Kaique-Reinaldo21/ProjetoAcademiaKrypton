@@ -15,6 +15,7 @@ class ElementoFalso {
   reset() { for (const item of buscar(this, no => no.tagName === 'INPUT')) { item.value = ''; item.files = []; } }
   showModal() { this.open = true; }
   close() { this.open = false; }
+  focus() { this.focused = true; }
 }
 
 function buscar(raiz, criterio) {
@@ -113,17 +114,23 @@ test('interface compartilhada permite nome e foto persistentes nos cinco papéis
       const formFoto = buscar(dialogo, no => no.tagName === 'FORM')[0];
       const arquivo = buscar(formFoto, no => no.tagName === 'INPUT' && no.type === 'file')[0];
       arquivo.files = [{ type: 'image/png', size: 100 }];
+      await arquivo.listeners.change[0]();
+      assert.ok(buscar(formFoto, no => no.tagName === 'IMG' && !no.hidden).length, `${role}: prévia antes do upload`);
       await formFoto.listeners.submit[0](evento());
       assert.equal(fotos.has(id), true, role);
       assert.equal(callbacks.fotos.length, 1, role + ': callbacks de foto');
       assert.equal(callbacks.fotos.at(-1) instanceof Blob, true, role + ': ' + String(callbacks.fotos.at(-1)?.constructor?.name) + ' ' + buscar(formFoto, no => no.tagName === 'P')[0]?.textContent);
       assert.equal(dialogo.open, false, role);
 
-      const avatar = buscar(raiz, no => no.tagName === 'SPAN' && no.classes?.includes('kd-perfil-avatar'))[0];
+      const avatar = buscar(raiz, no => no.tagName === 'BUTTON' && no.classes?.includes('kd-perfil-avatar'))[0];
       assert.ok(buscar(avatar, no => no.tagName === 'IMG').length, role);
       assert.ok(buscar(avatarCabecalho, no => no.tagName === 'IMG').length, role);
+      avatar.listeners.click[0]();
+      assert.equal(dialogo.open, true, `${role}: modal de ampliação`);
+      assert.equal(buscar(formFoto, no => no.tagName === 'IMG' && !no.hidden).length > 0, true);
+      dialogo.close();
       const painelAposLogin = montarEditorPerfil({ ...usuarios.get(id) });
-      const avatarAposLogin = buscar(painelAposLogin, no => no.tagName === 'SPAN' && no.classes?.includes('kd-perfil-avatar'))[0];
+      const avatarAposLogin = buscar(painelAposLogin, no => no.tagName === 'BUTTON' && no.classes?.includes('kd-perfil-avatar'))[0];
       await aguardarAte(() => buscar(avatarAposLogin, no => no.tagName === 'IMG').length > 0);
       assert.ok(buscar(avatarAposLogin, no => no.tagName === 'IMG').length, `foto persistiu após login de ${role}`);
       buscar(raiz, no => no.tagName === 'BUTTON' && no.textContent === 'Remover foto')[0].listeners.click[0]();

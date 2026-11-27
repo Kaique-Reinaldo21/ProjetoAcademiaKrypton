@@ -92,7 +92,7 @@ test('upload persiste PDF validado e enfileira notificação sem conteúdo no pa
   assert.deepEqual(armazenado.conteudo, pdf);
   assert.equal(armazenado.tipo, 'nutricionista');
   assert.equal(armazenado.sha256.length, 64);
-  assert.deepEqual(job.payload, { destinatarios: [8] });
+  assert.deepEqual(job.payload, { destinatarios: [8], documento_tipo: 'nutricionista' });
   await assert.rejects(service.anexar({ id: 7, role: 'nutricionista' }, 8, 'Inválido', Buffer.from('%PDF fake')), { status: 400 });
 });
 
@@ -105,7 +105,7 @@ test('Worker só disponibiliza PDF e cria a notificação após confirmar posse 
   const job = { id: 'job-1', tipo: 'documento_pdf_gerar', tentativas: 1, limite: 5, bloqueio: 'lock-1', payload: { documento_id: 21 } };
   const tx = {
     jobs: { async updateMany() { if (jobConcluido) return { count: 0 }; jobConcluido = true; return { count: 1 }; },
-      async createMany({ data }) { assert.deepEqual(data[0].payload, { destinatarios: [8] }); notificacao = true; return { count: 1 }; } },
+      async createMany({ data }) { assert.deepEqual(data[0].payload, { destinatarios: [8], documento_tipo: 'personal' }); notificacao = true; return { count: 1 }; } },
     documentos_profissionais: { async updateMany({ data }) { assert.equal(validarPdf(data.conteudo), true); documentoDisponivel = data.situacao === 'disponivel'; return { count: 1 }; } },
   };
   const db = { documentos_profissionais: { async findUnique() { return { id: 21, origem: 'ficha', situacao: 'processando', aluno_id: 8, profissional_id: 7, tipo: 'personal', ficha: pdfFicha }; } },
