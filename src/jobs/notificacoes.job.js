@@ -9,12 +9,14 @@ const titulos = Object.freeze({
   treino_atualizado: 'Ficha de treino atualizada',
   alimentacao_publicada: 'Plano alimentar publicado',
   alimentacao_atualizada: 'Plano alimentar atualizado',
+  documento_disponivel: 'Documento profissional disponível',
 });
 
 function destino(role, tipo) {
   if (role === 'admin') return '/admin.html';
   if (role !== 'aluno') return '/profissional.html';
   if (tipo.startsWith('consulta')) return '/dashboard.html#agendamentos';
+  if (tipo.startsWith('documento')) return '/dashboard.html#arquivos';
   return tipo.startsWith('treino') ? '/dashboard.html#treinos' : '/dashboard.html#nutricao';
 }
 

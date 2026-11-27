@@ -97,6 +97,8 @@ model usuarios {
   fichas_profissional fichas_profissionais[] @relation("AutorFicha")
   atendimentos_aluno atendimentos_recepcao[] @relation("AlunoAtendimento")
   atendimentos_registrados atendimentos_recepcao[] @relation("AutorAtendimento")
+  documentos_aluno documentos_profissionais[] @relation("DocumentoAluno")
+  documentos_autor documentos_profissionais[] @relation("DocumentoAutor")
 }
 
 model fotos_perfil {
@@ -246,9 +248,33 @@ model fichas_profissionais {
   atualizado_em DateTime @updatedAt @db.DateTime(3)
   aluno usuarios @relation("AlunoFicha", fields: [aluno_id], references: [id], onDelete: Cascade)
   profissional usuarios @relation("AutorFicha", fields: [profissional_id], references: [id], onDelete: Restrict)
+  documentos documentos_profissionais[]
 
   @@index([aluno_id, tipo])
   @@index([profissional_id, tipo])
+}
+
+model documentos_profissionais {
+  id Int @id @default(autoincrement()) @db.UnsignedInt
+  aluno_id Int @db.UnsignedInt
+  profissional_id Int @db.UnsignedInt
+  ficha_id Int? @db.UnsignedInt
+  tipo agendamentos_tipo
+  titulo String @db.VarChar(120)
+  nome_arquivo String @db.VarChar(180)
+  origem String @default("upload") @db.VarChar(20)
+  situacao String @default("disponivel") @db.VarChar(20)
+  conteudo Bytes? @db.MediumBlob
+  sha256 String? @db.Char(64)
+  chave_origem String? @unique @db.VarChar(120)
+  criado_em DateTime @default(now()) @db.DateTime(3)
+  disponibilizado_em DateTime? @db.DateTime(3)
+  aluno usuarios @relation("DocumentoAluno", fields: [aluno_id], references: [id], onDelete: Cascade)
+  profissional usuarios @relation("DocumentoAutor", fields: [profissional_id], references: [id], onDelete: Restrict)
+  ficha fichas_profissionais? @relation(fields: [ficha_id], references: [id], onDelete: SetNull)
+
+  @@index([aluno_id, situacao, criado_em])
+  @@index([profissional_id, tipo, criado_em])
 }
 
 model atendimentos_recepcao {

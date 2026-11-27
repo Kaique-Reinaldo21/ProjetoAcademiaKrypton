@@ -2,11 +2,12 @@ import { montarNotificacoes } from './notificacoes.js';
 import { api } from './aluno-dados.js';
 import { configurarMenu, erro, estado } from './design-system.js';
 import { abas } from './admin-views.js';
+import { criarIdentidadePainel } from './perfil-pessoal.js';
 
 const conteudo = document.getElementById('conteudo');
 const menu = document.getElementById('menu');
 const fecharMenu = configurarMenu(document.getElementById('abrir-menu'), menu, document.getElementById('fundo-menu'), document.querySelector('.kd-workspace'));
-let conta, aba;
+let conta, aba, identidade;
 let descartar = () => {};
 
 function renderizar(navegando = false) {
@@ -23,7 +24,7 @@ function renderizar(navegando = false) {
     else link.removeAttribute('aria-current');
   }
   conteudo.replaceChildren();
-  descartar = exibir(conteudo, conta) || (() => {});
+  descartar = exibir(conteudo, conta, identidade) || (() => {});
   conteudo.setAttribute('aria-busy', 'false');
   aba = destino;
   if (navegando) {
@@ -70,9 +71,10 @@ async function iniciar() {
     }
     conta = usuario;
     montarNotificacoes();
-    document.getElementById('nome-cabecalho').textContent = conta.nome;
-    document.getElementById('avatar-admin').textContent = conta.nome.trim().split(/\s+/).slice(0, 2)
-      .map(parte => [...parte][0]?.toUpperCase()).join('');
+    identidade = criarIdentidadePainel(conta, {
+      avatar: document.getElementById('avatar-admin'),
+      nome: document.getElementById('nome-cabecalho'),
+    });
     renderizar();
   } catch {
     conteudo.setAttribute('aria-busy', 'false');

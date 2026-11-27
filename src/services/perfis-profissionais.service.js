@@ -148,12 +148,37 @@ export function criarServicoProfissionais(db = prisma) {
         return { vinculado: true };
       });
     },
-    async buscarAlunos(busca) {
+    async buscarAlunos(busca, vencendo = false) {
       const filtro = typeof busca === 'string' ? busca.trim().slice(0, 120) : '';
-      return db.usuarios.findMany({ where: { role: 'aluno', ...(filtro && { nome: { contains: filtro } }) },
+      const agora = new Date();
+      agora.setUTCHours(0, 0, 0, 0);
+      const limite = new Date(agora);
+      limite.setUTCDate(limite.getUTCDate() + 30);
+      return db.usuarios.findMany({ where: { role: 'aluno', ...(filtro && { nome: { contains: filtro } }),
+        ...(vencendo && { planos: { some: { ativo: true, vencimento: { gte: agora, lte: limite } } } }),
+      },
         orderBy: [{ nome: 'asc' }, { id: 'asc' }], take: 50, select: {
-          ...alunoPublico, planos: { take: 1, orderBy: { id: 'desc' }, select: planoPublico },
+          ...alunoPublico, planos: { where: { ativo: true }, take: 1, orderBy: { id: 'desc' }, select: planoPublico },
         } });
+    },
+    async cadastrarAlunoRecepcao(body) {
+      const permitidos = ['nome', 'email', 'senha', 'data_nascimento'];
+      if (!body || Object.keys(body).some(chave => !permitidos.includes(chave))) recusar(400, 'Confira os dados do cadastro.');
+      const nome = texto(body.nome, 120);
+      const email = normalizarEmail(body.email);
+      if (!email) recusar(400, 'Informe um e-mail válido.');
+      const erro = erroNovaSenha(body.senha, body.senha, 'aluno');
+      if (erro) recusar(400, erro);
+      if (typeof body.data_nascimento !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(body.data_nascimento)) {
+        recusar(400, 'Informe uma data de nascimento válida.');
+      }
+      const nascimento = new Date(`${body.data_nascimento}T00:00:00.000Z`);
+      if (!Number.isFinite(nascimento.valueOf()) || nascimento.toISOString().slice(0, 10) !== body.data_nascimento || nascimento > new Date()) {
+        recusar(400, 'Informe uma data de nascimento válida.');
+      }
+      const senha_hash = await gerarHashSenha(body.senha);
+      return db.usuarios.create({ data: { nome, email, senha_hash, data_nascimento: nascimento, role: 'aluno' },
+        select: { id: true, nome: true, email: true, role: true } });
     },
     meusAlunos(ator) {
       return db.vinculos_profissionais.findMany({ where: { profissional_id: ator.id }, orderBy: { aluno_id: 'asc' },

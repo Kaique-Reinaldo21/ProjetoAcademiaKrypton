@@ -1,6 +1,7 @@
 import { exigeModoAcademico, exigeModoOficial } from '../config/demo-hosts.js';
 import { validarTlsBanco } from '../services/checkout-demo.service.js';
 import { processarNotificacao } from '../jobs/notificacoes.job.js';
+import { falhaDocumentoPermanente, processarDocumentoPdf } from '../jobs/documentos.job.js';
 import { adquirir, registrarFalha } from '../queues/notificacoes.queue.js';
 
 export function workerAutorizado(env) {
@@ -11,13 +12,19 @@ export function workerAutorizado(env) {
   return url.protocol === 'mysql:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) && !url.search && !url.hash;
 }
 
-export async function processarUmaVez(db, processar = processarNotificacao) {
+export async function processarJob(db, job) {
+  if (job.tipo === 'documento_pdf_gerar') return processarDocumentoPdf(db, job);
+  return processarNotificacao(db, job);
+}
+
+export async function processarUmaVez(db, processar = processarJob) {
   const job = await adquirir(db, 60_000);
   if (!job) return false;
   try {
     await processar(db, job);
   } catch {
-    await registrarFalha(db, job);
+    const falhaRegistrada = await registrarFalha(db, job);
+    if (falhaRegistrada?.count && job.tentativas >= job.limite) await falhaDocumentoPermanente(db, job);
   }
   return true;
 }
@@ -28,6 +35,7 @@ export async function iniciarWorker(db, env = process.env) {
   try {
     await db.jobs.findFirst({ select: { id: true, bloqueio: true } });
     await db.notificacoes.findFirst({ select: { id: true, job_id: true } });
+    await db.documentos_profissionais.findFirst({ select: { id: true, situacao: true } });
   } catch {
     console.warn('Worker de notificações indisponível: verifique as migrations e o acesso ao banco.');
     return;

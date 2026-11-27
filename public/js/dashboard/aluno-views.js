@@ -1,7 +1,8 @@
 import { agendaPainel, publicarNoAluno } from './profissionais-views.js';
-import { api, dia, eliteAtivo, enviar, profissional, quando, reais } from './aluno-dados.js';
+import { api, dia, eliteAtivo, profissional, quando, reais } from './aluno-dados.js';
 import { calendarioTreinos, historicoTreinos, registrarTreino } from './aluno-treinos.js';
 import { badge, elemento, erro, estado, icone } from './design-system.js';
+import { montarEditorPerfil } from './perfil-pessoal.js';
 
 const planos = { basico: 'Básico', pro: 'Pro', elite: 'Elite' };
 const preco = { basico: 8900, pro: 14900, elite: 24900 };
@@ -11,6 +12,7 @@ const situacoesPlano = {
 const situacoesTransacao = {
   approved: ['Aprovada', 'positivo'], pending: ['Pendente', 'atencao'], rejected: ['Recusada', 'erro'],
 };
+const situacoesDocumento = { processando: ['Processando', 'atencao'], disponivel: ['Disponível', 'positivo'], falhou: ['Falha no processamento', 'erro'] };
 const modulos = {
   treinos: ['Planos de treino e sessões da academia.', 'Nenhum treino registrado.', 'Sua rotina aparecerá aqui quando houver treinos cadastrados.', 'lightning-charge'],
   'treinos-extras': ['Atividades complementares e acesso a treinos com personal.', 'Nenhum treino extra registrado.', 'Os treinos complementares aparecerão nesta seção.', 'plus-square'],
@@ -95,7 +97,7 @@ export function inicio(raiz, contexto) {
     ['treinos', 'Treinos', 'lightning-charge'], ['treinos-extras', 'Treinos extras', 'plus-square'],
     ['avaliacoes', 'Avaliações', 'clipboard2-pulse'], ['progresso', 'Meu progresso', 'graph-up-arrow'],
     ['nutricao', 'Nutrição', 'egg-fried'], ['agendamentos', 'Agendamentos', 'calendar3'],
-    ['faturas', 'Faturas', 'receipt'], ['arquivos', 'Arquivos', 'folder2'],
+    ['faturas', 'Faturas', 'receipt'], ['arquivos', 'Documentos', 'file-earmark-pdf'],
   ]) {
     const link = elemento('a', null, 'kd-card kd-card-link aluno-atalho');
     link.href = '#' + hash;
@@ -165,10 +167,53 @@ export function modulo(raiz, contexto, chave, nome) {
   }
 }
 
-function feedback(form, texto, falhou = false) {
-  const node = form.querySelector('[role="status"]');
-  node.textContent = texto;
-  node.dataset.tom = falhou ? 'erro' : 'positivo';
+export async function documentos(raiz) {
+  titulo(raiz, 'Documentos profissionais', 'Consulte e baixe os materiais disponibilizados pelos profissionais vinculados.');
+  const area = elemento('div');
+  const atualizar = elemento('button', 'Atualizar status', 'kd-button');
+  atualizar.type = 'button';
+  atualizar.addEventListener('click', carregar);
+  raiz.append(atualizar, area);
+  await carregar();
+
+  async function carregar() {
+    area.replaceChildren(estado('Carregando documentos…'));
+    try {
+      const itens = await api('/api/profissionais/documentos');
+      area.replaceChildren();
+      if (!itens.length) return area.append(estado('Nenhum documento profissional disponível.', 'Quando um profissional publicar um documento, ele aparecerá aqui.'));
+      for (const documento of itens) {
+        const tipo = documento.tipo === 'personal' ? 'Treino' : 'Alimentação';
+        const cartao = card(documento.titulo,
+          elemento('p', `${tipo} · ${documento.profissional?.nome || 'Profissional'} · ${dia(documento.criado_em)}`, 'kd-texto-suave'),
+          badge(...(situacoesDocumento[documento.situacao] || [documento.situacao])));
+        if (documento.situacao === 'disponivel') {
+          const baixar = elemento('button', 'Baixar PDF', 'kd-button kd-button-primario');
+          baixar.type = 'button';
+          baixar.addEventListener('click', async () => {
+            baixar.disabled = true;
+            try {
+              const arquivo = await api(`/api/profissionais/documentos/${documento.id}/arquivo`);
+              const url = URL.createObjectURL(arquivo);
+              const link = elemento('a', '');
+              link.href = url;
+              link.download = `krypton-documento-${documento.id}.pdf`;
+              document.body.append(link);
+              link.click();
+              link.remove();
+              setTimeout(() => URL.revokeObjectURL(url), 60_000);
+            } catch (falha) { erro(cartao, falha.message, carregar); }
+            finally { baixar.disabled = false; }
+          });
+          cartao.append(baixar);
+        }
+        area.append(cartao);
+      }
+    } catch (falha) {
+      if (falha.status === 403) area.replaceChildren(estado('Documentos disponíveis para plano Elite ativo.', 'A elegibilidade é verificada pela API.'));
+      else erro(area, falha.message, carregar);
+    }
+  }
 }
 
 export function agendamentos(raiz, contexto) {
@@ -306,116 +351,8 @@ export function faturas(raiz, contexto) {
   carregar(historico, contexto, 'historico', lista => historico.replaceChildren(tabelaHistorico(lista)));
 }
 
-async function normalizarFoto(arquivo) {
-  if (!['image/png', 'image/jpeg'].includes(arquivo?.type) || arquivo.size > 5 * 1024 * 1024) {
-    throw new Error('Selecione uma imagem JPEG ou PNG de até 5 MB.');
-  }
-  const imagem = await createImageBitmap(arquivo).catch(() => { throw new Error('Não foi possível ler a imagem.'); });
-  try {
-    const escala = Math.min(1, 320 / Math.max(imagem.width, imagem.height));
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(imagem.width * escala));
-    canvas.height = Math.max(1, Math.round(imagem.height * escala));
-    canvas.getContext('2d').drawImage(imagem, 0, 0, canvas.width, canvas.height);
-    const png = await new Promise(resolver => canvas.toBlob(resolver, 'image/png'));
-    if (!png) throw new Error('Não foi possível converter a imagem.');
-    return png;
-  } finally { imagem.close(); }
-}
-
-function formularioPerfil(perfil, contexto) {
-  const form = elemento('form', null, 'kd-form');
-  form.innerHTML = `
-    <label>Nome<input class="kd-input" name="nome" maxlength="120" autocomplete="name" required></label>
-    <label>E-mail<input class="kd-input" name="email" type="email" readonly></label>
-    <label>Data de nascimento<input class="kd-input" name="nascimento" readonly></label>
-    <div><button class="kd-button kd-button-primario">Salvar nome</button></div>
-    <p class="kd-feedback" role="status"></p>`;
-  form.elements.nome.value = perfil.nome;
-  form.elements.email.value = perfil.email;
-  form.elements.nascimento.value = perfil.data_nascimento ? dia(perfil.data_nascimento) : 'Não informada';
-  form.addEventListener('submit', async evento => {
-    evento.preventDefault();
-    const botao = form.querySelector('button');
-    botao.disabled = true;
-    try {
-      const { usuario } = await enviar('/api/usuario/perfil', { nome: form.elements.nome.value }, 'PUT');
-      contexto.usuario.nome = form.elements.nome.value = usuario.nome;
-      contexto.dados.invalidar('perfil');
-      contexto.atualizarIdentidade();
-      feedback(form, 'Nome atualizado.');
-    } catch (falha) {
-      feedback(form, falha.message, true);
-    } finally { botao.disabled = false; }
-  });
-  return form;
-}
-
-function fotoPerfil(contexto) {
-  const bloco = elemento('div', null, 'aluno-detalhe');
-  bloco.innerHTML = `
-    <div class="aluno-perfil-topo"><span class="kd-avatar aluno-perfil-avatar" data-avatar aria-hidden="true"></span><div class="aluno-acoes">
-      <button class="kd-button" type="button" data-foto>Alterar foto</button>
-      <button class="kd-button" type="button" data-remover-foto>Remover foto</button>
-    </div></div>
-    <p class="kd-feedback" role="status"></p>
-    <dialog class="kd-card kd-dialog" aria-labelledby="selecionar-foto">
-      <form class="kd-form">
-        <h2 id="selecionar-foto">Foto de perfil</h2>
-        <label>Imagem JPEG ou PNG, até 5 MB<input class="kd-input" type="file" accept="image/jpeg,image/png" required></label>
-        <p class="kd-feedback" role="status"></p>
-        <div class="aluno-acoes">
-          <button class="kd-button kd-button-primario">Salvar foto</button>
-          <button class="kd-button" type="button" data-fechar>Cancelar</button>
-        </div>
-      </form>
-    </dialog>`;
-  const dialog = bloco.querySelector('dialog');
-  const form = dialog.querySelector('form');
-  const remover = bloco.querySelector('[data-remover-foto]');
-  remover.disabled = !contexto.foto;
-  const abrir = () => {
-    form.reset();
-    feedback(form, '');
-    dialog.showModal();
-  };
-  bloco.querySelector('[data-foto]').addEventListener('click', abrir);
-  if (location.hash === '#configuracoes/foto') queueMicrotask(() => { if (bloco.isConnected) abrir(); });
-  bloco.querySelector('[data-fechar]').addEventListener('click', () => dialog.close());
-  form.addEventListener('submit', async evento => {
-    evento.preventDefault();
-    const salvar = form.querySelector('button');
-    salvar.disabled = true;
-    try {
-      const png = await normalizarFoto(form.querySelector('input').files[0]);
-      await api('/api/usuario/perfil/foto', { method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: png });
-      await contexto.carregarFoto();
-      contexto.dados.invalidar('perfil');
-      remover.disabled = !contexto.foto;
-      feedback(bloco, 'Foto atualizada.');
-      dialog.close();
-    } catch (falha) {
-      feedback(form, falha.message, true);
-    } finally { salvar.disabled = false; }
-  });
-  remover.addEventListener('click', async () => {
-    remover.disabled = true;
-    try {
-      await api('/api/usuario/perfil/foto', { method: 'DELETE' });
-      contexto.definirFoto(null);
-      contexto.dados.invalidar('perfil');
-      feedback(bloco, 'Foto removida.');
-    } catch (falha) {
-      feedback(bloco, falha.message, true);
-      remover.disabled = false;
-    }
-  });
-  return bloco;
-}
-
 export function configuracoes(raiz, contexto) {
   titulo(raiz, 'Configurações', 'Gerencie seu perfil, sua foto e a segurança da conta.');
-  const pessoal = elemento('div');
   const acoes = elemento('div', null, 'aluno-acoes');
   if (contexto.usuario.possuiSenhaLocal) acoes.append(botao('Alterar senha', '/configuracoes-conta.html#alterar'));
   if (contexto.usuario.podeVincularGoogle) acoes.append(botao('Vincular Google', '/configuracoes-conta.html#vincular-google'));
@@ -426,10 +363,11 @@ export function configuracoes(raiz, contexto) {
   const seguranca = card('Segurança da conta', contexto.usuario.possuiSenhaLocal ? acoes :
     elemento('p', 'A senha desta conta é gerenciada pelo Google.', 'kd-texto-suave'));
   if (!contexto.usuario.possuiSenhaLocal) seguranca.append(acoes);
-  const lateral = elemento('div', null, 'kd-grid');
-  lateral.append(card('Foto de perfil', fotoPerfil(contexto)), seguranca);
   const colunas = elemento('div', null, 'kd-grid kd-grid-dois');
-  colunas.append(card('Dados pessoais', pessoal), lateral);
+  const perfil = montarEditorPerfil(contexto.usuario, {
+    aoAtualizarNome: () => { contexto.dados.invalidar('perfil'); contexto.atualizarIdentidade(); },
+    aoAtualizarFoto: blob => { contexto.dados.invalidar('perfil'); contexto.definirFoto(blob); },
+  });
+  colunas.append(perfil, seguranca);
   raiz.append(colunas);
-  carregar(pessoal, contexto, 'perfil', perfil => pessoal.replaceChildren(formularioPerfil(perfil, contexto)));
 }
