@@ -1,3 +1,6 @@
+import { criarServicoProfissionais } from '../services/perfis-profissionais.service.js';
+import { responder } from '../controllers/perfis-profissionais.controller.js';
+import { permitirPapeis } from '../middleware/papeis-profissionais.js';
 import express from 'express';
 import prisma from '../lib/prisma.js';
 import authMiddleware from '../middleware/auth.js';
@@ -259,86 +262,12 @@ router.get('/plano', async (req, res) => {
   }
 });
 
-// POST /api/usuario/agendamento
-router.post('/agendamento', async (req, res) => {
-  try {
-    const {
-      tipo,
-      data_hora,
-      observacao,
-    } = req.body;
-
-    if (!tipo || !data_hora) {
-      return res.status(400).json({
-        erro: 'Tipo e data/hora são obrigatórios.',
-      });
-    }
-
-    if (
-      !['nutricionista', 'personal'].includes(tipo)
-    ) {
-      return res.status(400).json({
-        erro: 'Tipo inválido.',
-      });
-    }
-
-    const dataHora = new Date(data_hora);
-
-    if (Number.isNaN(dataHora.getTime())) {
-      return res.status(400).json({
-        erro: 'Data/hora inválida.',
-      });
-    }
-
-    const plano = await prisma.planos.findFirst({
-      where: {
-        usuario_id: req.usuario.id,
-      },
-
-      orderBy: {
-        id: 'desc',
-      },
-
-      select: {
-        tipo: true,
-        ativo: true,
-        vencimento: true,
-      },
-    });
-
-    if (
-      !plano ||
-      plano.tipo !== 'elite' ||
-      !plano.ativo ||
-      (plano.vencimento && new Date(plano.vencimento) < new Date())
-    ) {
-      return res.status(403).json({
-        erro:
-          'Agendamentos são exclusivos para alunos com plano Elite ativo.',
-      });
-    }
-
-    await prisma.agendamentos.create({
-      data: {
-        usuario_id: req.usuario.id,
-        tipo,
-        data_hora: dataHora,
-        observacao: observacao || null,
-      },
-    });
-
-    return res.status(201).json({
-      mensagem:
-        `Agendamento de ${tipo} realizado com sucesso!`,
-    });
-  } catch (error) {
-    console.error('Erro ao criar agendamento:', error);
-
-    return res.status(500).json({
-      erro: 'Erro ao realizar agendamento.',
-    });
-  }
-});
+// Compatibilidade com o formulário antigo, usando a mesma validação e fila da agenda.
+const servicoProfissionais = criarServicoProfissionais();
+router.post('/agendamento', permitirPapeis('aluno'), responder(async (usuario, body) => {
+  await servicoProfissionais.agendar(usuario, body);
+  return { mensagem: 'Agendamento realizado com sucesso!' };
+}, 201));
 
 // GET /api/usuario/agendamentos
 router.get('/agendamentos', async (req, res) => {

@@ -1,3 +1,4 @@
+import { agendaPainel, publicarNoAluno } from './profissionais-views.js';
 import { api, dia, eliteAtivo, enviar, profissional, quando, reais } from './aluno-dados.js';
 import { calendarioTreinos, historicoTreinos, registrarTreino } from './aluno-treinos.js';
 import { badge, elemento, erro, estado, icone } from './design-system.js';
@@ -120,7 +121,12 @@ export function inicio(raiz, contexto) {
 export function modulo(raiz, contexto, chave, nome) {
   const [subtitulo, vazio, explicacao, desenho] = modulos[chave];
   titulo(raiz, nome, subtitulo);
-  if (chave === 'treinos') raiz.append(card('Treino de hoje', registrarTreino()));
+  if (chave === 'treinos') {
+    const fichas = elemento('div');
+    raiz.append(card('Treino de hoje', registrarTreino()), card('Fichas do personal', fichas));
+    publicarNoAluno(fichas, 'personal');
+    return;
+  }
   if (chave === 'progresso') {
     raiz.append(card('Frequência semanal', calendarioTreinos()), card('Evolução da frequência', historicoTreinos()),
       card('Peso, medidas e avaliações', estado(vazio, explicacao)));
@@ -136,11 +142,9 @@ export function modulo(raiz, contexto, chave, nome) {
           botao('Conhecer ou alterar plano', '#faturas')));
         return;
       }
-      painel.replaceChildren(
-        card('Agendamento', botao('Agendar consulta', '#agendamentos')),
-        ...['Plano alimentar', 'Refeições', 'Receitas', 'Orientações do nutricionista', 'Documentos'].map(
-          nome => card(nome, estado('Nenhum material disponibilizado.'))),
-      );
+      const fichas = elemento('div');
+      painel.replaceChildren(card('Agendamento', botao('Agendar consulta', '#agendamentos')), card('Plano alimentar', fichas));
+      publicarNoAluno(fichas, 'nutricionista');
     });
     return;
   }
@@ -167,57 +171,20 @@ function feedback(form, texto, falhou = false) {
   node.dataset.tom = falhou ? 'erro' : 'positivo';
 }
 
-function formAgendamento(contexto, recarregar) {
-  const form = elemento('form', null, 'kd-form');
-  form.innerHTML = `
-    <label>Serviço<select class="kd-input" name="tipo"><option value="personal">Personal trainer</option><option value="nutricionista">Nutricionista</option></select></label>
-    <label>Data e hora<input class="kd-input" name="data_hora" type="datetime-local" required></label>
-    <label>Observação<textarea class="kd-input" name="observacao" rows="3"></textarea></label>
-    <div><button class="kd-button kd-button-primario">Agendar</button></div>
-    <p class="kd-feedback" role="status"></p>`;
-  form.addEventListener('submit', async evento => {
-    evento.preventDefault();
-    const dados = Object.fromEntries(new FormData(form));
-    const botao = form.querySelector('button');
-    botao.disabled = true;
-    try {
-      const data = new Date(dados.data_hora);
-      if (!Number.isFinite(+data) || data <= new Date()) throw new Error('Selecione uma data e hora futuras.');
-      await enviar('/api/usuario/agendamento', { ...dados, data_hora: data.toISOString() });
-      form.reset();
-      feedback(form, 'Agendamento realizado.');
-      contexto.dados.invalidar('agenda');
-      recarregar();
-    } catch (falha) {
-      feedback(form, falha.message, true);
-    } finally { botao.disabled = false; }
-  });
-  return form;
-}
-
 export function agendamentos(raiz, contexto) {
   titulo(raiz, 'Agendamentos', 'Consulte suas sessões e agende os serviços do plano Elite.');
-  const colunas = elemento('div', null, 'kd-grid kd-grid-dois');
-  const lista = elemento('div');
-  const formulario = elemento('div');
-  colunas.append(card('Minhas sessões', lista), card('Novo agendamento', formulario));
-  raiz.append(colunas);
-  const recarregar = () => carregar(lista, contexto, 'agenda', itens => {
-    if (!itens.length) return lista.replaceChildren(estado('Nenhuma sessão agendada.'));
-    const ul = elemento('ul', null, 'aluno-lista');
-    for (const item of itens) {
-      const li = elemento('li');
-      li.append(elemento('strong', profissional(item.tipo)), elemento('p', quando(item.data_hora), 'kd-texto-suave'));
-      if (item.observacao) li.append(elemento('p', item.observacao));
-      ul.append(li);
-    }
-    lista.replaceChildren(ul);
-  });
-  recarregar();
-  carregar(formulario, contexto, 'plano', p => {
-    formulario.replaceChildren(eliteAtivo(p) ? formAgendamento(contexto, recarregar) :
-      estado('Disponível no Elite ativo.', 'Você pode consultar suas sessões existentes nesta página.'));
-  });
+  const area = elemento('div');
+  raiz.append(area);
+  async function atualizar() {
+    area.replaceChildren(estado('Carregando consultas…'));
+    const conteudo = elemento('div');
+    try {
+      const plano = await contexto.dados.ler('plano');
+      await agendaPainel(conteudo, contexto.usuario, atualizar, eliteAtivo(plano));
+      area.replaceChildren(conteudo);
+    } catch { erro(area, 'Não foi possível consultar a agenda.', atualizar); }
+  }
+  atualizar();
 }
 
 function tabelaHistorico(lista) {

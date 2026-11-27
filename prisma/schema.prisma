@@ -16,6 +16,14 @@ model agendamentos {
   created_at DateTime?         @default(now()) @db.DateTime(0)
   usuarios   usuarios          @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "agendamentos_ibfk_1")
 
+  profissional_id Int? @db.UnsignedInt
+  unidade_id Int? @db.UnsignedInt
+  situacao String @default("agendado") @db.VarChar(20)
+  vaga String? @unique @db.VarChar(48)
+  profissional usuarios? @relation("AgendaProfissional", fields: [profissional_id], references: [id], onDelete: Restrict)
+  unidade unidades? @relation(fields: [unidade_id], references: [id], onDelete: SetNull)
+
+  @@index([profissional_id, data_hora])
   @@index([usuario_id], map: "idx_usuario_ag")
 }
 
@@ -57,6 +65,8 @@ model unidades {
 
   latitude  Float?
   longitude Float?
+  consultas agendamentos[]
+  atendimentos atendimentos_recepcao[]
 }
 
 model usuarios {
@@ -78,6 +88,15 @@ model usuarios {
   recuperacao_senha recuperacoes_senha?
   foto_perfil fotos_perfil?
   treinos_concluidos treinos_concluidos[]
+  notificacoes notificacoes[]
+  profissional_ativo Boolean @default(true)
+  agenda_profissional agendamentos[] @relation("AgendaProfissional")
+  vinculos_aluno vinculos_profissionais[] @relation("AlunoVinculo")
+  vinculos_profissional vinculos_profissionais[] @relation("ProfissionalVinculo")
+  fichas_aluno fichas_profissionais[] @relation("AlunoFicha")
+  fichas_profissional fichas_profissionais[] @relation("AutorFicha")
+  atendimentos_aluno atendimentos_recepcao[] @relation("AlunoAtendimento")
+  atendimentos_registrados atendimentos_recepcao[] @relation("AutorAtendimento")
 }
 
 model fotos_perfil {
@@ -137,6 +156,7 @@ enum usuarios_role {
   admin
   personal
   nutricionista
+  recepcao
 }
 
 enum checkout_metodo {
@@ -201,4 +221,92 @@ model treinos_concluidos {
   usuario       usuarios @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
 
   @@id([usuario_id, dia])
+}
+
+model vinculos_profissionais {
+  aluno_id Int @db.UnsignedInt
+  profissional_id Int @db.UnsignedInt
+  criado_em DateTime @default(now()) @db.DateTime(3)
+  aluno usuarios @relation("AlunoVinculo", fields: [aluno_id], references: [id], onDelete: Cascade)
+  profissional usuarios @relation("ProfissionalVinculo", fields: [profissional_id], references: [id], onDelete: Cascade)
+
+  @@id([aluno_id, profissional_id])
+  @@index([profissional_id])
+}
+
+model fichas_profissionais {
+  id Int @id @default(autoincrement()) @db.UnsignedInt
+  aluno_id Int @db.UnsignedInt
+  profissional_id Int @db.UnsignedInt
+  tipo agendamentos_tipo
+  titulo String @db.VarChar(120)
+  itens Json
+  orientacoes String? @db.Text
+  criado_em DateTime @default(now()) @db.DateTime(3)
+  atualizado_em DateTime @updatedAt @db.DateTime(3)
+  aluno usuarios @relation("AlunoFicha", fields: [aluno_id], references: [id], onDelete: Cascade)
+  profissional usuarios @relation("AutorFicha", fields: [profissional_id], references: [id], onDelete: Restrict)
+
+  @@index([aluno_id, tipo])
+  @@index([profissional_id, tipo])
+}
+
+model atendimentos_recepcao {
+  id Int @id @default(autoincrement()) @db.UnsignedInt
+  aluno_id Int @db.UnsignedInt
+  autor_id Int @db.UnsignedInt
+  unidade_id Int? @db.UnsignedInt
+  motivo String @db.VarChar(160)
+  criado_em DateTime @default(now()) @db.DateTime(3)
+  aluno usuarios @relation("AlunoAtendimento", fields: [aluno_id], references: [id], onDelete: Cascade)
+  autor usuarios @relation("AutorAtendimento", fields: [autor_id], references: [id], onDelete: Restrict)
+  unidade unidades? @relation(fields: [unidade_id], references: [id], onDelete: SetNull)
+
+  @@index([criado_em])
+  @@index([aluno_id])
+}
+
+enum jobs_situacao {
+  pendente
+  processando
+  concluido
+  falhou
+}
+
+model jobs {
+  id String @id @default(uuid()) @db.Char(36)
+  tipo String @db.VarChar(40)
+  payload Json
+  situacao jobs_situacao @default(pendente)
+  tentativas Int @default(0)
+  limite Int @default(5)
+  criado_em DateTime @default(now()) @db.DateTime(3)
+  programado_em DateTime @default(now()) @db.DateTime(3)
+  processado_em DateTime? @db.DateTime(3)
+  concluido_em DateTime? @db.DateTime(3)
+  bloqueado_ate DateTime? @db.DateTime(3)
+  bloqueio String? @db.Char(36)
+  idempotencia String @unique @db.VarChar(120)
+  erro String? @db.VarChar(40)
+  notificacoes notificacoes[]
+
+  @@index([situacao, programado_em])
+  @@index([situacao, bloqueado_ate])
+}
+
+model notificacoes {
+  id Int @id @default(autoincrement()) @db.UnsignedInt
+  destinatario_id Int @db.UnsignedInt
+  job_id String @db.Char(36)
+  categoria String @db.VarChar(40)
+  titulo String @db.VarChar(120)
+  mensagem String @db.VarChar(255)
+  destino String @db.VarChar(120)
+  criado_em DateTime @default(now()) @db.DateTime(3)
+  lida_em DateTime? @db.DateTime(3)
+  destinatario usuarios @relation(fields: [destinatario_id], references: [id], onDelete: Cascade)
+  job jobs @relation(fields: [job_id], references: [id], onDelete: Restrict)
+
+  @@unique([job_id, destinatario_id])
+  @@index([destinatario_id, lida_em, criado_em])
 }

@@ -1,3 +1,4 @@
+import { montarNotificacoes } from './notificacoes.js';
 import { api } from './aluno-dados.js';
 import { configurarMenu, erro, estado } from './design-system.js';
 import { abas } from './admin-views.js';
@@ -68,6 +69,7 @@ async function iniciar() {
       return;
     }
     conta = usuario;
+    montarNotificacoes();
     document.getElementById('nome-cabecalho').textContent = conta.nome;
     document.getElementById('avatar-admin').textContent = conta.nome.trim().split(/\s+/).slice(0, 2)
       .map(parte => [...parte][0]?.toUpperCase()).join('');

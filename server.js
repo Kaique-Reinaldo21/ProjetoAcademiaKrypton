@@ -12,6 +12,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import prisma from './src/lib/prisma.js';
+import { criarRotasProfissionais } from './src/routes/perfis-profissionais.routes.js';
+import { iniciarWorker } from './src/workers/notificacoes.worker.js';
 import { diagnosticarInicializacao } from './src/lib/diagnostico-inicializacao.js';
 
 // Rotas organizadas no src
@@ -169,6 +171,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/usuario', usuarioRoutes);
 
 app.use('/api/admin', adminRoutes);
+app.use('/api/profissionais', criarRotasProfissionais());
 
 
 // Unidades públicas (rota pública)
@@ -226,7 +229,8 @@ async function iniciarServidor() {
     if (validarTlsBanco()) console.warn(AVISO_TLS_DEMO);
     await prisma.$connect();
 
-    app.listen(PORT, () => {
+    const pararWorker = await iniciarWorker(prisma);
+    const servidor = app.listen(PORT, () => {
       console.log(
         `🚀 Academia Krypton → http://localhost:${PORT}`
       );
@@ -239,6 +243,19 @@ async function iniciarServidor() {
         '   Banco: MySQL via Prisma'
       );
     });
+    if (pararWorker) {
+      let encerrando = false;
+      async function encerrar() {
+        if (encerrando) return;
+        encerrando = true;
+        const fechado = new Promise(resolve => servidor.close(resolve));
+        await pararWorker();
+        await fechado;
+        await prisma.$disconnect();
+      }
+      process.on('SIGTERM', encerrar);
+      process.on('SIGINT', encerrar);
+    }
   } catch (err) {
     if (err.codigoConfiguracao) console.error('Configuração demo rejeitada:', err.codigoConfiguracao);
     else console.error('Falha na inicialização:', diagnosticarInicializacao(err));

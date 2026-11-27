@@ -6,6 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "worker": "node scripts/worker-notificacoes.js",
     "dev": "nodemon server.js",
     "seed": "node prisma/seed.js",
     "check:env": "node scripts/check-env.js",
@@ -16,6 +17,7 @@
     "setup:local": "node scripts/setup-local.js",
     "demo:unidades:local": "node scripts/seed-local-unidades.js",
     "test:integration": "node --test integration/*.mysql.mjs",
+    "test:integration:profissionais": "python3 integration/mysql-profissionais.py",
     "test:integration:migrate": "node integration/migrate.mjs",
     "conta:admin-inicial": "node scripts/criar-admin-inicial.js"
   },

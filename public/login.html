@@ -255,6 +255,11 @@
 </div>
 
 <script>
+  function painelPara(role) {
+    if (role === 'admin') return '/admin.html';
+    return ['recepcao', 'personal', 'nutricionista'].includes(role) ? '/profissional.html' : '/dashboard.html';
+  }
+
 
   // ── Redirecionar se já logado ─────────────────────────────────────────────
   (function() {
@@ -265,11 +270,7 @@
       })
       .then(function(r) { if (r.ok) return r.json(); throw new Error(); })
       .then(function(data) {
-        if (data.usuario.role === 'admin') {
-          window.location.href = '/admin.html';
-        } else {
-          window.location.href = '/dashboard.html';
-        }
+        window.location.href = painelPara(data.usuario.role);
       })
       .catch(function() {
         localStorage.removeItem('token');
@@ -338,11 +339,7 @@
       if (!res.ok) { mostrarErro(data.erro); return; }
       localStorage.setItem('token', data.token);
       localStorage.setItem('usuario', JSON.stringify(data.usuario));
-      if (data.usuario.role === 'admin') {
-        window.location.href = '/admin.html';
-      } else {
-        window.location.href = '/dashboard.html';
-      }
+      window.location.href = painelPara(data.usuario.role);
       
     } catch { mostrarErro('Sem conexão com o servidor.'); }
     finally  { setLoading('login', false); }
