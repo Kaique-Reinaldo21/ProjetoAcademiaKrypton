@@ -470,9 +470,102 @@
 
     /* ─── RESPONSIVO ─── */
     @media (max-width: 991.98px) {
-      .nav-center { position: static; transform: none; flex-direction: column; width: 100%; padding: .5rem 0; }
+      .navbar > .container { position: relative; flex-wrap: nowrap; gap: .5rem; }
+      .navbar-brand {
+        min-width: 0;
+        margin-right: 0;
+        font-size: clamp(.8rem, 4vw, 1.1rem);
+        letter-spacing: 1px;
+      }
+      .navbar-toggler {
+        position: relative;
+        flex: 0 0 48px;
+        height: 48px;
+        margin-right: 0 !important;
+        border-color: rgba(45,255,122,.55);
+        border-radius: .75rem;
+        background: rgba(9,13,11,.88);
+      }
+      .navbar-toggler-icon {
+        position: absolute;
+        inset: 0;
+        width: 20px;
+        height: 2px;
+        margin: auto;
+        border-radius: 2px;
+        background: var(--green);
+        transition: background-color .2s ease;
+      }
+      .navbar-toggler-icon::before,
+      .navbar-toggler-icon::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background: var(--green);
+        transition: transform .2s ease;
+      }
+      .navbar-toggler-icon::before { transform: translateY(-6px); }
+      .navbar-toggler-icon::after { transform: translateY(6px); }
+      .navbar-toggler[aria-expanded="true"] .navbar-toggler-icon { background: transparent; }
+      .navbar-toggler[aria-expanded="true"] .navbar-toggler-icon::before { transform: rotate(45deg); }
+      .navbar-toggler[aria-expanded="true"] .navbar-toggler-icon::after { transform: rotate(-45deg); }
+      #navMain {
+        position: absolute;
+        inset: calc(100% + .75rem) calc(var(--bs-gutter-x) * .5) auto;
+        inset-inline-start: auto;
+        width: min(24rem, calc(100% - var(--bs-gutter-x)));
+        border: 1px solid rgba(45,255,122,.28);
+        border-radius: 1rem;
+        background: rgba(9,13,11,.96);
+        backdrop-filter: blur(12px);
+        box-shadow: 0 14px 36px rgba(0,0,0,.38);
+      }
+      #navMain.collapsing { transition: height .24s ease; }
+      #navMain.show { max-height: calc(100dvh - 6rem); overflow-y: auto; }
+      .nav-center {
+        position: static;
+        transform: none;
+        margin: .5rem .75rem 0;
+      }
+      .nav-center .nav-item + .nav-item { border-top: 1px solid rgba(255,255,255,.09); }
+      .navbar-nav .nav-link {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+        min-height: 48px;
+        padding: .5rem .75rem !important;
+        border-radius: .5rem;
+      }
+      .navbar-nav .nav-link::after { display: none; }
+      .navbar-nav .nav-link:hover { background: rgba(45,255,122,.08); }
+      .navbar-nav .nav-link .bi { color: var(--green); font-size: 1.05rem; }
+      #nav-auth-area {
+        flex-direction: column;
+        align-items: stretch !important;
+        margin: .5rem .75rem .75rem !important;
+        padding-top: .75rem;
+        border-top: 1px solid rgba(255,255,255,.09);
+      }
+      #nav-auth-area > span { overflow-wrap: anywhere; }
+      #nav-auth-area > .btn-criar {
+        justify-content: center;
+        min-height: 48px;
+        margin-left: 0 !important;
+      }
+      #nav-auth-area #btn-logout-nav { color: #fff !important; }
+      .navbar-toggler:focus-visible,
+      #navMain a:focus-visible {
+        outline: 2px solid var(--green);
+        outline-offset: -3px;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #navMain.collapsing, #navMain a, .navbar-toggler-icon,
+        .navbar-toggler-icon::before, .navbar-toggler-icon::after { transition: none; }
+      }
     }
     @media (max-width: 575.98px) {
+      #sobre > .container > .row { --bs-gutter-x: 1.5rem; }
       .hero-title { font-size: 4rem; }
     }
   </style>
@@ -494,17 +587,18 @@
 
       <!-- Toggler mobile -->
       <button class="navbar-toggler ms-auto me-3" type="button"
-              data-bs-toggle="collapse" data-bs-target="#navMain" aria-label="Menu">
-        <span class="navbar-toggler-icon"></span>
+              data-bs-toggle="collapse" data-bs-target="#navMain"
+              aria-controls="navMain" aria-expanded="false" aria-label="Menu de navegação">
+        <span class="navbar-toggler-icon" aria-hidden="true"></span>
       </button>
 
       <div class="collapse navbar-collapse" id="navMain">
 
         <!-- Links centro -->
         <ul class="navbar-nav nav-center">
-          <li class="nav-item"><a class="nav-link" href="#sobre">Sobre Nós</a></li>
-          <li class="nav-item"><a class="nav-link" href="#unidades">Unidades</a></li>
-          <li class="nav-item"><a class="nav-link" href="#planos">Planos</a></li>
+          <li class="nav-item"><a class="nav-link" href="#sobre"><i class="bi bi-info-circle d-lg-none" aria-hidden="true"></i>Sobre Nós</a></li>
+          <li class="nav-item"><a class="nav-link" href="#unidades"><i class="bi bi-geo-alt d-lg-none" aria-hidden="true"></i>Unidades</a></li>
+          <li class="nav-item"><a class="nav-link" href="#planos"><i class="bi bi-card-checklist d-lg-none" aria-hidden="true"></i>Planos</a></li>
         </ul>
 
         <!-- Botões direita -->
@@ -780,6 +874,52 @@
 <!-- Responsividade -->
 <script>
 
+  const menuMobile = window.matchMedia('(max-width: 991.98px)');
+  const movimentoReduzido = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const painelNav = document.getElementById('navMain');
+  const botaoNav = document.querySelector('[aria-controls="navMain"]');
+
+  if (window.bootstrap?.Collapse) {
+    const menu = bootstrap.Collapse.getOrCreateInstance(painelNav, { toggle: false });
+    let fecharAoAbrir = false;
+
+    function fecharMenu() {
+      if (botaoNav.getAttribute('aria-expanded') !== 'true') return;
+      if (painelNav.classList.contains('collapsing')) fecharAoAbrir = true;
+      else menu.hide();
+    }
+
+    painelNav.addEventListener('shown.bs.collapse', () => {
+      if (fecharAoAbrir) {
+        fecharAoAbrir = false;
+        menu.hide();
+      }
+    });
+    painelNav.addEventListener('hide.bs.collapse', () => {
+      if (menuMobile.matches && painelNav.contains(document.activeElement)) {
+        botaoNav.focus({ preventScroll: true });
+      }
+    });
+    painelNav.addEventListener('click', e => {
+      if (menuMobile.matches && e.target.closest('a')) fecharMenu();
+    });
+    document.addEventListener('click', e => {
+      if (menuMobile.matches && !painelNav.contains(e.target) && !botaoNav.contains(e.target)) {
+        fecharMenu();
+      }
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && menuMobile.matches && botaoNav.getAttribute('aria-expanded') === 'true') {
+        e.preventDefault();
+        fecharMenu();
+        botaoNav.focus({ preventScroll: true });
+      }
+    });
+    menuMobile.addEventListener('change', e => {
+      if (!e.matches) fecharMenu();
+    });
+  }
+
   // =====================================================
   // ROLAGEM SUAVE DA PÁGINA
   // =====================================================
@@ -800,15 +940,9 @@
         e.preventDefault();
 
         target.scrollIntoView({
-          behavior: 'smooth'
+          behavior: menuMobile.matches && painelNav.contains(link) && movimentoReduzido.matches
+            ? 'instant' : 'smooth'
         });
-
-        const col =
-          document.querySelector('.navbar-collapse');
-
-        if (col?.classList.contains('show')) {
-          new bootstrap.Collapse(col).hide();
-        }
       }
     });
   });
@@ -1068,7 +1202,7 @@
           '<i class="bi bi-grid"></i> Meu Painel</a>' +
           '<a href="#" id="btn-logout-nav" class="btn-criar" ' +
           'style="margin-left:4px;background:transparent;border:1px solid rgba(255,255,255,.2);color:#fff;" ' +
-          'title="Sair"><i class="bi bi-box-arrow-right"></i></a>';
+          'title="Sair" aria-label="Sair"><i class="bi bi-box-arrow-right" aria-hidden="true"></i><span class="d-lg-none">Sair</span></a>';
         document.getElementById('btn-logout-nav').addEventListener('click', function(e) {
           e.preventDefault();
           fazerLogout();
