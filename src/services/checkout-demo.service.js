@@ -1,11 +1,17 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import prisma from '../lib/prisma.js';
+import { emTesteMercadoPago, validarBancoTesteMercadoPago } from '../config/mercadopago-teste.js';
 import { camposHistoricoPagamento, ErroCheckout } from './checkout.service.js';
 import { TLS_SEM_VALIDACAO, validarArquivoCaDemo, validarModoDemo } from '../config/demo-db.js';
 
 import { exigeModoAcademico } from '../config/demo-hosts.js';
 
 export { validarArquivoCaDemo, validarModoDemo };
+
+export function validarSimuladorCheckout() {
+  if (emTesteMercadoPago()) return validarBancoTesteMercadoPago();
+  return validarModoDemo();
+}
 export { AVISO_TLS_DEMO } from '../config/demo-db.js';
 
 const validadeQrMs = 5 * 60_000;
@@ -24,7 +30,7 @@ export function validarTlsBanco(env = process.env) {
   }
 }
 
-export function criarServicoDemo(db = prisma, validar = validarModoDemo) {
+export function criarServicoDemo(db = prisma, validar = validarSimuladorCheckout) {
   async function iniciar(usuarioId, tipo, unidadeInformada) {
     validar();
     if (!Object.hasOwn(planos, tipo)) throw new ErroCheckout('Selecione um plano válido.');

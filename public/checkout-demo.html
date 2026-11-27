@@ -27,8 +27,9 @@
       <section class="painel pagamento" aria-labelledby="titulo-pagamento">
         <h2 id="titulo-pagamento">Método de pagamento</h2>
         <fieldset class="metodos" id="metodos" disabled aria-label="Escolha o método de pagamento">
-          <label class="metodo"><input type="radio" name="metodo" value="qr_krypton" checked><span>QR Code Krypton</span></label>
-          <label class="metodo metodo-mp"><input type="radio" name="metodo" value="mercadopago_simulado"><span>Mercado Pago</span></label>
+          <label class="metodo metodo-mp" id="opcao-mp-externo" hidden><input type="radio" name="metodo" value="mercadopago_teste"><span>Mercado Pago · API de teste</span></label>
+          <label class="metodo metodo-mp" id="opcao-mp-simulado"><input type="radio" name="metodo" value="mercadopago_simulado" checked><span>Mercado Pago · Simulador</span></label>
+          <label class="metodo"><input type="radio" name="metodo" value="qr_krypton"><span>PIX Krypton · Apresentação acadêmica</span></label>
         </fieldset>
         <div id="selecao" hidden>
           <p id="instrucao-metodo" class="nota"></p>
@@ -52,7 +53,7 @@
             <button class="botao" data-resposta-mp="recusar" disabled>Simular recusa</button>
           </div>
         </div>
-        <p class="nota nota-academica">Simulação acadêmica. Sem cobrança real.</p>
+        <p id="nota-academica" class="nota nota-academica">Simulação acadêmica. Sem cobrança real.</p>
       </section>
     </div>
     <section id="ferramentas-qr" class="ferramentas" hidden aria-labelledby="titulo-ferramentas">

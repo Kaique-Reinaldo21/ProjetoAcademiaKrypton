@@ -195,7 +195,7 @@ function tabelaHistorico(lista) {
   }
   area.innerHTML = `
     <div class="kd-form aluno-filtros">
-      <label><span id="rotulo-metodo">Método</span><select aria-labelledby="rotulo-metodo" class="kd-input" name="metodo"><option value="">Todos os métodos</option><option value="qr_krypton">QR Code Krypton</option><option value="mercadopago_simulado">Mercado Pago simulado</option><option value="mercadopago">Mercado Pago financeiro</option></select></label>
+      <label><span id="rotulo-metodo">Método</span><select aria-labelledby="rotulo-metodo" class="kd-input" name="metodo"><option value="">Todos os métodos</option><option value="qr_krypton">QR Code Krypton</option><option value="mercadopago_simulado">Mercado Pago simulado</option><option value="mercadopago_teste">Mercado Pago teste externo</option><option value="mercadopago">Mercado Pago financeiro</option></select></label>
       <label><span id="rotulo-status">Status</span><select aria-labelledby="rotulo-status" class="kd-input" name="status"><option value="">Todos os estados</option><option value="approved">Aprovada</option><option value="pending">Pendente</option><option value="rejected">Recusada</option></select></label>
     </div>
     <div class="kd-tabela-scroll" tabindex="0" aria-label="Extrato de transações">
@@ -209,7 +209,7 @@ function tabelaHistorico(lista) {
   const corpo = area.querySelector('tbody');
   const tipo = area.querySelector('[name="metodo"]');
   const status = area.querySelector('[name="status"]');
-  const metodo = t => t.tentativa?.metodo || (t.origem === 'demo' ? 'qr_krypton' : t.origem === 'demo_mercadopago' ? 'mercadopago_simulado' : t.origem);
+  const metodo = t => t.origem === 'mercadopago_teste' ? 'mercadopago_teste' : t.tentativa?.metodo || (t.origem === 'demo' ? 'qr_krypton' : t.origem === 'demo_mercadopago' ? 'mercadopago_simulado' : t.origem);
   const temSimulacao = lista.some(t => ['demo', 'demo_mercadopago'].includes(t.origem));
   const temFinanceiro = lista.some(t => t.origem === 'mercadopago');
   if (temSimulacao) area.prepend(elemento('p', temFinanceiro
@@ -219,10 +219,13 @@ function tabelaHistorico(lista) {
   function filtrar() {
     corpo.replaceChildren();
     const itens = lista.filter(t => (!tipo.value || tipo.value === metodo(t)) && (!status.value || status.value === t.status));
+    const nomes = {
+      qr_krypton: 'PIX Krypton', mercadopago_simulado: 'Mercado Pago simulado',
+      mercadopago_teste: 'Mercado Pago teste externo', mercadopago: 'Mercado Pago',
+    };
     for (const t of itens) {
       const tr = elemento('tr');
-      const nome = metodo(t) === 'qr_krypton' ? 'QR Code Krypton' :
-        metodo(t) === 'mercadopago_simulado' && temFinanceiro ? 'Mercado Pago simulado' : 'Mercado Pago';
+      const nome = nomes[metodo(t)] || 'Outro método';
       for (const texto of [dia(t.criado_em), nome, planos[t.tentativa?.tipo] || '—', reais(t.valor_centavos)]) {
         tr.append(elemento('td', texto));
       }
