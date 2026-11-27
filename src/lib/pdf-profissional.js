@@ -67,14 +67,59 @@ export function gerarPdfProfissional(ficha) {
 
 export function validarPdf(buffer, limite = 5 * 1024 * 1024) {
   if (!Buffer.isBuffer(buffer) || buffer.length < 32 || buffer.length > limite) return false;
-  if (!/^%PDF-1\.[0-7]/.test(buffer.subarray(0, 8).toString('ascii'))) return false;
-  const fim = buffer.subarray(Math.max(0, buffer.length - 2048)).toString('latin1');
-  const conteudo = buffer.toString('latin1');
-  if (/\/(?:JavaScript|JS|Launch|EmbeddedFile|RichMedia|OpenAction|AA)\b/.test(conteudo)) return false;
-  const marcador = /startxref\s+(\d+)\s+%%EOF\s*$/.exec(fim);
-  if (!marcador) return false;
-  const xref = Number(marcador[1]);
-  if (!Number.isSafeInteger(xref) || xref < 8 || xref >= buffer.length) return false;
-  const inicio = buffer.subarray(xref, Math.min(buffer.length, xref + 80)).toString('latin1');
-  return /^xref(?:\s|$)/.test(inicio) || /^\d+\s+\d+\s+obj\b/.test(inicio);
+  // Aceita deliberadamente apenas o formato PDF simples emitido pelo Krypton.
+  // Esse subconjunto não tem ações, anexos, filtros, objetos compactados, links,
+  // formulários ou atualizações incrementais que uma busca por palavras não vê.
+  const pdf = buffer.toString('latin1');
+  if (!pdf.startsWith('%PDF-1.4\n') || /[^\x0a\x20-\x7e]/.test(pdf)) return false;
+  const xref = pdf.lastIndexOf('xref\n0 ');
+  if (xref < 0) return false;
+  const fim = /^xref\n0 (\d+)\n0000000000 65535 f \n((?:\d{10} 00000 n \n)+)trailer\n<< \/Size (\d+) \/Root 1 0 R >>\nstartxref\n(\d+)\n%%EOF\n$/.exec(pdf.slice(xref));
+  if (!fim || Number(fim[1]) !== Number(fim[3]) || Number(fim[4]) !== xref) return false;
+  const tamanho = Number(fim[1]);
+  const entradas = fim[2].trimEnd().split('\n');
+  if (!Number.isSafeInteger(tamanho) || tamanho < 6 || entradas.length !== tamanho - 1) return false;
+  const offsets = [0, ...entradas.map(linha => Number(linha.slice(0, 10)))];
+  if (offsets.some((offset, indice) => !Number.isSafeInteger(offset) || offset < 0 || offset >= xref || (indice && offset <= offsets[indice - 1]))) return false;
+  const objetos = [];
+  for (let id = 1; id < tamanho; id++) {
+    const inicio = offsets[id];
+    if (!pdf.startsWith(`${id} 0 obj\n`, inicio)) return false;
+    const fimObjeto = pdf.indexOf('\nendobj\n', inicio);
+    if (fimObjeto < 0 || fimObjeto >= xref) return false;
+    objetos[id] = pdf.slice(inicio + `${id} 0 obj\n`.length, fimObjeto);
+    if (id < tamanho - 1 && offsets[id + 1] !== fimObjeto + '\nendobj\n'.length) return false;
+  }
+  const ultimoId = tamanho - 1;
+  if (offsets[1] !== '%PDF-1.4\n'.length || offsets[ultimoId] + `${ultimoId} 0 obj\n`.length + objetos[ultimoId].length + '\nendobj\n'.length !== xref) return false;
+  if (objetos[1] !== '<< /Type /Catalog /Pages 2 0 R >>' || objetos[3] !== '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>') return false;
+  const pages = Number(/\/Count (\d+) >>$/.exec(objetos[2] || '')?.[1]);
+  if (!Number.isSafeInteger(pages) || pages < 1 || tamanho !== 4 + pages * 2) return false;
+  const kids = Array.from({ length: pages }, (_, i) => `${4 + i * 2} 0 R`).join(' ');
+  if (objetos[2] !== `<< /Type /Pages /Kids [${kids}] /Count ${pages} >>`) return false;
+  for (let pagina = 0; pagina < pages; pagina++) {
+    const pageId = 4 + pagina * 2;
+    const streamId = pageId + 1;
+    if (objetos[pageId] !== `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents ${streamId} 0 R >>`) return false;
+    const streamMatch = /^<< \/Length (\d+) >>\nstream\n([\s\S]*)\nendstream$/.exec(objetos[streamId] || '');
+    if (!streamMatch || Number(streamMatch[1]) !== Buffer.byteLength(streamMatch[2], 'ascii')) return false;
+    const comandos = streamMatch[2].split('\n');
+    if (comandos.length < 6 || comandos[0] !== 'BT' || comandos[1] !== '/F1 10 Tf' || comandos[2] !== '50 790 Td' || comandos[3] !== '14 TL' || comandos.at(-1) !== 'ET') return false;
+    let indice = 4;
+    while (indice < comandos.length - 1) {
+      const linha = comandos[indice++];
+      if (!linha.startsWith('(') || !linha.endsWith(') Tj')) return false;
+      let escapado = false;
+      for (let pos = 1; pos < linha.length - 4; pos++) {
+        const caractere = linha[pos];
+        if (escapado) { if (!['\\', '(', ')'].includes(caractere)) return false; escapado = false; }
+        else if (caractere === '\\') escapado = true;
+        else if (caractere === '(' || caractere === ')' || caractere.charCodeAt(0) < 0x20) return false;
+      }
+      if (escapado) return false;
+      if (indice < comandos.length - 1) { if (comandos[indice++] !== 'T*') return false; }
+    }
+    if (indice !== comandos.length - 1) return false;
+  }
+  return true;
 }

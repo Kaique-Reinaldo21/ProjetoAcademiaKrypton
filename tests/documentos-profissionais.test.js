@@ -15,6 +15,8 @@ test('PDF gerado possui estrutura válida e arquivo enviado é validado além do
   assert.equal(validarPdf(pdf), true);
   assert.equal(pdf.subarray(0, 8).toString('ascii').startsWith('%PDF-1.'), true);
   assert.match(pdf.toString('ascii'), /Treino ficticio/);
+  assert.equal(validarPdf(Buffer.concat([pdf, Buffer.from('\n1 0 obj\n<< /OpenAction 2 0 R >>\nendobj\n')])), false);
+  assert.equal(validarPdf(Buffer.concat([pdf, Buffer.from('\n% atualizacao incremental comprimida\n')])), false);
   assert.equal(validarPdf(Buffer.from('%PDF-1.4 fake %%EOF')), false);
   assert.equal(validarPdf(Buffer.alloc(5 * 1024 * 1024 + 1)), false);
 });
@@ -150,4 +152,28 @@ test('Worker aplica tentativas progressivas e encerra documento com erro sanitiz
   assert.equal(job.erro, 'FALHA_PROCESSAMENTO');
   assert.equal(esperas.length, 2);
   assert.ok(esperas[1].getTime() - esperas[0].getTime() > 0);
+});
+
+test('Worker encerra documento quando bloqueio expira na última tentativa', async () => {
+  const job = { id: 'job-expirado', tipo: 'documento_pdf_gerar', payload: { documento_id: 91 },
+    situacao: 'processando', tentativas: 5, limite: 5, bloqueado_ate: new Date(0), bloqueio: 'lock-expirado' };
+  let documentoSituacao = 'processando';
+  let jobSituacao = 'processando';
+  const tx = {
+    jobs: {
+      async findFirst() { return { ...job, situacao: jobSituacao }; },
+      async updateMany({ data }) { jobSituacao = data.situacao; return { count: 1 }; },
+    },
+    documentos_profissionais: {
+      async updateMany({ where, data }) {
+        assert.deepEqual(where, { id: 91, situacao: 'processando' });
+        documentoSituacao = data.situacao;
+        return { count: 1 };
+      },
+    },
+  };
+  const db = { ...tx, async $transaction(callback) { return callback(tx); } };
+  assert.equal(await processarUmaVez(db), false);
+  assert.equal(jobSituacao, 'falhou');
+  assert.equal(documentoSituacao, 'falhou');
 });

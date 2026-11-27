@@ -18,7 +18,7 @@ export async function processarJob(db, job) {
 }
 
 export async function processarUmaVez(db, processar = processarJob) {
-  const job = await adquirir(db, 60_000);
+  const job = await adquirir(db, 60_000, (tx, expirado) => falhaDocumentoPermanente(tx, expirado));
   if (!job) return false;
   try {
     await processar(db, job);

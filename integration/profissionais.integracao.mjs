@@ -24,6 +24,7 @@ test('perfis, agenda, fichas e worker persistem em MySQL descartável', async t 
   const { adquirir, enfileirar } = await import('../src/queues/notificacoes.queue.js');
   const { processarNotificacao } = await import('../src/jobs/notificacoes.job.js');
   const { default: authRoutes } = await import('../src/routes/auth.routes.js');
+  const { gerarPdfProfissional } = await import('../src/lib/pdf-profissional.js');
 
   const host = express();
   host.use(express.json());
@@ -40,13 +41,23 @@ test('perfis, agenda, fichas e worker persistem em MySQL descartável', async t 
   async function request(usuario, rota, method = 'GET', body, status = 200) {
     const token = usuario && jwt.sign({ id: usuario.id, versao_sessao: 0 }, process.env.JWT_SECRET, { expiresIn: '2m' });
     const resposta = await fetch(origem + rota, { method, headers: {
-      ...(token && { Authorization: 'Bearer ' + token }), 'Content-Type': 'application/json',
+      ...(token && { Authorization: 'Bearer ' + token }), Origin: origem, 'Content-Type': 'application/json',
     }, body: body === undefined ? undefined : JSON.stringify(body) });
     const dados = await resposta.json();
     assert.equal(resposta.status, status, rota + ' ' + (dados.erro || ''));
     return dados;
   }
   const api = (user, rota, ...args) => request(user, '/profissionais' + rota, ...args);
+  async function pdfRequest(usuario, rota, method, bytes, extras = {}, status = 200) {
+    const token = jwt.sign({ id: usuario.id, versao_sessao: 0 }, process.env.JWT_SECRET, { expiresIn: '2m' });
+    const resposta = await fetch(origem + rota, { method, headers: {
+      Authorization: 'Bearer ' + token, Origin: origem, 'Content-Type': 'application/pdf', ...extras,
+    }, body: bytes });
+    const tipo = resposta.headers.get('content-type') || '';
+    const dados = tipo.includes('application/json') ? await resposta.json() : Buffer.from(await resposta.arrayBuffer());
+    assert.equal(resposta.status, status, rota + ' ' + (dados?.erro || ''));
+    return { resposta, dados };
+  }
   const admin = await db.usuarios.create({ data: { nome: 'Admin fixture', email: 'admin@example.invalid', role: 'admin' } });
   const senha = 'Frase fictícia longa 123!';
   const cadastro = await request(null, '/auth/cadastro', 'POST', {
@@ -92,6 +103,36 @@ test('perfis, agenda, fichas e worker persistem em MySQL descartável', async t 
     aluno_id: a.id, titulo: 'Plano fictício', itens: [{ refeicao: 'Almoço', horario: '12:30', alimentos: 'Arroz', quantidades: '1 porção' }],
   }, 201);
   assert.equal((await api(a, '/fichas?tipo=nutricionista'))[0].titulo, 'Plano fictício');
+
+  const documentoPdf = gerarPdfProfissional({ tipo: 'personal', titulo: 'Treino PDF fictício', aluno: { nome: 'Aluno fixture' },
+    profissional: { nome: 'Personal fixture' }, orientacoes: 'Material acadêmico de teste', itens: [] });
+  const upload = await pdfRequest(p, '/profissionais/documentos', 'POST', documentoPdf,
+    { 'X-Aluno-Id': String(a.id), 'X-Documento-Titulo': encodeURIComponent('Documento de teste') }, 201);
+  const idDocumentoUpload = upload.dados.id;
+  assert.equal(upload.dados.situacao, 'disponivel');
+  assert.ok(!Object.hasOwn(upload.dados, 'conteudo') && !Object.hasOwn(upload.dados, 'sha256'));
+  assert.equal((await api(a, '/documentos')).some(d => d.id === idDocumentoUpload), true);
+  assert.equal((await api(p, '/documentos')).some(d => d.id === idDocumentoUpload), true);
+  assert.equal((await pdfRequest(a, `/profissionais/documentos/${idDocumentoUpload}/arquivo`, 'GET')).resposta.headers.get('content-type'), 'application/pdf');
+  await pdfRequest(b, `/profissionais/documentos/${idDocumentoUpload}/arquivo`, 'GET', undefined, {}, 403);
+  await pdfRequest(q, `/profissionais/documentos/${idDocumentoUpload}/arquivo`, 'GET', undefined, {}, 404);
+  await api(r, `/documentos/${idDocumentoUpload}/arquivo`, 'GET', undefined, 403);
+  await pdfRequest(p, '/profissionais/documentos', 'POST', Buffer.from('%PDF-1.4 fake'),
+    { 'X-Aluno-Id': String(a.id), 'X-Documento-Titulo': 'Inválido' }, 400);
+  const solicitacaoPdf = await request(p, '/profissionais/documentos/gerar', 'POST', { ficha_id: treino.id }, 202);
+  assert.equal(solicitacaoPdf.situacao, 'processando');
+  for (let i = 0; i < 30; i++) {
+    await processarUmaVez(db);
+    const atual = await api(a, '/documentos');
+    const gerado = atual.find(d => d.id === solicitacaoPdf.id);
+    if (gerado?.situacao === 'disponivel') break;
+  }
+  const listaComGerado = await api(a, '/documentos');
+  assert.equal(listaComGerado.find(d => d.id === solicitacaoPdf.id)?.situacao, 'disponivel');
+  const downloadGerado = await pdfRequest(a, `/profissionais/documentos/${solicitacaoPdf.id}/arquivo`, 'GET');
+  assert.ok(Buffer.from(downloadGerado.dados).subarray(0, 8).equals(Buffer.from('%PDF-1.4')));
+  assert.equal(await db.notificacoes.count({ where: { destinatario_id: a.id, categoria: 'documento_disponivel' } }), 1);
+
   const data_hora = new Date(Date.now() + 3_600_000).toISOString();
   const agendamento = { profissional_id: p.id, tipo: 'personal', unidade_id: unidade.id, data_hora };
   await api(b, '/agenda', 'POST', agendamento, 403);
@@ -119,8 +160,9 @@ test('perfis, agenda, fichas e worker persistem em MySQL descartável', async t 
   const recuperado = await adquirir(outro, 60_000);
   assert.equal(recuperado.id, dono.id);
   await processarNotificacao(db, dono);
-  assert.equal(await db.notificacoes.count(), 0);
+  assert.equal(await db.notificacoes.count({ where: { job_id: dono.id } }), 0);
   await processarNotificacao(outro, recuperado);
+  assert.ok(await db.notificacoes.count({ where: { job_id: dono.id } }) > 0);
   await processarUmaVez(outro, async () => { throw Error('ERRO FICTÍCIO PRIVADO'); });
   const retry = await db.jobs.findFirst({ where: { erro: 'FALHA_PROCESSAMENTO' } });
   assert.ok(retry.programado_em > new Date());
@@ -131,6 +173,14 @@ test('perfis, agenda, fichas e worker persistem em MySQL descartável', async t 
     enfileirar(outro, 'consulta_agendada', 'fixture-repetida', [a.id])]);
   assert.equal(await db.jobs.count({ where: { idempotencia: 'fixture-repetida' } }), 1);
   await processarUmaVez(db);
+  const documentoExpirado = await db.documentos_profissionais.create({ data: { aluno_id: a.id, profissional_id: p.id,
+    tipo: 'personal', titulo: 'PDF expirado', nome_arquivo: 'expirado.pdf', origem: 'ficha', situacao: 'processando' }, select: { id: true } });
+  const jobExpirado = await db.jobs.create({ data: { tipo: 'documento_pdf_gerar', payload: { documento_id: documentoExpirado.id },
+    situacao: 'processando', tentativas: 5, limite: 5, programado_em: new Date(0), bloqueado_ate: new Date(0),
+    bloqueio: '11111111-1111-4111-8111-111111111111', idempotencia: 'documento-expirado-ultima-tentativa' } });
+  await processarUmaVez(db);
+  assert.equal((await db.jobs.findUnique({ where: { id: jobExpirado.id } })).situacao, 'falhou');
+  assert.equal((await db.documentos_profissionais.findUnique({ where: { id: documentoExpirado.id } })).situacao, 'falhou');
   const minhas = await api(a, '/notificacoes');
   for (const categoria of ['consulta_agendada','consulta_confirmada','consulta_reagendada','consulta_cancelada','treino_publicado','treino_atualizado','alimentacao_publicada']) {
     assert.ok(minhas.itens.some(i => i.categoria === categoria), categoria);

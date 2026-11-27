@@ -70,7 +70,7 @@
     },
     {
       "name": "Documentos profissionais",
-      "description": "PDFs privados vinculados a alunos, profissionais e fichas existentes."
+      "description": "PDFs privados vinculados a alunos, profissionais e fichas existentes. Upload aceita exclusivamente o subconjunto estrutural seguro emitido pelo gerador PDF do Krypton; não aceita PDFs arbitrários de terceiros."
     }
   ],
   "components": {
@@ -6747,7 +6747,7 @@
           "Documentos profissionais"
         ],
         "summary": "Anexar PDF a aluno vinculado",
-        "description": "Somente personal/nutricionista autenticado. Envie um corpo application/pdf válido de até 5 MB e os cabeçalhos X-Aluno-Id e X-Documento-Titulo (título codificado com encodeURIComponent). O tipo profissional vem da sessão; o servidor valida vínculo, plano Elite, estrutura PDF e conteúdo antes de gravar. A notificação é enfileirada junto ao documento disponibilizado.",
+        "description": "Somente personal/nutricionista autenticado. Envie um corpo application/pdf de até 5 MB no formato estrutural seguro do gerador PDF do Krypton e os cabeçalhos X-Aluno-Id e X-Documento-Titulo (título codificado com encodeURIComponent). PDFs arbitrários de terceiros são rejeitados. O tipo profissional vem da sessão; o servidor valida vínculo e plano Elite antes de gravar. A notificação é enfileirada junto ao documento disponibilizado.",
         "operationId": "anexarDocumentoProfissional",
         "security": [
           {
@@ -6969,7 +6969,7 @@
           "Documentos profissionais"
         ],
         "summary": "Substituir PDF próprio",
-        "description": "Somente o personal/nutricionista responsável pelo documento. Aceita PDF válido de até 5 MB, revalida vínculo e plano Elite; não altera aluno, profissional ou permissões.",
+        "description": "Somente o personal/nutricionista responsável pelo documento. Aceita PDF no formato estrutural seguro do gerador PDF do Krypton de até 5 MB; PDFs arbitrários de terceiros são rejeitados. Revalida vínculo e plano Elite; não altera aluno, profissional ou permissões.",
         "operationId": "substituirDocumentoProfissional",
         "security": [
           {
