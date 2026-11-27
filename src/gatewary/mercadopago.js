@@ -1,6 +1,7 @@
 // Integração de assinaturas. Nunca ative plano pelo retorno do navegador sem consultar o provedor.
 import 'dotenv/config';
 import { MercadoPagoConfig, PreApproval } from 'mercadopago';
+import { emTesteMercadoPago, urlExternaMercadoPago, validarCredencialTesteMercadoPago, validarPagadorTeste } from '../config/mercadopago-teste.js';
 import { ErroGatewayCheckout, classificarErroCriacao } from './erros-checkout.js';
 
 export const PLANOS_MP = Object.freeze({
@@ -13,16 +14,22 @@ function bloquearGatewayNoDemo() {
   if (process.env.PAYMENT_MODE === 'demo') throw new ErroGatewayCheckout('gateway_desativado_demo', 'Mercado Pago desativado no modo demonstração.');
 }
 
-function cliente() {
+function tokenGateway() {
   bloquearGatewayNoDemo();
-  const token = process.env.mercado_pago_access_token;
-  if (!token) throw new Error('Configure mercado_pago_access_token no arquivo .env.');
-  return new PreApproval(new MercadoPagoConfig({ accessToken: token }));
+  if (emTesteMercadoPago()) return validarCredencialTesteMercadoPago().token;
+  if (process.env.PAYMENT_MODE !== 'real' || !process.env.mercado_pago_access_token?.trim()) {
+    throw new ErroGatewayCheckout('token_ausente', 'Gateway indisponível neste ambiente.');
+  }
+  return process.env.mercado_pago_access_token;
+}
+
+function cliente() {
+  return new PreApproval(new MercadoPagoConfig({ accessToken: tokenGateway(), options: { redirect: 'error' } }));
 }
 
 export function validarConfiguracaoCheckout() {
   const falha = codigo => { throw new ErroGatewayCheckout(codigo, 'O pagamento está indisponível por uma configuração da academia. Entre em contato com o suporte.'); };
-  if (!process.env.mercado_pago_access_token?.trim()) falha('token_ausente');
+  tokenGateway();
   let url;
   try { url = new URL(process.env.MP_BACK_URL); } catch { falha('retorno_invalido'); }
   if (url.pathname !== '/checkout/success' || url.search || url.hash || url.username || url.password ||
@@ -36,9 +43,11 @@ export async function criarCheckoutAssinatura({ tipo, email, tentativaId }) {
   if (!plano) throw new Error('Tipo de plano inválido.');
 
   const url = validarConfiguracaoCheckout();
+  validarPagadorTeste(email);
   let assinatura;
   try {
     assinatura = await cliente().create({
+    requestOptions: { idempotencyKey: tentativaId },
     body: {
       reason: 'Academia Krypton - Plano ' + plano.nome,
       payer_email: email,
@@ -56,14 +65,19 @@ export async function criarCheckoutAssinatura({ tipo, email, tentativaId }) {
   } catch (erro) {
     throw classificarErroCriacao(erro);
   }
-  if (!assinatura?.id || !assinatura?.init_point) {
+  if (typeof assinatura?.id !== 'string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(assinatura.id) || !assinatura.init_point) {
     throw new ErroGatewayCheckout('resposta_incompleta', 'O provedor não concluiu o checkout. Entre em contato com o suporte antes de tentar novamente.');
   }
-  return { id: String(assinatura.id), url: assinatura.init_point };
+  return { id: String(assinatura.id), url: urlExternaMercadoPago(assinatura.init_point) };
 }
 
 export async function consultarAssinatura(id) {
-  return cliente().get({ id: String(id) });
+  const gateway = cliente();
+  try {
+    return await gateway.get({ id: String(id) });
+  } catch (erro) {
+    throw classificarErroCriacao(erro);
+  }
 }
 
 // Busca completa por pagador; inconsistências ou limites são tratados como ambiguidade.
@@ -96,11 +110,10 @@ export async function consultarFatura(id) {
 }
 
 async function apiMercadoPago(caminho) {
-  bloquearGatewayNoDemo();
-  const token = process.env.mercado_pago_access_token;
-  if (!token) throw new Error('Token do Mercado Pago ausente.');
+  const token = tokenGateway();
   const resposta = await fetch('https://api.mercadopago.com' + caminho, {
     headers: { Authorization: 'Bearer ' + token },
+    redirect: 'error',
     signal: AbortSignal.timeout(12000),
   });
   if (!resposta.ok) throw new Error('Erro ao consultar faturas no Mercado Pago (HTTP ' + resposta.status + ').');
@@ -123,6 +136,12 @@ export async function obterPagamentoAprovado(id, tipo) {
       f.currency_id === 'BRL' && Number(f.transaction_amount) === plano.valor;
   });
   if (!fatura) return null;
+  if (emTesteMercadoPago()) {
+    const pagamento = await apiMercadoPago('/v1/payments/' + encodeURIComponent(String(fatura.payment.id)));
+    if (pagamento.live_mode !== false || String(pagamento.id) !== String(fatura.payment.id) ||
+        pagamento.status !== 'approved' || pagamento.status_detail === 'partially_refunded' ||
+        pagamento.currency_id !== 'BRL' || Number(pagamento.transaction_amount) !== plano.valor) return null;
+  }
   const dataFatura = fatura.date_created ? new Date(fatura.date_created) : null;
   return { id: String(fatura.payment.id), valor_centavos: Math.round(plano.valor * 100), moeda: 'BRL', status: 'approved', data_fatura: dataFatura && !Number.isNaN(dataFatura.valueOf()) ? dataFatura : null };
 }

@@ -3,6 +3,8 @@ const tentativa = params.get('tentativa');
 const metodos = document.getElementById('metodos');
 const selecao = document.getElementById('selecao');
 const continuar = document.getElementById('continuar');
+const opcaoExterna = document.getElementById('opcao-mp-externo');
+const opcaoSimulada = document.getElementById('opcao-mp-simulado');
 const tokenAluno = localStorage.getItem('token');
 const endpoint = '/api/checkout/demo/' + encodeURIComponent(tentativa || '');
 const headers = { 'Content-Type': 'application/json', ...(tokenAluno ? { Authorization: 'Bearer ' + tokenAluno } : {}) };
@@ -89,6 +91,13 @@ async function consultar(inicial = false) {
     if (inicial) {
       mostrarResumo(dados);
       metodo = dados.metodo;
+      if (metodo === 'mercadopago') {
+        opcaoExterna.hidden = false;
+        opcaoSimulada.hidden = true;
+        opcaoExterna.querySelector('input').value = 'mercadopago';
+        mensagem.textContent = 'Aguardando confirmação da assinatura pelo Mercado Pago.';
+        document.getElementById('nota-academica').textContent = 'Integração externa de teste.';
+      }
       metodos.querySelectorAll('input').forEach(input => { input.checked = input.value === metodo; });
       document.getElementById('painel-qr').hidden = metodo !== 'qr_krypton';
       document.getElementById('ferramentas-qr').hidden = metodo !== 'qr_krypton';
@@ -127,11 +136,14 @@ function mostrarResumo(dados) {
 
 function atualizarSelecao() {
   metodo = metodos.querySelector('input:checked').value;
-  const mercadoPago = metodo === 'mercadopago_simulado';
+  const externo = metodo === 'mercadopago_teste';
+  const mercadoPago = externo || metodo === 'mercadopago_simulado';
+  document.getElementById('nota-academica').textContent = externo ? 'Integração externa de teste.' : 'Simulação acadêmica. Sem cobrança real.';
   continuar.textContent = mercadoPago ? 'Continuar com Mercado Pago' : 'Continuar com QR Code';
   continuar.classList.toggle('primario', !mercadoPago);
   continuar.classList.toggle('primario-mp', mercadoPago);
-  document.getElementById('instrucao-metodo').textContent = mercadoPago
+  document.getElementById('instrucao-metodo').textContent = externo
+    ? 'Abra o checkout do Mercado Pago com a conta de comprador de teste autorizada.' : mercadoPago
     ? 'Use respostas simuladas do Mercado Pago para testar a assinatura.'
     : 'Escaneie o QR Code pelo celular para aprovar a simulação.';
 }
@@ -146,6 +158,14 @@ continuar.addEventListener('click', async () => {
       body: JSON.stringify({ tipoPlano: params.get('plano'), unidade_id: params.get('unidade'), metodo }),
     });
     if (!dados.tentativaId) throw new Error('Tentativa indisponível.');
+    if (metodo === 'mercadopago_teste') {
+      const url = new URL(dados.url);
+      if (url.protocol !== 'https:' || url.username || url.password || url.port ||
+          !/^(?:[a-z0-9-]+\.)*mercadopago\.com(?:\.br)?$/.test(url.hostname)) throw new Error('URL de pagamento inválida.');
+      localStorage.setItem('checkout_tentativa_id', dados.tentativaId);
+      location.assign(url.href);
+      return;
+    }
     localStorage.setItem('checkout_tentativa_id', dados.tentativaId);
     location.replace('/checkout-demo.html?tentativa=' + encodeURIComponent(dados.tentativaId));
   } catch (erro) {
@@ -178,7 +198,14 @@ async function iniciar() {
     try {
       const tipo = params.get('plano');
       if (!tipo) throw new Error('Tentativa indisponível.');
-      mostrarResumo(await api('/api/checkout/demo/planos/' + encodeURIComponent(tipo)));
+      const resumo = await api('/api/checkout/demo/planos/' + encodeURIComponent(tipo));
+      mostrarResumo(resumo);
+      if (resumo.mercadoPagoExterno) {
+        opcaoExterna.hidden = false;
+        opcaoSimulada.hidden = true;
+        opcaoSimulada.querySelector('input').disabled = true;
+        opcaoExterna.querySelector('input').checked = true;
+      }
       atualizarSelecao();
       situacao.textContent = 'Escolha o método de pagamento';
       selecao.hidden = false;

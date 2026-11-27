@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import prisma from '../lib/prisma.js';
+import { emTesteMercadoPago, validarPagadorTeste } from '../config/mercadopago-teste.js';
 import {
   PLANOS_MP,
   criarCheckoutAssinatura,
@@ -19,7 +20,7 @@ export const camposHistoricoPagamento = {
   tentativa: { select: { tipo: true, metodo: true } },
 };
 
-export function criarServicoCheckout({ prisma, criarCheckoutAssinatura, consultarAssinatura, possuiPagamentoAprovado, obterPagamentoAprovado, buscarAssinaturasPorPagador, validarConfiguracaoCheckout, simulado = false }) {
+export function criarServicoCheckout({ prisma, criarCheckoutAssinatura, consultarAssinatura, possuiPagamentoAprovado, obterPagamentoAprovado, buscarAssinaturasPorPagador, validarConfiguracaoCheckout, validarPagador, origemFinanceira = () => 'mercadopago', simulado = false }) {
 const metodo = simulado ? 'mercadopago_simulado' : 'mercadopago';
 const pagamentoDemoId = id => 'demo_mp_' + id;
 
@@ -40,6 +41,8 @@ async function iniciarCheckout(usuarioId, tipo, unidadeIdInformada) {
   if (!usuario || usuario.role !== 'aluno') {
     throw new ErroCheckout('Somente alunos podem contratar planos.', 403);
   }
+
+  if (validarPagador) validarPagador(usuario.email);
 
   let unidadeId = null;
   if (tipo === 'basico') {
@@ -230,7 +233,7 @@ async function confirmarCheckoutPorAssinatura(preapprovalId) {
       mp_payment_id: pago.id, mp_preapproval_id: preapprovalId,
       usuario_id: usuario.id, tentativa_id: tentativa.id, plano_id: planoCriado.id,
       valor_centavos: pago.valor_centavos, moeda: pago.moeda, status: pago.status,
-      data_fatura: pago.data_fatura || null,
+      data_fatura: pago.data_fatura || null, origem: origemFinanceira(),
     } });
     return 'confirmado';
   }, { isolationLevel: 'ReadCommitted' });
@@ -322,4 +325,5 @@ async function consultarCheckout(usuarioId, tentativaId) {
 
 export const { iniciarCheckout, confirmarCheckoutPorAssinatura, consultarCheckout, reconciliarCheckout } = criarServicoCheckout({
   prisma, criarCheckoutAssinatura, consultarAssinatura, possuiPagamentoAprovado, obterPagamentoAprovado, buscarAssinaturasPorPagador, validarConfiguracaoCheckout,
+  validarPagador: validarPagadorTeste, origemFinanceira: () => emTesteMercadoPago() ? 'mercadopago_teste' : 'mercadopago',
 });
