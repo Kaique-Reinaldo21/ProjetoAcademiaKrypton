@@ -1,6 +1,7 @@
 import { gerirProfissionais } from './admin-profissionais.js';
 import { api, dia, profissional, quando } from './aluno-dados.js';
 import { badge, elemento, erro, estado, graficoBarras, icone } from './design-system.js';
+import { montarEditorPerfil } from './perfil-pessoal.js';
 
 const buscar = caminho => api('/api/admin/' + caminho);
 const planos = { basico: 'Básico', pro: 'Pro', elite: 'Elite' };
@@ -295,8 +296,12 @@ function auditoria(raiz) {
         dados.logins.map(l => [hora(l.data_login), l.nome, papeis[l.role]]), 'Nenhum acesso registrado.'))));
 }
 
-function configuracoes(raiz, conta) {
+function configuracoes(raiz, conta, identidade) {
   cabecalho(raiz, 'Configurações', 'Gerencie a segurança da conta administrativa.');
+  raiz.append(montarEditorPerfil(conta, {
+    aoAtualizarNome: nome => identidade.atualizarNome(nome),
+    aoAtualizarFoto: foto => identidade.definirFoto(foto),
+  }));
   const acoes = elemento('div', null, 'admin-paginacao');
   if (conta.possuiSenhaLocal) acoes.append(link('Alterar senha', '/configuracoes-conta.html#alterar'),
     link('Recuperação administrativa', '/configuracoes-conta.html#administracao'));

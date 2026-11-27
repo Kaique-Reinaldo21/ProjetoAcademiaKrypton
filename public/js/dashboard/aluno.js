@@ -1,7 +1,7 @@
 import { montarNotificacoes } from './notificacoes.js';
 import { api, criarDadosAluno } from './aluno-dados.js';
 import { configurarMenu, elemento, erro, estado, icone } from './design-system.js';
-import { agendamentos, configuracoes, faturas, inicio, modulo } from './aluno-views.js';
+import { agendamentos, configuracoes, documentos, faturas, inicio, modulo } from './aluno-views.js';
 
 const conteudo = document.getElementById('conteudo');
 const menu = document.getElementById('menu');
@@ -15,7 +15,7 @@ const abas = {
   nutricao: ['Nutrição', modulo],
   agendamentos: ['Agendamentos', agendamentos],
   faturas: ['Faturas', faturas],
-  arquivos: ['Arquivos', modulo],
+  arquivos: ['Documentos', documentos],
   configuracoes: ['Configurações', configuracoes],
 };
 

@@ -73,6 +73,11 @@
 .kd-conta { margin-left: auto; display: flex; align-items: center; gap: .65rem; font-size: .83rem; font-weight: 800; }
 .kd-avatar { width: 2.25rem; height: 2.25rem; display: inline-grid; place-items: center; flex: none; overflow: hidden; border-radius: 50%; background: #173925; color: var(--kd-verde); font-weight: 800; }
 .kd-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.kd-perfil-pessoal > p { margin-top: .35rem; color: var(--kd-suave); }
+.kd-perfil-pessoal > .kd-grid { align-items: center; margin-top: 1rem; }
+.kd-perfil-foto { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; }
+.kd-perfil-avatar { width: 4.25rem; height: 4.25rem; font-size: 1.3rem; }
+.kd-perfil-acoes { display: flex; align-items: center; flex-wrap: wrap; gap: .55rem; }
 .kd-sair { margin-top: .8rem; width: 100%; justify-content: flex-start !important; }
 .kd-hamburguer, .kd-backdrop { display: none !important; }
 .kd-conteudo { max-width: 93rem; margin-inline: auto; padding: clamp(1rem, 3.25vw, 3.2rem); }
@@ -81,6 +86,13 @@
 .kd-card-link:hover { border-color: #398452; color: var(--kd-texto); }
 .kd-grid { display: grid; gap: 1rem; }
 .kd-grid-dois { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.kd-grid-indicadores { grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); margin-block: 1rem; }
+.kd-pagina-topo { display: grid; gap: .35rem; margin-bottom: 1.25rem; }
+.kd-pagina-topo p, .kd-sauda { color: var(--kd-suave); }
+.kd-sauda { margin-bottom: 1rem !important; font-size: 1.05rem; }
+.kd-indicador-valor { margin-block: .25rem; color: var(--kd-verde); font-size: 2.1rem; }
+.kd-button-atalho { justify-content: flex-start; min-height: 3rem; }
+.kd-card > .kd-card { margin-top: .75rem; }
 .kd-button {
   display: inline-flex;
   justify-content: center;

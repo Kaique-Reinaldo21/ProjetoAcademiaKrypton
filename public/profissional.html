@@ -17,16 +17,17 @@
     <div id="fundo-menu" class="kd-backdrop" hidden></div>
     <aside class="kd-sidebar" id="menu" aria-label="Área profissional">
       <a class="kd-marca" href="/"><img src="/logo.png" width="36" height="36" alt=""> Krypton</a>
-      <nav class="kd-nav" aria-label="Navegação principal">
-        <a href="#alunos">Alunos</a><a href="#agenda">Agenda</a>
-        <a href="/configuracoes-conta.html">Minha conta</a>
-      </nav>
+      <nav class="kd-nav" aria-label="Navegação principal"></nav>
       <button class="kd-button kd-sair" id="sair" type="button">Encerrar sessão</button>
     </aside>
     <div class="kd-workspace">
       <header class="kd-header">
         <button class="kd-button kd-icon kd-hamburguer" id="abrir-menu" aria-controls="menu" aria-expanded="false" aria-label="Abrir menu"><i class="bi bi-list" aria-hidden="true"></i></button>
         <p class="kd-local" id="perfil">Painel profissional</p>
+        <a class="kd-conta" href="#minha-conta" aria-label="Editar perfil pessoal">
+          <span class="kd-avatar" id="avatar-profissional" data-avatar aria-hidden="true"></span>
+          <span class="kd-conta-nome" id="nome-cabecalho"></span>
+        </a>
       </header>
       <main class="kd-conteudo" id="conteudo" tabindex="-1" aria-busy="true">
         <p role="status">Carregando painel…</p>

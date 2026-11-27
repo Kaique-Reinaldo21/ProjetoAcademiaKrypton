@@ -24,6 +24,7 @@ export async function api(caminho, opcoes = {}) {
   }
   if (r.status === 204) return null;
   if (r.headers.get('Content-Type')?.startsWith('image/png')) return r.blob();
+  if (r.headers.get('Content-Type')?.startsWith('application/pdf')) return r.blob();
   return r.json();
 }
 
