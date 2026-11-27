@@ -1,8 +1,10 @@
 // Apenas leitura: verifica conexao e contagem de registros.
 import 'dotenv/config';
-import prisma from '../src/lib/prisma.js';
+import { diagnosticarInicializacao } from '../src/lib/diagnostico-inicializacao.js';
 
+let prisma;
 try {
+  ({ default: prisma } = await import('../src/lib/prisma.js'));
   await prisma.$queryRaw`SELECT 1 AS ok`;
   const [unidades, usuarios, planos] = await Promise.all([
     prisma.unidades.count(),
@@ -19,8 +21,8 @@ try {
   }
 } catch (erro) {
   console.error('Falha ao consultar o banco. Confira DATABASE_URL, rede e disponibilidade do MySQL.');
-  console.error('Tipo de erro:', erro.code || erro.name || 'desconhecido');
+  console.error('Diagnóstico:', erro.codigoConfiguracao ?? diagnosticarInicializacao(erro));
   process.exitCode = 1;
 } finally {
-  await prisma.$disconnect();
+  await prisma?.$disconnect();
 }

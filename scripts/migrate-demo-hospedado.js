@@ -1,8 +1,8 @@
 // Execução manual para um único banco acadêmico explicitamente autorizado.
 import 'dotenv/config';
 import { spawn } from 'node:child_process';
-import { AVISO_TLS_DEMO, validarArquivoCaDemo, validarModoDemo } from '../src/services/checkout-demo.service.js';
-import { destinoAcademico } from '../src/config/demo-hosts.js';
+import { AVISO_TLS_DEMO, validarArquivoCaDemo, validarModoDemo } from '../src/config/demo-db.js';
+import { destinoAcademico, exigeModoOficial } from '../src/config/demo-hosts.js';
 import { diagnosticarInicializacao } from '../src/lib/diagnostico-inicializacao.js';
 
 function recusar(codigoConfiguracao) {
@@ -14,6 +14,7 @@ async function executar(args) {
     recusar('ARGUMENTO_INVALIDO');
   }
   if (process.env.NODE_ENV !== 'production') recusar('NODE_ENV_INVALIDO');
+  if (args[0] === '--aplicar' && exigeModoOficial(process.env)) recusar('MIGRACAO_OFICIAL_RESTRITA_AO_LOCALHOST');
   const sslaccept = validarModoDemo();
   validarArquivoCaDemo();
   if (sslaccept) console.warn(AVISO_TLS_DEMO);

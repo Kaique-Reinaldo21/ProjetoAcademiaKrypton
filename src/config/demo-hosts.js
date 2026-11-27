@@ -7,8 +7,8 @@ export const DESTINO_DEMO_TLS_SEM_VALIDACAO = Object.freeze({
 });
 
 export const DESTINO_ACADEMICO_OFICIAL = Object.freeze({
-  host: 'b7ah1lmgd5imdjqu51eq-mysql.services.clever-cloud.com',
-  banco: 'b7ah1lmgd5imdjqu51eq',
+  host: '147.224.191.149',
+  banco: 'krypton_oficial',
   porta: '3306',
   render: 'projetoacademiakrypton.onrender.com',
 });
@@ -16,6 +16,13 @@ export const DESTINO_ACADEMICO_OFICIAL = Object.freeze({
 export function destinoAcademico(perfil) {
   if (perfil === 'academico_isolado') return DESTINO_DEMO_TLS_SEM_VALIDACAO;
   if (perfil === 'academico_oficial') return DESTINO_ACADEMICO_OFICIAL;
+}
+
+export function exigeModoOficial(env) {
+  if (env.DEMO_DEPLOYMENT === 'academico_oficial' ||
+      env.RENDER_EXTERNAL_HOSTNAME === DESTINO_ACADEMICO_OFICIAL.render) return true;
+  return URL.canParse(env.DATABASE_URL) &&
+    new URL(env.DATABASE_URL).hostname === DESTINO_ACADEMICO_OFICIAL.host;
 }
 
 export function exigeModoAcademico(env) {

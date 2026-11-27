@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { DESTINO_ACADEMICO_OFICIAL } from '../src/config/demo-hosts.js';
 import { validarModoDemo, validarArquivoCaDemo, validarTlsBanco, criarServicoDemo } from '../src/services/checkout-demo.service.js';
 
 const env = { NODE_ENV: 'development', PAYMENT_MODE: 'demo', DATABASE_URL: 'mysql://demo:senha@127.0.0.1:3307/academia_kripton_checkout_test' };
@@ -26,8 +27,7 @@ test('inicialização permite TLS sem validar identidade somente no banco acadê
   assert.throws(() => validarTlsBanco({ ...base, PAYMENT_MODE: 'real', DATABASE_URL: destino + '?sslaccept=strict' }),
     erro => erro.codigoConfiguracao === 'PAYMENT_MODE_INVALIDO');
 
-  const bancoPrincipal = 'b7ah1lmgd5imdjqu51eq';
-  const hostPrincipal = `${bancoPrincipal}-mysql.services.clever-cloud.com`;
+  const { banco: bancoPrincipal, host: hostPrincipal } = DESTINO_ACADEMICO_OFICIAL;
   const urlPrincipal = `mysql://u:p@${hostPrincipal}:3306/${bancoPrincipal}`;
   for (const alteracao of [
     { DEMO_ALLOW_UNVERIFIED_TLS: undefined },
@@ -113,7 +113,7 @@ test('perfil isolado aceita somente seu próprio par Clever Cloud', () => {
   validarModoDemo(base);
   for (const alteracao of [
     { DATABASE_URL: `mysql://u:p@${host}:3307/${banco}?sslcert=ca.pem&sslaccept=strict` },
-    { DEMO_DATABASE_NAME: 'b7ah1lmgd5imdjqu51eq', DATABASE_URL: `mysql://u:p@${host}:3306/b7ah1lmgd5imdjqu51eq?sslcert=ca.pem&sslaccept=strict` },
+    { DEMO_DATABASE_NAME: DESTINO_ACADEMICO_OFICIAL.banco, DATABASE_URL: base.DATABASE_URL.replace('/' + banco, '/' + DESTINO_ACADEMICO_OFICIAL.banco) },
     { DEMO_DATABASE_HOST: 'outro.services.clever-cloud.com', DATABASE_URL: `mysql://u:p@outro.services.clever-cloud.com:3306/${banco}?sslcert=ca.pem&sslaccept=strict` },
     { DATABASE_URL: `mysql://u:p@${host}:3306/${banco}?sslcert=ca.pem&sslaccept=accept_invalid_certs` },
   ]) assert.throws(() => validarModoDemo({ ...base, ...alteracao }), e => e.status === 403);

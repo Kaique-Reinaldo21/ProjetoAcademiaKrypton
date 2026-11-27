@@ -1,14 +1,12 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { accessSync, constants, statSync } from 'node:fs';
-import path from 'node:path';
 import prisma from '../lib/prisma.js';
 import { camposHistoricoPagamento, ErroCheckout } from './checkout.service.js';
-import { TLS_SEM_VALIDACAO, validarModoDemo } from '../config/demo-db.js';
+import { TLS_SEM_VALIDACAO, validarArquivoCaDemo, validarModoDemo } from '../config/demo-db.js';
 
 import { exigeModoAcademico } from '../config/demo-hosts.js';
 
-export { validarModoDemo };
-export const AVISO_TLS_DEMO = 'Ambiente demonstrativo isolado: validação de identidade TLS do banco desativada.';
+export { validarArquivoCaDemo, validarModoDemo };
+export { AVISO_TLS_DEMO } from '../config/demo-db.js';
 
 const validadeQrMs = 5 * 60_000;
 const hashQr = token => createHash('sha256').update(token).digest('hex');
@@ -21,22 +19,9 @@ export function validarTlsBanco(env = process.env) {
   const url = URL.canParse(env.DATABASE_URL) ? new URL(env.DATABASE_URL) : null;
   if (env.PAYMENT_MODE === 'demo' || exigeModoAcademico(env) || url?.searchParams.getAll('sslaccept').includes(TLS_SEM_VALIDACAO)) {
     const sslaccept = validarModoDemo(env);
-    validarArquivoCaDemo(env);
+    if (env.DEMO_DEPLOYMENT !== 'academico_oficial') validarArquivoCaDemo(env);
     return sslaccept;
   }
-}
-
-// Prisma resolve caminhos relativos de certificado a partir do diretório prisma/.
-export function validarArquivoCaDemo(env = process.env) {
-  if (env.NODE_ENV !== 'production') return;
-  const caminho = new URL(env.DATABASE_URL).searchParams.get('sslcert');
-  if (caminho === null) return;
-  try {
-    const arquivo = path.resolve(process.cwd(), 'prisma', caminho);
-    if (!statSync(arquivo).isFile()) throw new Error('CA inválida');
-    accessSync(arquivo, constants.R_OK);
-  }
-  catch { const erro = new ErroCheckout('Demonstração indisponível neste ambiente.', 403); erro.codigoConfiguracao = 'CA_INACESSIVEL'; throw erro; }
 }
 
 export function criarServicoDemo(db = prisma, validar = validarModoDemo) {
