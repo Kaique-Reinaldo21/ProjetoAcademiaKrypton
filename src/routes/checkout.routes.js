@@ -92,7 +92,7 @@ router.get('/status/:tentativaId', async (req, res) => {
     let resultado;
     if (emTesteMercadoPago()) {
       const externo = await consultarTentativaExterna(req.usuario.id, req.params.tentativaId);
-      if (externo) return res.json({ status: externo.status, origem: 'mercadopago_teste', metodo: 'mercadopago' });
+      if (externo) return res.json({ status: externo.status, origem: 'mercadopago_test', metodo: 'mercadopago' });
     }
     if (process.env.PAYMENT_MODE === 'demo' || emTesteMercadoPago()) {
       const demo = await checkoutMetodos.consultar(req.usuario.id, req.params.tentativaId);
@@ -149,7 +149,7 @@ router.get('/demo/:id', async (req, res) => {
     if (emTesteMercadoPago()) {
       const externo = await consultarTentativaExterna(req.usuario.id, req.params.id);
       if (externo) return res.json({ ...checkoutMetodos.resumo(externo.tipo), metodo: 'mercadopago',
-        origem: 'mercadopago_teste',
+        origem: 'mercadopago_test',
         status: externo.status === 'confirmado' ? 'approved' : externo.status === 'recusado' ? 'rejected' : 'pending',
       });
     }

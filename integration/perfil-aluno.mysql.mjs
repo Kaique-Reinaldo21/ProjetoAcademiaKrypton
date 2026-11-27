@@ -20,6 +20,7 @@ test('perfil altera somente o nome e foto pertence ao aluno autenticado', async 
   app.use(express.json(), usuarioRoutes);
   const servidor = app.listen(0, '127.0.0.1');
   const ids = [];
+  let consulta;
   try {
     await once(servidor, 'listening');
     const origem = 'http://127.0.0.1:' + servidor.address().port;
@@ -73,11 +74,21 @@ test('perfil altera somente o nome e foto pertence ao aluno autenticado', async 
     await prisma.planos.create({ data: { usuario_id: a.id, tipo: 'elite', ativo: true, vencimento: new Date('2025-01-01') } });
     assert.equal((await agenda(a)).status, 403);
     await prisma.planos.create({ data: { usuario_id: a.id, tipo: 'elite', ativo: true } });
+    assert.equal((await agenda(a)).status, 400);
+    const personal = await conta('personal');
+    await prisma.vinculos_profissionais.create({ data: { aluno_id: a.id, profissional_id: personal.id } });
     assert.equal((await agenda(a)).status, 201);
-    assert.equal((await (await chamar(a, '/agendamentos')).json()).agendamentos.length, 1);
+    const minhaAgenda = (await (await chamar(a, '/agendamentos')).json()).agendamentos;
+    assert.equal(minhaAgenda.length, 1);
+    consulta = minhaAgenda[0].id;
+    assert.equal((await prisma.agendamentos.findUnique({ where: { id: consulta } })).profissional_id, personal.id);
     assert.equal((await (await chamar(b, '/agendamentos')).json()).agendamentos.length, 0);
   } finally {
     servidor.close();
+    if (consulta) {
+      await prisma.jobs.deleteMany({ where: { idempotencia: { startsWith: 'consulta_agendada:' + consulta + ':' } } });
+      await prisma.agendamentos.delete({ where: { id: consulta } });
+    }
     await prisma.usuarios.deleteMany({ where: { id: { in: ids } } });
     await prisma.$disconnect();
   }

@@ -142,4 +142,15 @@ test('perfis, agenda, fichas e worker persistem em MySQL descartável', async t 
   assert.equal((await api(a, '/notificacoes')).nao_lidas, 0);
   await api(admin, '/contas/' + p.id, 'PATCH', { ativo: false });
   await api(p, '/agenda', 'GET', undefined, 401);
+
+  const login = () => request(null, '/auth/login', 'POST', { email: 'aluno@example.invalid', senha });
+  const anterior = (await login()).token;
+  const comToken = (token, rota, method = 'GET') =>
+    fetch(origem + '/auth' + rota, { method, headers: { Authorization: 'Bearer ' + token } });
+  assert.equal((await comToken(anterior, '/me')).status, 200);
+  assert.equal((await comToken(anterior, '/logout', 'POST')).status, 200);
+  assert.equal((await comToken(anterior, '/me')).status, 401);
+  const atual = (await login()).token;
+  assert.equal((await comToken(anterior, '/logout', 'POST')).status, 200);
+  assert.equal((await comToken(atual, '/me')).status, 200);
 });

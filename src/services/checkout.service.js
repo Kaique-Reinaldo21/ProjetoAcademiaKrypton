@@ -325,5 +325,5 @@ async function consultarCheckout(usuarioId, tentativaId) {
 
 export const { iniciarCheckout, confirmarCheckoutPorAssinatura, consultarCheckout, reconciliarCheckout } = criarServicoCheckout({
   prisma, criarCheckoutAssinatura, consultarAssinatura, possuiPagamentoAprovado, obterPagamentoAprovado, buscarAssinaturasPorPagador, validarConfiguracaoCheckout,
-  validarPagador: validarPagadorTeste, origemFinanceira: () => emTesteMercadoPago() ? 'mercadopago_teste' : 'mercadopago',
+  validarPagador: validarPagadorTeste, origemFinanceira: () => emTesteMercadoPago() ? 'mercadopago_test' : 'mercadopago',
 });

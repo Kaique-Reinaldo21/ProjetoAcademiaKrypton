@@ -168,6 +168,7 @@ async function iniciar() {
   try {
     const { usuario } = await api('/api/auth/me');
     if (usuario.role === 'admin') return location.replace('/admin.html');
+    if (['recepcao', 'personal', 'nutricionista'].includes(usuario.role)) return location.replace('/profissional.html');
     if (usuario.role !== 'aluno') {
       conteudo.setAttribute('aria-busy', 'false');
       conteudo.replaceChildren(estado('Área restrita a alunos.'));

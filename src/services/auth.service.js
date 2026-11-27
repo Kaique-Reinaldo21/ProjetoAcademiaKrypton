@@ -20,6 +20,27 @@ export function gerarToken(usuario) {
 }
 
 
+export async function revogarSessao(token) {
+  if (!token) return;
+  let payload;
+  try {
+    payload = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+  } catch {
+    return;
+  }
+
+  const id = payload?.id;
+  const versao = payload?.versao_sessao ?? 0;
+  if (!Number.isSafeInteger(id) || id < 1 || !Number.isSafeInteger(versao) || versao < 0) return;
+
+  // Um token antigo não pode revogar sessões abertas depois do logout.
+  await prisma.usuarios.updateMany({
+    where: { id, versao_sessao: versao },
+    data: { versao_sessao: { increment: 1 } },
+  });
+}
+
+
 // LOGIN
 export async function login(email, senha) {
 

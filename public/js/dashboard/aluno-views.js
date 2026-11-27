@@ -209,7 +209,7 @@ function tabelaHistorico(lista) {
   const corpo = area.querySelector('tbody');
   const tipo = area.querySelector('[name="metodo"]');
   const status = area.querySelector('[name="status"]');
-  const metodo = t => t.origem === 'mercadopago_teste' ? 'mercadopago_teste' : t.tentativa?.metodo || (t.origem === 'demo' ? 'qr_krypton' : t.origem === 'demo_mercadopago' ? 'mercadopago_simulado' : t.origem);
+  const metodo = t => t.origem === 'mercadopago_test' ? 'mercadopago_teste' : t.tentativa?.metodo || (t.origem === 'demo' ? 'qr_krypton' : t.origem === 'demo_mercadopago' ? 'mercadopago_simulado' : t.origem);
   const temSimulacao = lista.some(t => ['demo', 'demo_mercadopago'].includes(t.origem));
   const temFinanceiro = lista.some(t => t.origem === 'mercadopago');
   if (temSimulacao) area.prepend(elemento('p', temFinanceiro
