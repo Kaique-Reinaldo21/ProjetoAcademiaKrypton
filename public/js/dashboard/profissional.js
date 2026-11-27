@@ -176,7 +176,7 @@ async function baixarDocumento(id, botao) {
 }
 
 async function documentosProfissionais(area) {
-  titulo(area, 'Documentos profissionais', 'Anexe PDFs ou gere documentos a partir de fichas existentes. Arquivos permanecem privados.');
+  titulo(area, 'Documentos profissionais', 'Anexe PDFs no formato seguro do Krypton ou gere documentos a partir das fichas existentes. Arquivos permanecem privados.');
   area.append(acao('Atualizar status', renderizar));
   const [vinculos, fichas, documentos] = await Promise.all([ler('/meus-alunos'), ler('/fichas'), api('/api/profissionais/documentos')]);
   const alunos = vinculos.map(item => item.aluno);
@@ -193,7 +193,7 @@ async function documentosProfissionais(area) {
     const form = elemento('form', null, 'kd-form');
     const alvo = escolha('aluno_id', 'Aluno vinculado', alunos.map(a => [a.id, a.nome]));
     const nome = campo('titulo', 'Título do documento');
-    const label = elemento('label', 'Arquivo PDF (até 5 MB)');
+    const label = elemento('label', 'PDF no formato Krypton (até 5 MB)');
     const arquivo = elemento('input', null, 'kd-input');
     arquivo.type = 'file'; arquivo.accept = 'application/pdf'; arquivo.required = true;
     label.append(arquivo);

@@ -7,7 +7,7 @@ export function enfileirar(tx, tipo, idempotencia, destinatarios) {
   });
 }
 
-export async function adquirir(db, prazoMs) {
+async function adquirirNoBanco(db, prazoMs, aoEsgotar) {
   const agora = new Date();
   const disponivel = { OR: [
     { situacao: 'pendente', programado_em: { lte: agora } },
@@ -17,9 +17,10 @@ export async function adquirir(db, prazoMs) {
   if (!job) return null;
   const where = { id: job.id, tentativas: job.tentativas, ...disponivel };
   if (job.tentativas >= job.limite) {
-    await db.jobs.updateMany({ where, data: {
+    const encerrado = await db.jobs.updateMany({ where, data: {
       situacao: 'falhou', concluido_em: agora, bloqueado_ate: null, bloqueio: null, erro: 'LIMITE_TENTATIVAS',
     } });
+    if (encerrado.count && aoEsgotar) await aoEsgotar(db, job);
     return null;
   }
   const bloqueio = randomUUID();
@@ -28,6 +29,13 @@ export async function adquirir(db, prazoMs) {
     bloqueado_ate: new Date(agora.getTime() + prazoMs), processado_em: agora,
   } });
   return alteracao.count ? { ...job, bloqueio, tentativas: job.tentativas + 1 } : null;
+}
+
+export async function adquirir(db, prazoMs, aoEsgotar) {
+  if (aoEsgotar && typeof db.$transaction === 'function') {
+    return db.$transaction(tx => adquirirNoBanco(tx, prazoMs, aoEsgotar));
+  }
+  return adquirirNoBanco(db, prazoMs, aoEsgotar);
 }
 
 export function posse(job) {
