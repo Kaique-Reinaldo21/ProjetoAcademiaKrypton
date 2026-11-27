@@ -1,3 +1,4 @@
+import { montarNotificacoes } from './notificacoes.js';
 import { api, criarDadosAluno } from './aluno-dados.js';
 import { configurarMenu, elemento, erro, estado, icone } from './design-system.js';
 import { agendamentos, configuracoes, faturas, inicio, modulo } from './aluno-views.js';
@@ -173,6 +174,7 @@ async function iniciar() {
       return;
     }
     contexto.usuario = usuario;
+    montarNotificacoes();
     renderizar();
     verificarPagamento();
     contexto.dados.ler('perfil').then(perfil => {

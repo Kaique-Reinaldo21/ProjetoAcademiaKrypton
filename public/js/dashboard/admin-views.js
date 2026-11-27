@@ -1,3 +1,4 @@
+import { gerirProfissionais } from './admin-profissionais.js';
 import { api, dia, profissional, quando } from './aluno-dados.js';
 import { badge, elemento, erro, estado, graficoBarras, icone } from './design-system.js';
 
@@ -307,8 +308,10 @@ function configuracoes(raiz, conta) {
 }
 
 function funcionarios(raiz) {
-  cabecalho(raiz, 'Funcionários', 'Acompanhe a disponibilidade da gestão de equipe.');
-  raiz.append(cartao('Gestão de equipe', estado('Cadastro e gestão de funcionários ainda indisponíveis.')));
+  cabecalho(raiz, 'Funcionários', 'Gerencie contas profissionais e vínculos com alunos.');
+  const area = elemento('div');
+  raiz.append(area);
+  return gerirProfissionais(area);
 }
 
 export const abas = {

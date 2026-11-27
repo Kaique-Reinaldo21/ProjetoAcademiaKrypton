@@ -29,7 +29,7 @@ export async function login(email, senha) {
     },
   });
 
-  if (!usuario) {
+  if (!usuario || !usuario.profissional_ativo) {
     throw new Error('E-mail ou senha inválidos');
   }
 
