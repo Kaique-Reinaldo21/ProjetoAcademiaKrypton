@@ -1,10 +1,36 @@
+import { accessSync, constants, statSync } from 'node:fs';
+import path from 'node:path';
 import { ErroCheckout } from '../lib/erro-checkout.js';
-import { DESTINO_DEMO_TLS_SEM_VALIDACAO, destinoAcademico } from './demo-hosts.js';
+import { DESTINO_ACADEMICO_OFICIAL, DESTINO_DEMO_TLS_SEM_VALIDACAO, destinoAcademico } from './demo-hosts.js';
 
 export const TLS_SEM_VALIDACAO = 'accept_invalid_certs';
+export const AVISO_TLS_DEMO = 'Ambiente demonstrativo isolado: validação de identidade TLS do banco desativada.';
+
+function negar(codigoConfiguracao) {
+  const erro = new ErroCheckout('Demonstração indisponível neste ambiente.', 403);
+  erro.codigoConfiguracao = codigoConfiguracao;
+  throw erro;
+}
+
+// Prisma resolve caminhos relativos de certificado a partir do diretório prisma/.
+function verificarArquivoCa(caminho) {
+  try {
+    const arquivo = path.resolve(process.cwd(), 'prisma', caminho);
+    accessSync(arquivo, constants.R_OK);
+    if (statSync(arquivo).isFile()) return;
+  } catch {
+    return negar('CA_INACESSIVEL');
+  }
+  return negar('CA_INACESSIVEL');
+}
+
+export function validarArquivoCaDemo(env = process.env) {
+  if (env.NODE_ENV !== 'production') return;
+  const caminho = new URL(env.DATABASE_URL).searchParams.get('sslcert');
+  if (caminho !== null) verificarArquivoCa(caminho);
+}
 
 export function validarModoDemo(env = process.env) {
-  const negar = codigo => { const erro = new ErroCheckout('Demonstração indisponível neste ambiente.', 403); erro.codigoConfiguracao = codigo; throw erro; };
   if (env.PAYMENT_MODE !== 'demo') return negar('PAYMENT_MODE_INVALIDO');
   let url;
   try { url = new URL(env.DATABASE_URL); } catch { return negar('DATABASE_URL_INVALIDA'); }
@@ -27,7 +53,13 @@ export function validarModoDemo(env = process.env) {
   if (params.getAll('sslcert').length > 1 || (params.has('sslcert') && !params.get('sslcert'))) return negar('SSLCERT_VAZIO_OU_DUPLICADO');
   if (params.getAll('sslaccept').length !== 1) return negar('SSLACCEPT_INVALIDO');
   const sslaccept = params.get('sslaccept');
-  if (sslaccept === 'strict') return;
+  if (sslaccept === 'strict') {
+    if (destino === DESTINO_ACADEMICO_OFICIAL) {
+      if (!params.has('sslcert')) return negar('CA_OBRIGATORIA');
+      verificarArquivoCa(params.get('sslcert'));
+    }
+    return;
+  }
   if (sslaccept !== TLS_SEM_VALIDACAO || destino !== DESTINO_DEMO_TLS_SEM_VALIDACAO ||
       env.DEMO_ALLOW_UNVERIFIED_TLS !== 'I_UNDERSTAND_TEST_ONLY') {
     return negar('SSLACCEPT_INVALIDO');
