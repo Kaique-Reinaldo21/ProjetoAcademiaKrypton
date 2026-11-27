@@ -342,7 +342,7 @@ async function formularioMatricula(alunos, unidades) {
 }
 
 async function planosRecepcao(area) {
-  titulo(area, 'Planos e matrículas', 'Consulte valores e situação. A contratação deve ser confirmada pelo próprio aluno em sua conta.');
+  titulo(area, 'Planos e matrículas', 'Consulte valores e situação; no modo acadêmico demo, a recepção pode registrar matrícula simulada com confirmação.');
   const tipos = ['basico', 'pro', 'elite'];
   const planos = await Promise.all(tipos.map(async tipo => api('/api/checkout/demo/planos/' + tipo)));
   const cards = elemento('div', null, 'kd-grid kd-grid-indicadores');
@@ -378,9 +378,11 @@ async function atendimentos(area) {
   buscaHistorico.append(buscaAluno, dataDe, dataAte, filtrar, estadoHistorico, historico);
   async function carregarHistorico(filtros = {}) {
     historico.replaceChildren(listaVazia('Carregando atendimentos…'));
+    estadoHistorico.textContent = '';
     try {
       const query = new URLSearchParams(Object.fromEntries(Object.entries(filtros).filter(([, v]) => v)));
       const resumo = await ler('/recepcao' + (query.size ? '?' + query : ''));
+      estadoHistorico.textContent = '';
       if (!resumo.ultimos.length) return historico.append(listaVazia('Nenhum atendimento nesse filtro.'));
       for (const i of resumo.ultimos) historico.append(elemento('p', `Atendimento · ${[i.aluno.nome, i.unidade?.nome, i.motivo, dataLocal(i.criado_em)].filter(Boolean).join(' · ')}`));
       estadoHistorico.textContent = `${resumo.ultimos.length} atendimentos encontrados. Cadastros e matrículas têm listas separadas; vínculos profissionais são gerenciados pelo administrador.`;

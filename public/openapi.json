@@ -764,7 +764,7 @@
           "destino": {
             "type": "string",
             "nullable": true,
-            "description": "Destino interno autorizado; documentos de treino apontam para Treinos extras e documentos alimentares para Nutrição."
+            "description": "Destino interno autorizado; fichas e PDFs de treino apontam para Treinos extras, materiais de alimentação para Nutrição e Jobs documentais legados sem categoria para Documentos."
           },
           "criado_em": {
             "type": "string",

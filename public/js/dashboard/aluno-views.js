@@ -15,7 +15,6 @@ const situacoesTransacao = {
 const situacoesDocumento = { processando: ['Processando', 'atencao'], disponivel: ['Disponível', 'positivo'], falhou: ['Falha no processamento', 'erro'] };
 const modulos = {
   treinos: ['Planos de treino e sessões da academia.', 'Nenhum treino registrado.', 'Sua rotina aparecerá aqui quando houver treinos cadastrados.', 'lightning-charge'],
-  'treinos-extras': ['Atividades complementares e acesso a treinos com personal.', 'Nenhum treino extra registrado.', 'Os treinos complementares aparecerão nesta seção.', 'plus-square'],
   avaliacoes: ['Resultados e registros de avaliações físicas.', 'Nenhuma avaliação disponível.', 'Quando uma avaliação for registrada, você poderá consultá-la aqui.', 'clipboard2-pulse'],
   progresso: ['Acompanhe a frequência e suas medições.', 'Sem medições no momento.', 'Quando houver registros, eles aparecerão aqui.', 'graph-up-arrow'],
   nutricao: ['Acompanhamento nutricional e agendamentos.', 'Nenhum acompanhamento disponível.', 'Orientações nutricionais aparecerão aqui quando forem disponibilizadas.', 'egg-fried'],
@@ -121,6 +120,17 @@ export function inicio(raiz, contexto) {
 }
 
 export function modulo(raiz, contexto, chave, nome) {
+  if (chave === 'treinos-extras') {
+    titulo(raiz, nome, 'Fichas personalizadas e documentos do personal trainer.');
+    const area = elemento('div');
+    raiz.append(area);
+    carregar(area, contexto, 'plano', async p => {
+      if (!eliteAtivo(p)) return area.replaceChildren(card('Materiais personalizados',
+        elemento('p', 'Disponíveis para alunos com plano Elite ativo.'), botao('Consultar meu plano', '#faturas')));
+      await materiaisProfissionais(area, contexto, 'personal', 'Fichas personalizadas');
+    });
+    return;
+  }
   const [subtitulo, vazio, explicacao, desenho] = modulos[chave];
   titulo(raiz, nome, subtitulo);
   if (chave === 'treinos') {
@@ -151,14 +161,6 @@ export function modulo(raiz, contexto, chave, nome) {
   const bloco = card(nome, corpo);
   bloco.prepend(icone(desenho));
   raiz.append(bloco);
-  if (chave === 'treinos-extras') {
-    const area = elemento('div');
-    raiz.append(area);
-    carregar(area, contexto, 'plano', async p => {
-      if (!eliteAtivo(p)) return area.replaceChildren(card('Materiais personalizados', elemento('p', 'Disponíveis para alunos com plano Elite ativo.'), botao('Consultar meu plano', '#faturas')));
-      await materiaisProfissionais(area, contexto, 'personal', 'Fichas personalizadas');
-    });
-  }
 }
 
 async function materiaisProfissionais(destino, contexto, tipo, tituloLista) {
