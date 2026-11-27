@@ -118,12 +118,13 @@ test('métodos acadêmicos compartilham reserva e isolam confirmação e histór
     assert.equal((await request('/api/admin/pagamentos', dono)).status, 403);
     const administrativo = await request('/api/admin/pagamentos', operador);
     assert.equal(administrativo.status, 200);
-    const registros = (await administrativo.json()).filter(t => t.usuario_id === dono.id);
-    assert.deepEqual(registros.map(t => t.tentativa.metodo).sort(), ['mercadopago_simulado', 'mercadopago_simulado', 'qr_krypton']);
-    assert.ok(registros.every(t => !Object.hasOwn(t, 'mp_payment_id')));
     const financeiros = await prisma.transacoes_pagamento.findMany({
-      where: { usuario_id: dono.id }, select: { origem: true, mp_payment_id: true },
+      where: { usuario_id: dono.id }, select: { id: true, origem: true, mp_payment_id: true },
     });
+    const idsFinanceiros = new Set(financeiros.map(t => t.id));
+    const registros = (await administrativo.json()).filter(t => idsFinanceiros.has(t.id));
+    assert.deepEqual(registros.map(t => t.tentativa.metodo).sort(), ['mercadopago_simulado', 'mercadopago_simulado', 'qr_krypton']);
+    assert.ok(registros.every(t => !Object.hasOwn(t, 'mp_payment_id') && !Object.hasOwn(t, 'usuario_id')));
     assert.ok(financeiros.every(t => t.origem !== 'mercadopago' && t.mp_payment_id.startsWith('demo_')));
     const disputa = await Promise.all([api('', outro, mp), api('', outro, qr)]);
     assert.deepEqual(disputa.map(r => r.status).sort(), [201, 409]);

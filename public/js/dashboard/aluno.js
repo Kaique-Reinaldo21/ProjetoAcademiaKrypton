@@ -1,3 +1,4 @@
+import { montarNotificacoes } from './notificacoes.js';
 import { api, criarDadosAluno } from './aluno-dados.js';
 import { configurarMenu, elemento, erro, estado, icone } from './design-system.js';
 import { agendamentos, configuracoes, faturas, inicio, modulo } from './aluno-views.js';
@@ -167,12 +168,14 @@ async function iniciar() {
   try {
     const { usuario } = await api('/api/auth/me');
     if (usuario.role === 'admin') return location.replace('/admin.html');
+    if (['recepcao', 'personal', 'nutricionista'].includes(usuario.role)) return location.replace('/profissional.html');
     if (usuario.role !== 'aluno') {
       conteudo.setAttribute('aria-busy', 'false');
       conteudo.replaceChildren(estado('Área restrita a alunos.'));
       return;
     }
     contexto.usuario = usuario;
+    montarNotificacoes();
     renderizar();
     verificarPagamento();
     contexto.dados.ler('perfil').then(perfil => {

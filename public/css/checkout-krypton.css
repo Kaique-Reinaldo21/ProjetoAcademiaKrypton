@@ -56,7 +56,7 @@ p { margin: 0 0 1rem; }
   .checkout-grid { grid-template-columns: 1fr; }
 }
 
-.metodos { border: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; padding: 0; margin: 1rem 0; }
+.metodos { border: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: .5rem; padding: 0; margin: 1rem 0; }
 .metodo { display: flex; align-items: center; justify-content: center; gap: .45rem; padding: .65rem .5rem; border: 1px solid var(--borda); border-radius: .6rem; font-weight: 800; cursor: pointer; }
 .metodo input { margin: 0; accent-color: var(--verde); }
 .metodo:has(:checked) { border-color: var(--verde); background: #193023; }
@@ -68,5 +68,4 @@ p { margin: 0 0 1rem; }
 .botao.primario-mp { color: #052031; background: #54c9ff; border-color: #54c9ff; }
 .nota-academica { margin: 1rem 0 0; }
 @media (max-width: 380px) {
-  .metodos { grid-template-columns: 1fr; }
 }

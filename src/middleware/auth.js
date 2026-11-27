@@ -19,14 +19,14 @@ export default async function authMiddleware(req, res, next) {
   try {
     usuario = await prisma.usuarios.findUnique({
       where: { id: payload.id },
-      select: { id: true, nome: true, email: true, role: true, versao_sessao: true, senha_redefinicao_obrigatoria: true },
+      select: { id: true, nome: true, email: true, role: true, profissional_ativo: true, versao_sessao: true, senha_redefinicao_obrigatoria: true },
     });
   } catch (erro) {
     console.error('Falha na consulta de sessão:', diagnosticarInicializacao(erro));
     return res.status(503).json({ erro: 'Serviço de autenticação indisponível.' });
   }
   // JWTs emitidos antes da migration têm implicitamente versão zero.
-  if (!usuario || usuario.senha_redefinicao_obrigatoria || usuario.versao_sessao !== (payload.versao_sessao ?? 0)) {
+  if (!usuario || !usuario.profissional_ativo || usuario.senha_redefinicao_obrigatoria || usuario.versao_sessao !== (payload.versao_sessao ?? 0)) {
     return res.status(401).json({ erro: 'Sessão expirada. Faça login novamente.' });
   }
   req.usuario = usuario;

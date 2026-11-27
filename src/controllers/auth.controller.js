@@ -100,7 +100,15 @@ export async function cadastrar(req, res) {
 // ─────────────────────────────────────────
 // Logout
 // ─────────────────────────────────────────
-export function logout(req, res) {
+export async function logout(req, res) {
+  const autorizacao = req.get('Authorization');
+  const token = autorizacao?.startsWith('Bearer ') ? autorizacao.slice(7) : req.cookies?.token;
+  try {
+    await authService.revogarSessao(token);
+  } catch (erro) {
+    console.error('Falha ao revogar sessão:', diagnosticarInicializacao(erro));
+    return res.status(503).json({ erro: 'Não foi possível encerrar a sessão. Tente novamente.' });
+  }
   res.clearCookie('token');
   res.clearCookie('connect.sid');
   return res.json({ mensagem: 'Logout realizado com sucesso' });

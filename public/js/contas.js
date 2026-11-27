@@ -115,7 +115,7 @@ async function carregarConta() {
     document.getElementById('conta-google').hidden = usuario.possuiSenhaLocal;
     document.getElementById('administracao').hidden = usuario.role !== 'admin' || !usuario.possuiSenhaLocal;
     const voltar = document.getElementById('voltar');
-    voltar.href = usuario.role === 'admin' ? '/admin.html' : '/dashboard.html';
+    voltar.href = usuario.role === 'admin' ? '/admin.html' : usuario.role === 'aluno' ? '/dashboard.html' : '/profissional.html';
     voltar.textContent = 'Voltar ao painel';
   } catch (erro) {
     mostrar(erro.message, true);

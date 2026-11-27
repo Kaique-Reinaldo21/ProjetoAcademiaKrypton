@@ -1,3 +1,4 @@
+import { agendaPainel, publicarNoAluno } from './profissionais-views.js';
 import { api, dia, eliteAtivo, enviar, profissional, quando, reais } from './aluno-dados.js';
 import { calendarioTreinos, historicoTreinos, registrarTreino } from './aluno-treinos.js';
 import { badge, elemento, erro, estado, icone } from './design-system.js';
@@ -120,7 +121,12 @@ export function inicio(raiz, contexto) {
 export function modulo(raiz, contexto, chave, nome) {
   const [subtitulo, vazio, explicacao, desenho] = modulos[chave];
   titulo(raiz, nome, subtitulo);
-  if (chave === 'treinos') raiz.append(card('Treino de hoje', registrarTreino()));
+  if (chave === 'treinos') {
+    const fichas = elemento('div');
+    raiz.append(card('Treino de hoje', registrarTreino()), card('Fichas do personal', fichas));
+    publicarNoAluno(fichas, 'personal');
+    return;
+  }
   if (chave === 'progresso') {
     raiz.append(card('Frequência semanal', calendarioTreinos()), card('Evolução da frequência', historicoTreinos()),
       card('Peso, medidas e avaliações', estado(vazio, explicacao)));
@@ -136,11 +142,9 @@ export function modulo(raiz, contexto, chave, nome) {
           botao('Conhecer ou alterar plano', '#faturas')));
         return;
       }
-      painel.replaceChildren(
-        card('Agendamento', botao('Agendar consulta', '#agendamentos')),
-        ...['Plano alimentar', 'Refeições', 'Receitas', 'Orientações do nutricionista', 'Documentos'].map(
-          nome => card(nome, estado('Nenhum material disponibilizado.'))),
-      );
+      const fichas = elemento('div');
+      painel.replaceChildren(card('Agendamento', botao('Agendar consulta', '#agendamentos')), card('Plano alimentar', fichas));
+      publicarNoAluno(fichas, 'nutricionista');
     });
     return;
   }
@@ -167,57 +171,20 @@ function feedback(form, texto, falhou = false) {
   node.dataset.tom = falhou ? 'erro' : 'positivo';
 }
 
-function formAgendamento(contexto, recarregar) {
-  const form = elemento('form', null, 'kd-form');
-  form.innerHTML = `
-    <label>Serviço<select class="kd-input" name="tipo"><option value="personal">Personal trainer</option><option value="nutricionista">Nutricionista</option></select></label>
-    <label>Data e hora<input class="kd-input" name="data_hora" type="datetime-local" required></label>
-    <label>Observação<textarea class="kd-input" name="observacao" rows="3"></textarea></label>
-    <div><button class="kd-button kd-button-primario">Agendar</button></div>
-    <p class="kd-feedback" role="status"></p>`;
-  form.addEventListener('submit', async evento => {
-    evento.preventDefault();
-    const dados = Object.fromEntries(new FormData(form));
-    const botao = form.querySelector('button');
-    botao.disabled = true;
-    try {
-      const data = new Date(dados.data_hora);
-      if (!Number.isFinite(+data) || data <= new Date()) throw new Error('Selecione uma data e hora futuras.');
-      await enviar('/api/usuario/agendamento', { ...dados, data_hora: data.toISOString() });
-      form.reset();
-      feedback(form, 'Agendamento realizado.');
-      contexto.dados.invalidar('agenda');
-      recarregar();
-    } catch (falha) {
-      feedback(form, falha.message, true);
-    } finally { botao.disabled = false; }
-  });
-  return form;
-}
-
 export function agendamentos(raiz, contexto) {
   titulo(raiz, 'Agendamentos', 'Consulte suas sessões e agende os serviços do plano Elite.');
-  const colunas = elemento('div', null, 'kd-grid kd-grid-dois');
-  const lista = elemento('div');
-  const formulario = elemento('div');
-  colunas.append(card('Minhas sessões', lista), card('Novo agendamento', formulario));
-  raiz.append(colunas);
-  const recarregar = () => carregar(lista, contexto, 'agenda', itens => {
-    if (!itens.length) return lista.replaceChildren(estado('Nenhuma sessão agendada.'));
-    const ul = elemento('ul', null, 'aluno-lista');
-    for (const item of itens) {
-      const li = elemento('li');
-      li.append(elemento('strong', profissional(item.tipo)), elemento('p', quando(item.data_hora), 'kd-texto-suave'));
-      if (item.observacao) li.append(elemento('p', item.observacao));
-      ul.append(li);
-    }
-    lista.replaceChildren(ul);
-  });
-  recarregar();
-  carregar(formulario, contexto, 'plano', p => {
-    formulario.replaceChildren(eliteAtivo(p) ? formAgendamento(contexto, recarregar) :
-      estado('Disponível no Elite ativo.', 'Você pode consultar suas sessões existentes nesta página.'));
-  });
+  const area = elemento('div');
+  raiz.append(area);
+  async function atualizar() {
+    area.replaceChildren(estado('Carregando consultas…'));
+    const conteudo = elemento('div');
+    try {
+      const plano = await contexto.dados.ler('plano');
+      await agendaPainel(conteudo, contexto.usuario, atualizar, eliteAtivo(plano));
+      area.replaceChildren(conteudo);
+    } catch { erro(area, 'Não foi possível consultar a agenda.', atualizar); }
+  }
+  atualizar();
 }
 
 function tabelaHistorico(lista) {
@@ -228,7 +195,7 @@ function tabelaHistorico(lista) {
   }
   area.innerHTML = `
     <div class="kd-form aluno-filtros">
-      <label><span id="rotulo-metodo">Método</span><select aria-labelledby="rotulo-metodo" class="kd-input" name="metodo"><option value="">Todos os métodos</option><option value="qr_krypton">QR Code Krypton</option><option value="mercadopago_simulado">Mercado Pago simulado</option><option value="mercadopago">Mercado Pago financeiro</option></select></label>
+      <label><span id="rotulo-metodo">Método</span><select aria-labelledby="rotulo-metodo" class="kd-input" name="metodo"><option value="">Todos os métodos</option><option value="qr_krypton">QR Code Krypton</option><option value="mercadopago_simulado">Mercado Pago simulado</option><option value="mercadopago_teste">Mercado Pago teste externo</option><option value="mercadopago">Mercado Pago financeiro</option></select></label>
       <label><span id="rotulo-status">Status</span><select aria-labelledby="rotulo-status" class="kd-input" name="status"><option value="">Todos os estados</option><option value="approved">Aprovada</option><option value="pending">Pendente</option><option value="rejected">Recusada</option></select></label>
     </div>
     <div class="kd-tabela-scroll" tabindex="0" aria-label="Extrato de transações">
@@ -242,7 +209,7 @@ function tabelaHistorico(lista) {
   const corpo = area.querySelector('tbody');
   const tipo = area.querySelector('[name="metodo"]');
   const status = area.querySelector('[name="status"]');
-  const metodo = t => t.tentativa?.metodo || (t.origem === 'demo' ? 'qr_krypton' : t.origem === 'demo_mercadopago' ? 'mercadopago_simulado' : t.origem);
+  const metodo = t => t.origem === 'mercadopago_test' ? 'mercadopago_teste' : t.tentativa?.metodo || (t.origem === 'demo' ? 'qr_krypton' : t.origem === 'demo_mercadopago' ? 'mercadopago_simulado' : t.origem);
   const temSimulacao = lista.some(t => ['demo', 'demo_mercadopago'].includes(t.origem));
   const temFinanceiro = lista.some(t => t.origem === 'mercadopago');
   if (temSimulacao) area.prepend(elemento('p', temFinanceiro
@@ -252,10 +219,13 @@ function tabelaHistorico(lista) {
   function filtrar() {
     corpo.replaceChildren();
     const itens = lista.filter(t => (!tipo.value || tipo.value === metodo(t)) && (!status.value || status.value === t.status));
+    const nomes = {
+      qr_krypton: 'PIX Krypton', mercadopago_simulado: 'Mercado Pago simulado',
+      mercadopago_teste: 'Mercado Pago teste externo', mercadopago: 'Mercado Pago',
+    };
     for (const t of itens) {
       const tr = elemento('tr');
-      const nome = metodo(t) === 'qr_krypton' ? 'QR Code Krypton' :
-        metodo(t) === 'mercadopago_simulado' && temFinanceiro ? 'Mercado Pago simulado' : 'Mercado Pago';
+      const nome = nomes[metodo(t)] || 'Outro método';
       for (const texto of [dia(t.criado_em), nome, planos[t.tentativa?.tipo] || '—', reais(t.valor_centavos)]) {
         tr.append(elemento('td', texto));
       }
