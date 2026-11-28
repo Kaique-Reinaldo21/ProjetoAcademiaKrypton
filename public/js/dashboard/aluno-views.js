@@ -1,4 +1,4 @@
-import { agendaPainel, publicarNoAluno } from './profissionais-views.js';
+import { agendaPainel, fichaPublicada } from './profissionais-views.js';
 import { api, dia, eliteAtivo, profissional, quando, reais } from './aluno-dados.js';
 import { calendarioTreinos, historicoTreinos, registrarTreino } from './aluno-treinos.js';
 import { badge, elemento, erro, estado, icone } from './design-system.js';
@@ -15,7 +15,6 @@ const situacoesTransacao = {
 const situacoesDocumento = { processando: ['Processando', 'atencao'], disponivel: ['Disponível', 'positivo'], falhou: ['Falha no processamento', 'erro'] };
 const modulos = {
   treinos: ['Planos de treino e sessões da academia.', 'Nenhum treino registrado.', 'Sua rotina aparecerá aqui quando houver treinos cadastrados.', 'lightning-charge'],
-  'treinos-extras': ['Atividades complementares e acesso a treinos com personal.', 'Nenhum treino extra registrado.', 'Os treinos complementares aparecerão nesta seção.', 'plus-square'],
   avaliacoes: ['Resultados e registros de avaliações físicas.', 'Nenhuma avaliação disponível.', 'Quando uma avaliação for registrada, você poderá consultá-la aqui.', 'clipboard2-pulse'],
   progresso: ['Acompanhe a frequência e suas medições.', 'Sem medições no momento.', 'Quando houver registros, eles aparecerão aqui.', 'graph-up-arrow'],
   nutricao: ['Acompanhamento nutricional e agendamentos.', 'Nenhum acompanhamento disponível.', 'Orientações nutricionais aparecerão aqui quando forem disponibilizadas.', 'egg-fried'],
@@ -121,12 +120,21 @@ export function inicio(raiz, contexto) {
 }
 
 export function modulo(raiz, contexto, chave, nome) {
+  if (chave === 'treinos-extras') {
+    titulo(raiz, nome, 'Fichas personalizadas e documentos do personal trainer.');
+    const area = elemento('div');
+    raiz.append(area);
+    carregar(area, contexto, 'plano', async p => {
+      if (!eliteAtivo(p)) return area.replaceChildren(card('Materiais personalizados',
+        elemento('p', 'Disponíveis para alunos com plano Elite ativo.'), botao('Consultar meu plano', '#faturas')));
+      await materiaisProfissionais(area, contexto, 'personal', 'Fichas personalizadas');
+    });
+    return;
+  }
   const [subtitulo, vazio, explicacao, desenho] = modulos[chave];
   titulo(raiz, nome, subtitulo);
   if (chave === 'treinos') {
-    const fichas = elemento('div');
-    raiz.append(card('Treino de hoje', registrarTreino()), card('Fichas do personal', fichas));
-    publicarNoAluno(fichas, 'personal');
+    raiz.append(card('Treino de hoje', registrarTreino()));
     return;
   }
   if (chave === 'progresso') {
@@ -135,18 +143,17 @@ export function modulo(raiz, contexto, chave, nome) {
     return;
   }
   if (chave === 'nutricao') {
-    const painel = elemento('div', null, 'kd-grid kd-grid-dois');
+    const painel = elemento('div');
     raiz.append(painel);
-    carregar(painel, contexto, 'plano', p => {
+    carregar(painel, contexto, 'plano', async p => {
       if (!eliteAtivo(p)) {
         painel.replaceChildren(card('Acompanhamento com o Elite',
           elemento('p', 'O Elite inclui consultas com nutricionista e acesso aos materiais personalizados quando disponibilizados.'),
           botao('Conhecer ou alterar plano', '#faturas')));
         return;
       }
-      const fichas = elemento('div');
-      painel.replaceChildren(card('Agendamento', botao('Agendar consulta', '#agendamentos')), card('Plano alimentar', fichas));
-      publicarNoAluno(fichas, 'nutricionista');
+      painel.replaceChildren(card('Agendamento', botao('Agendar consulta', '#agendamentos')));
+      await materiaisProfissionais(painel, contexto, 'nutricionista', 'Planos alimentares');
     });
     return;
   }
@@ -154,32 +161,74 @@ export function modulo(raiz, contexto, chave, nome) {
   const bloco = card(nome, corpo);
   bloco.prepend(icone(desenho));
   raiz.append(bloco);
-  if (chave === 'treinos-extras') {
-    const acesso = elemento('section', null, 'aluno-area');
-    raiz.append(acesso);
-    carregar(acesso, contexto, 'plano', p => {
-      const habilitado = eliteAtivo(p);
-      const servico = 'Treino com personal trainer';
-      acesso.replaceChildren(card(servico,
-        elemento('p', habilitado ? 'Disponível com seu plano Elite ativo.' : 'Disponível para alunos com plano Elite ativo.', 'kd-texto-suave'),
-        habilitado ? botao('Abrir agendamentos', '#agendamentos') : botao('Consultar meu plano', '#faturas')));
-    });
-  }
+}
+
+async function materiaisProfissionais(destino, contexto, tipo, tituloLista) {
+  const atualizar = elemento('button', 'Atualizar materiais', 'kd-button');
+  atualizar.type = 'button';
+  const lista = elemento('div');
+  const carregarMateriais = async () => {
+    lista.replaceChildren(estado('Carregando materiais…'));
+    try {
+      const [fichas, documentos] = await Promise.all([
+        api('/api/profissionais/fichas?tipo=' + tipo), api('/api/profissionais/documentos'),
+      ]);
+      lista.replaceChildren();
+      const pdfs = documentos.filter(item => item.tipo === tipo);
+      if (!fichas.length && !pdfs.length) return lista.append(estado('Nenhum material disponível.', 'Quando o profissional publicar materiais, eles aparecerão aqui.'));
+      const blocoFichas = card(tituloLista);
+      for (const ficha of fichas) {
+        const registro = fichaPublicada(ficha);
+        const profissionalNome = ficha.profissional?.nome || 'Profissional vinculado';
+        registro.prepend(elemento('p', `${profissionalNome} · Atualizada em ${dia(ficha.atualizado_em || ficha.criado_em)}`, 'kd-texto-suave'));
+        blocoFichas.append(registro);
+      }
+      if (fichas.length) lista.append(blocoFichas);
+      for (const documento of pdfs) {
+        const registro = card(documento.titulo,
+          elemento('p', `${documento.profissional?.nome || 'Profissional vinculado'} · ${dia(documento.disponibilizado_em || documento.criado_em)}`, 'kd-texto-suave'),
+          badge(...(situacoesDocumento[documento.situacao] || [documento.situacao])));
+        if (documento.situacao === 'disponivel') {
+          const baixar = elemento('button', 'Baixar PDF', 'kd-button kd-button-primario');
+          baixar.type = 'button';
+          baixar.addEventListener('click', async () => {
+            baixar.disabled = true;
+            try {
+              const arquivo = await api(`/api/profissionais/documentos/${documento.id}/arquivo`);
+              const url = URL.createObjectURL(arquivo); const link = elemento('a', '');
+              link.href = url; link.download = `krypton-documento-${documento.id}.pdf`;
+              document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 60_000);
+            } catch (falha) { erro(registro, falha.message, carregarMateriais); }
+            finally { baixar.disabled = false; }
+          });
+          registro.append(baixar);
+        }
+        lista.append(registro);
+      }
+    } catch (falha) { erro(lista, falha.message, carregarMateriais); }
+  };
+  atualizar.addEventListener('click', carregarMateriais);
+  destino.append(card(tituloLista, atualizar), lista);
+  await carregarMateriais();
 }
 
 export async function documentos(raiz) {
   titulo(raiz, 'Documentos profissionais', 'Consulte e baixe os materiais disponibilizados pelos profissionais vinculados.');
   const area = elemento('div');
+  const filtro = elemento('select', null, 'kd-input');
+  filtro.setAttribute('aria-label', 'Filtrar documentos por categoria');
+  for (const [valor, texto] of [['todos', 'Todos os documentos'], ['personal', 'Treino'], ['nutricionista', 'Alimentação']]) filtro.append(new Option(texto, valor));
   const atualizar = elemento('button', 'Atualizar status', 'kd-button');
   atualizar.type = 'button';
   atualizar.addEventListener('click', carregar);
-  raiz.append(atualizar, area);
+  filtro.addEventListener('change', carregar);
+  raiz.append(filtro, atualizar, area);
   await carregar();
 
   async function carregar() {
     area.replaceChildren(estado('Carregando documentos…'));
     try {
-      const itens = await api('/api/profissionais/documentos');
+      const itens = (await api('/api/profissionais/documentos')).filter(item => filtro.value === 'todos' || item.tipo === filtro.value);
       area.replaceChildren();
       if (!itens.length) return area.append(estado('Nenhum documento profissional disponível.', 'Quando um profissional publicar um documento, ele aparecerá aqui.'));
       for (const documento of itens) {

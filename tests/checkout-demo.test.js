@@ -55,9 +55,13 @@ test('modo demo exige desenvolvimento e o endereço do banco exato', () => {
   for (const alteracao of [{ NODE_ENV: 'production' }, { PAYMENT_MODE: 'real' }, { DATABASE_URL: 'mysql://u:p@localhost:3307/academia_kripton_checkout_test' }, { DATABASE_URL: 'mysql://u:p@127.0.0.1:3306/academia_kripton_checkout_test' }, { DATABASE_URL: 'mysql://u:p@127.0.0.1:3307/academia_kripton' }, { DATABASE_URL: env.DATABASE_URL + '?socket=x' }]) assert.throws(() => validarModoDemo({ ...env, ...alteracao }), e => e.status === 403);
 });
 function cenario() {
-  const tentativas = [], transacoes = [], planos = [{ id: 1, usuario_id: 1, ativo: true, tipo: 'basico' }];
+  const tentativas = [], transacoes = [], planos = [{ id: 1, usuario_id: 1, ativo: true, tipo: 'basico', unidade_id: 1 }];
+  const auditorias = [];
   const db = {
-    $queryRaw: async () => [], usuarios: { findUnique: async ({ where }) => where.id === 1 ? { id: 1, role: 'aluno' } : null }, unidades: { findUnique: async () => ({ id: 1 }) },
+    $queryRaw: async () => [], usuarios: {
+      findUnique: async ({ where }) => where.id === 1 ? { id: 1, role: 'aluno' } : null,
+      findFirst: async ({ where }) => where.id === 1 && where.role === 'aluno' ? { id: 1 } : where.id === 9 && where.role === 'recepcao' ? { id: 9 } : null,
+    }, unidades: { findUnique: async () => ({ id: 1 }) },
     checkout_tentativas: {
       findFirst: async ({ where }) => tentativas.find(t => t.usuario_id === where.usuario_id && where.status.in.includes(t.status)),
       create: async ({ data }) => { tentativas.push({ ...data }); },
@@ -69,10 +73,12 @@ function cenario() {
       update: async ({ where, data }) => Object.assign(transacoes.find(t => t.id === where.id), data),
       findMany: async () => transacoes,
     },
-    planos: { updateMany: async ({ where }) => planos.filter(p => p.usuario_id === where.usuario_id && p.ativo).forEach(p => { p.ativo = false; }), create: async ({ data }) => { const p = { id: planos.length + 1, ...data }; planos.push(p); return p; } },
+    planos: { findFirst: async ({ where }) => planos.find(p => p.usuario_id === where.usuario_id && p.ativo) || null,
+      updateMany: async ({ where }) => planos.filter(p => p.usuario_id === where.usuario_id && p.ativo).forEach(p => { p.ativo = false; }), create: async ({ data }) => { const p = { id: planos.length + 1, ...data }; planos.push(p); return p; } },
+    auditoria_contas: { create: async ({ data }) => { auditorias.push(data); return data; } },
   };
   let fila = Promise.resolve(); db.$transaction = async fn => { let liberar; const anterior = fila; fila = new Promise(resolve => { liberar = resolve; }); await anterior; try { return await fn(db); } finally { liberar(); } };
-  return { servico: criarServicoDemo(db, () => validarModoDemo(env)), planos, transacoes, tentativas };
+  return { servico: criarServicoDemo(db, () => validarModoDemo(env)), planos, transacoes, tentativas, auditorias };
 }
 test('pendente e recusa preservam plano e registram uma transação', async () => {
   const c = cenario(), r = await c.servico.iniciar(1, 'pro');
@@ -83,6 +89,32 @@ test('pendente e recusa preservam plano e registram uma transação', async () =
   assert.equal(c.transacoes[0].status, 'rejected'); assert.equal(c.planos.length, 1);
   await c.servico.decidir(1, r.tentativaId, 'aprovar');
   assert.equal(c.transacoes[0].status, 'rejected');
+});
+
+test('matrícula presencial só confirma no modo demo, exige aceite e audita o operador', async t => {
+  const c = cenario();
+  const anterior = process.env.PAYMENT_MODE;
+  process.env.PAYMENT_MODE = 'demo';
+  t.after(() => { if (anterior === undefined) delete process.env.PAYMENT_MODE; else process.env.PAYMENT_MODE = anterior; });
+  await assert.rejects(c.servico.matriculaPresencial({ id: 9, role: 'recepcao' }, { aluno_id: 1, tipoPlano: 'pro' }), e => e.status === 403);
+  await assert.rejects(c.servico.matriculaPresencial({ id: 9, role: 'recepcao' }, { aluno_id: 1, tipoPlano: 'basico', unidade_id: 1, confirmacao: true }), e => e.status === 409);
+  const resultado = await c.servico.matriculaPresencial({ id: 9, role: 'recepcao' }, { aluno_id: 1, tipoPlano: 'elite', confirmacao: true });
+  assert.equal(resultado.status, 'approved');
+  assert.equal(resultado.origem, 'demo');
+  assert.equal(c.transacoes.at(-1).origem, 'demo');
+  assert.equal(c.transacoes.at(-1).status, 'approved');
+  assert.equal(c.planos.at(-1).tipo, 'elite');
+  assert.deepEqual(c.auditorias.at(-1), { autor_id: 9, usuario_id: 1, evento: 'matricula_presencial_demo' });
+});
+
+test('matrícula presencial bloqueia modo real e não chama provedor externo', async t => {
+  const c = cenario();
+  const anterior = process.env.PAYMENT_MODE;
+  process.env.PAYMENT_MODE = 'real';
+  t.after(() => { if (anterior === undefined) delete process.env.PAYMENT_MODE; else process.env.PAYMENT_MODE = anterior; });
+  await assert.rejects(c.servico.matriculaPresencial({ id: 9, role: 'recepcao' }, { aluno_id: 1, tipoPlano: 'pro', confirmacao: true }), e => e.status === 403);
+  assert.equal(c.transacoes.length, 0);
+  assert.equal(c.auditorias.length, 0);
 });
 test('aprovação concorrente troca plano uma vez e verifica proprietário', async () => {
   const c = cenario(), r = await c.servico.iniciar(1, 'elite');

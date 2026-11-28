@@ -20,6 +20,7 @@ test('perfis, agenda, fichas e worker persistem em MySQL descartável', async t 
   assert.ok(semRede);
   const { default: compartilhado } = await import('../src/lib/prisma.js');
   const { criarRotasProfissionais } = await import('../src/routes/perfis-profissionais.routes.js');
+  const { criarServicoDemo } = await import('../src/services/checkout-demo.service.js');
   const { processarUmaVez } = await import('../src/workers/notificacoes.worker.js');
   const { adquirir, enfileirar } = await import('../src/queues/notificacoes.queue.js');
   const { processarNotificacao } = await import('../src/jobs/notificacoes.job.js');
@@ -28,7 +29,7 @@ test('perfis, agenda, fichas e worker persistem em MySQL descartável', async t 
 
   const host = express();
   host.use(express.json());
-  host.use('/profissionais', criarRotasProfissionais());
+  host.use('/profissionais', criarRotasProfissionais({ checkoutDemo: criarServicoDemo(db, () => {}) }));
   host.use('/auth', authRoutes);
   const servidor = await new Promise(resolve => { const s = host.listen(0, '127.0.0.1', () => resolve(s)); });
   t.after(async () => {
@@ -148,6 +149,17 @@ test('perfis, agenda, fichas e worker persistem em MySQL descartável', async t 
   await api(p, '/agenda/' + operacao.id, 'PATCH', { acao: 'concluir' });
   await api(r, '/recepcao', 'POST', { aluno_id: a.id, unidade_id: unidade.id, motivo: 'Atendimento fictício' }, 201);
   assert.equal((await api(r, '/recepcao')).ultimos.length, 1);
+  await api(r, '/recepcao/matricula-simulada', 'POST', { aluno_id: b.id, tipoPlano: 'basico', unidade_id: unidade.id }, 403);
+  const matricula = await api(r, '/recepcao/matricula-simulada', 'POST', { aluno_id: b.id, tipoPlano: 'basico', unidade_id: unidade.id, confirmacao: true }, 201);
+  assert.equal(matricula.origem, 'demo');
+  const tentativaMatricula = await db.checkout_tentativas.findUnique({ where: { id: matricula.tentativaId } });
+  const transacaoMatricula = await db.transacoes_pagamento.findFirst({ where: { tentativa_id: matricula.tentativaId } });
+  const auditoriaMatricula = await db.auditoria_contas.findFirst({ where: { usuario_id: b.id, evento: 'matricula_presencial_demo' } });
+  assert.equal(tentativaMatricula.status, 'confirmado');
+  assert.equal(transacaoMatricula.status, 'approved');
+  assert.equal(transacaoMatricula.origem, 'demo');
+  assert.equal(auditoriaMatricula.autor_id, r.id);
+  assert.equal(auditoriaMatricula.usuario_id, b.id);
   assert.deepEqual(await api(q, '/agenda'), []);
 
   const pendentes = await db.jobs.count();
@@ -185,6 +197,17 @@ test('perfis, agenda, fichas e worker persistem em MySQL descartável', async t 
   for (const categoria of ['consulta_agendada','consulta_confirmada','consulta_reagendada','consulta_cancelada','treino_publicado','treino_atualizado','alimentacao_publicada']) {
     assert.ok(minhas.itens.some(i => i.categoria === categoria), categoria);
   }
+  for (const categoria of ['treino_publicado', 'treino_atualizado']) {
+    assert.equal(minhas.itens.find(i => i.categoria === categoria).destino, '/dashboard.html#treinos-extras');
+  }
+  const legadoDocumento = await db.jobs.create({ data: {
+    tipo: 'documento_disponivel', payload: { destinatarios: [a.id] }, situacao: 'processando', tentativas: 1, limite: 5,
+    bloqueio: '11111111-1111-4111-8111-111111111111', bloqueado_ate: new Date(Date.now() + 60_000),
+    idempotencia: 'documento-job-legado-sem-categoria',
+  } });
+  await processarNotificacao(db, legadoDocumento);
+  const notificacaoLegada = await db.notificacoes.findFirst({ where: { job_id: legadoDocumento.id } });
+  assert.equal(notificacaoLegada.destino, '/dashboard.html#arquivos');
   assert.ok((await api(r, '/notificacoes')).itens.every(i => i.categoria.startsWith('consulta')));
   await api(b, '/notificacoes/' + minhas.itens[0].id, 'PATCH', {}, 404);
   await api(a, '/notificacoes/' + minhas.itens[0].id, 'PATCH', {});

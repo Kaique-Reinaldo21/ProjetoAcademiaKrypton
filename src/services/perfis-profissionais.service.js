@@ -141,11 +141,14 @@ export function criarServicoProfissionais(db = prisma) {
           return { vinculado: false };
         }
         if (!await tx.usuarios.findFirst({ where: { id: profissionalId, role: { in: especialistas }, profissional_ativo: true }, select: { id: true } })) recusar(404, 'Especialista indisponível.');
+        const existente = await tx.vinculos_profissionais.findUnique({
+          where: { aluno_id_profissional_id: { aluno_id: alunoId, profissional_id: profissionalId } }, select: { aluno_id: true },
+        });
         await tx.vinculos_profissionais.upsert({
           where: { aluno_id_profissional_id: { aluno_id: alunoId, profissional_id: profissionalId } },
           create: { aluno_id: alunoId, profissional_id: profissionalId }, update: {},
         });
-        return { vinculado: true };
+        return { vinculado: true, existente: Boolean(existente) };
       });
     },
     async buscarAlunos(busca, vencendo = false) {
@@ -269,24 +272,43 @@ export function criarServicoProfissionais(db = prisma) {
       if (unidade_id && !await db.unidades.findUnique({ where: { id: unidade_id }, select: { id: true } })) recusar(404, 'Unidade não encontrada.');
       return db.atendimentos_recepcao.create({ data: { aluno_id: alunoId, autor_id: ator.id, unidade_id, motivo: texto(body.motivo, 160) } });
     },
-    async resumoRecepcao() {
+    async resumoRecepcao(filtros = {}) {
       const inicio = new Date();
       inicio.setUTCHours(0, 0, 0, 0);
       const hoje = await db.atendimentos_recepcao.count({ where: { criado_em: { gte: inicio } } });
       const consultas = await db.agendamentos.count({ where: { data_hora: { gte: new Date() }, situacao: { in: ['agendado', 'confirmado'] } } });
-      const ultimos = await db.atendimentos_recepcao.findMany({ take: 15, orderBy: { id: 'desc' },
+      const cadastrosRecentes = await db.usuarios.findMany({ where: { role: 'aluno' }, take: 10, orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
+        select: { id: true, nome: true, created_at: true } });
+      const matriculasRecentes = await db.planos.findMany({ where: { usuarios: { role: 'aluno' } }, take: 10, orderBy: [{ updated_at: 'desc' }, { id: 'desc' }],
+        select: { id: true, tipo: true, ativo: true, inicio: true, vencimento: true, unidade_id: true, usuarios: { select: alunoPublico } } });
+      const busca = typeof filtros.busca === 'string' ? filtros.busca.trim().slice(0, 120) : '';
+      const parseDia = valor => {
+        if (!valor) return undefined;
+        if (typeof valor !== 'string' || !/^\d{4}-\d\d-\d\d$/.test(valor)) recusar(400, 'Período inválido.');
+        const data = new Date(`${valor}T00:00:00.000Z`);
+        if (!Number.isFinite(data.valueOf()) || data.toISOString().slice(0, 10) !== valor) recusar(400, 'Período inválido.');
+        return data;
+      };
+      const de = parseDia(filtros.de), ate = parseDia(filtros.ate);
+      if (de && ate && de > ate) recusar(400, 'O início do período deve anteceder o fim.');
+      if (de) de.setUTCHours(0, 0, 0, 0);
+      if (ate) ate.setUTCHours(23, 59, 59, 999);
+      const ultimos = await db.atendimentos_recepcao.findMany({ take: 100, orderBy: { id: 'desc' },
+        where: { ...(busca && { aluno: { nome: { contains: busca }, role: 'aluno' } }),
+          ...((de || ate) && { criado_em: { ...(de && { gte: de }), ...(ate && { lte: ate }) } }) },
         select: { id: true, motivo: true, criado_em: true, aluno: { select: alunoPublico }, unidade: { select: { nome: true } } } });
-      return { hoje, consultas, ultimos };
+      return { hoje, consultas, ultimos, cadastrosRecentes, matriculasRecentes };
     },
     async listarFichas(ator, tipo) {
       if (ator.role === 'aluno') {
         if (!especialistas.includes(tipo)) recusar(400, 'Tipo inválido.');
         if (!planoElite(await plano(db, ator.id))) return [];
-        return db.fichas_profissionais.findMany({ where: { aluno_id: ator.id, tipo }, orderBy: { atualizado_em: 'desc' }, take: 100 });
+        return db.fichas_profissionais.findMany({ where: { aluno_id: ator.id, tipo }, orderBy: { atualizado_em: 'desc' }, take: 100,
+          include: { profissional: { select: { nome: true } } } });
       }
       return db.fichas_profissionais.findMany({ where: { profissional_id: ator.id, tipo: ator.role,
         aluno: { vinculos_aluno: { some: { profissional_id: ator.id } } },
-      }, orderBy: { atualizado_em: 'desc' }, take: 100 });
+      }, orderBy: { atualizado_em: 'desc' }, take: 100, include: { profissional: { select: { nome: true } } } });
     },
     async salvarFicha(ator, body, fichaId) {
       const alunoId = id(body.aluno_id);

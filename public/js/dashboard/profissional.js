@@ -249,11 +249,12 @@ async function documentosProfissionais(area) {
 
 async function recepcaoInicio(area) {
   titulo(area, 'Visão geral', 'Indicadores operacionais da recepção.');
-  const [{ hoje, consultas, ultimos }, vencendo, catalogo] = await Promise.all([ler('/recepcao'), ler(rotaAluno({ vencendo: '30' })), api('/api/unidades')]);
+  const [{ hoje, consultas, ultimos, cadastrosRecentes, matriculasRecentes }, vencendo, catalogo] = await Promise.all([ler('/recepcao'), ler(rotaAluno({ vencendo: '30' })), api('/api/unidades')]);
   area.append(elemento('p', `Olá, ${usuario.nome}.`, 'kd-sauda'));
   const indicadores = elemento('div', null, 'kd-grid kd-grid-indicadores');
   indicadores.append(indicador('Atendimentos hoje', hoje), indicador('Próximas consultas', consultas), indicador('Planos próximos ao vencimento', vencendo.length));
   area.append(indicadores, bloco('Atalhos', atalho('Pesquisar alunos', 'alunos', 'people'), atalho('Cadastrar aluno', 'novo-aluno', 'person-plus'),
+    atalho('Registrar atendimento', 'atendimentos', 'clipboard-check'), atalho('Consultar atendimentos', 'atendimentos', 'clock-history'),
     atalho('Abrir agendamentos', 'agenda', 'calendar3'), atalho('Consultar unidades', 'unidades', 'geo-alt')));
   const lista = bloco('Planos com vencimento próximo');
   renderAlunos(lista, vencendo, catalogo.unidades);
@@ -261,7 +262,13 @@ async function recepcaoInicio(area) {
   const atendimentos = bloco('Atendimentos recentes');
   if (!ultimos.length) atendimentos.append(listaVazia('Nenhum atendimento registrado.'));
   else for (const registro of ultimos) atendimentos.append(elemento('p', [registro.aluno.nome, registro.unidade?.nome, registro.motivo, dataLocal(registro.criado_em)].filter(Boolean).join(' · ')));
-  area.append(atendimentos);
+  const cadastros = bloco('Cadastros recentes');
+  if (!cadastrosRecentes?.length) cadastros.append(listaVazia('Nenhum cadastro de aluno recente.'));
+  else for (const registro of cadastrosRecentes) cadastros.append(elemento('p', `${registro.nome} · cadastro ${registro.created_at ? dataLocal(registro.created_at) : 'data não disponível'}`));
+  const matriculas = bloco('Matrículas registradas');
+  if (!matriculasRecentes?.length) matriculas.append(listaVazia('Nenhuma matrícula registrada.'));
+  else for (const registro of matriculasRecentes) matriculas.append(elemento('p', `${registro.usuarios.nome} · ${registro.tipo} · ${registro.ativo ? 'ativa' : 'inativa'} · início ${dataLocal(registro.inicio)}`));
+  area.append(atendimentos, cadastros, matriculas);
 }
 
 async function novoAluno(area) {
@@ -276,12 +283,66 @@ async function novoAluno(area) {
     senha, elemento('p', 'A senha deve ter pelo menos 6 caracteres e até 72 bytes UTF-8.', 'kd-texto-suave'),
   ], 'Cadastrar aluno', async dados => {
     const resposta = await salvar('/recepcao/alunos', dados);
-    area.replaceChildren(elemento('p', `Cadastro realizado para ${resposta.nome}. O aluno pode entrar com o e-mail informado e a senha definida no cadastro.`, 'kd-estado'));
+    area.replaceChildren(elemento('p', `Cadastro realizado para ${resposta.nome}. O aluno pode entrar com sua própria conta.`, 'kd-estado'));
+    try {
+      const { unidades } = await api('/api/unidades');
+      area.append(bloco('Contratação simulada após o cadastro', elemento('p', 'A recepção continua autenticada em sua própria conta. A matrícula é simulada, exige confirmação e fica registrada com o responsável.'),
+        await formularioMatricula([resposta], unidades)));
+    } catch { area.append(elemento('p', 'O cadastro foi concluído; não foi possível carregar as unidades para a contratação simulada.', 'kd-feedback')); }
   })));
 }
 
+async function formularioMatricula(alunos, unidades) {
+  const campoBusca = campo('busca_aluno', 'Pesquisar aluno por nome', 'search', '', true);
+  const entradaBusca = campoBusca.querySelector('input');
+  const seletorAluno = escolha('aluno_id', 'Aluno', alunos.map(a => [a.id, a.nome]));
+  const entradaAluno = seletorAluno.querySelector('select');
+  const statusBusca = elemento('p'); statusBusca.setAttribute('role', 'status');
+  let sequenciaBusca = 0;
+  let timerBusca;
+  entradaBusca.addEventListener('input', () => {
+    clearTimeout(timerBusca);
+    const sequencia = ++sequenciaBusca;
+    timerBusca = setTimeout(async () => {
+      const termo = entradaBusca.value.trim();
+      if (!termo) {
+        entradaAluno.replaceChildren(new Option('Selecione', ''), ...alunos.map(a => new Option(a.nome, a.id)));
+        statusBusca.textContent = '';
+        return;
+      }
+      entradaAluno.replaceChildren(new Option('Buscando…', ''));
+      try {
+        const encontrados = await ler('/alunos?busca=' + encodeURIComponent(termo));
+        if (sequencia !== sequenciaBusca) return;
+        entradaAluno.replaceChildren(new Option(encontrados.length ? 'Selecione' : 'Nenhum aluno encontrado', ''), ...encontrados.map(a => new Option(a.nome, a.id)));
+        statusBusca.textContent = encontrados.length ? `${encontrados.length} resultados.` : 'Nenhum aluno encontrado.';
+      } catch (falha) { statusBusca.textContent = falha.message; }
+    }, 250);
+  });
+  const campoPlano = escolha('tipoPlano', 'Plano', [['basico', 'Básico'], ['pro', 'Pro'], ['elite', 'Elite']]);
+  const campoUnidade = escolha('unidade_id', 'Unidade (obrigatória no Básico)', unidades.map(u => [u.id, u.nome]), '', true);
+  const seletorUnidade = campoUnidade.querySelector('select');
+  const alternarUnidade = () => { const exige = campoPlano.querySelector('select').value === 'basico'; seletorUnidade.required = exige; campoUnidade.hidden = !exige; };
+  campoPlano.querySelector('select').addEventListener('change', alternarUnidade);
+  alternarUnidade();
+  const campos = [
+    campoBusca, seletorAluno, statusBusca,
+    campoPlano, campoUnidade,
+  ];
+  const confirmar = elemento('input'); confirmar.type = 'checkbox'; confirmar.required = true; confirmar.name = 'confirmacao';
+  const confirmacao = elemento('label', 'Confirmo que o aluno autorizou esta contratação simulada. Nenhuma cobrança real será realizada.');
+  confirmacao.prepend(confirmar); campos.push(confirmacao);
+  return formulario(campos, 'Confirmar matrícula simulada', async dados => {
+    await salvar('/recepcao/matricula-simulada', {
+      aluno_id: dados.aluno_id, tipoPlano: dados.tipoPlano, unidade_id: dados.unidade_id,
+      confirmacao: confirmar.checked,
+    });
+    await renderizar();
+  });
+}
+
 async function planosRecepcao(area) {
-  titulo(area, 'Planos e matrículas', 'Consulte valores e situação. A contratação deve ser confirmada pelo próprio aluno em sua conta.');
+  titulo(area, 'Planos e matrículas', 'Consulte valores e situação; no modo acadêmico demo, a recepção pode registrar matrícula simulada com confirmação.');
   const tipos = ['basico', 'pro', 'elite'];
   const planos = await Promise.all(tipos.map(async tipo => api('/api/checkout/demo/planos/' + tipo)));
   const cards = elemento('div', null, 'kd-grid kd-grid-indicadores');
@@ -291,7 +352,8 @@ async function planosRecepcao(area) {
   const { unidades } = await api('/api/unidades');
   const matriculas = bloco('Matrículas e situação atual');
   renderAlunos(matriculas, alunos, unidades);
-  area.append(cards, matriculas, bloco('Orientação de contratação', elemento('p', 'A recepção pode explicar os planos e encaminhar o aluno ao checkout. O aluno deve entrar em sua própria conta e confirmar a contratação; esta tela não inicia pagamentos nem altera matrículas.')));
+  area.append(cards, matriculas, bloco('Matrícula presencial', elemento('p', 'A recepção permanece autenticada na própria conta. A contratação abaixo é exclusivamente simulada, exige confirmação explícita e registra a pessoa responsável; fora do modo acadêmico demo a API recusa a operação.'),
+    await formularioMatricula(alunos, unidades)));
 }
 
 async function unidadesRecepcao(area) {
@@ -303,17 +365,35 @@ async function unidadesRecepcao(area) {
 
 async function atendimentos(area) {
   titulo(area, 'Atendimentos', 'Registre e consulte o histórico de atendimentos da recepção.');
-  const [resumo, alunos, catalogo] = await Promise.all([ler('/recepcao'), ler(rotaAluno()), api('/api/unidades')]);
+  const [alunos, catalogo] = await Promise.all([ler(rotaAluno()), api('/api/unidades')]);
   const { unidades } = catalogo;
   const seletor = escolha('aluno_id', 'Aluno', alunos.map(a => [a.id, a.nome]));
   const unidade = escolha('unidade_id', 'Unidade', unidades.map(a => [a.id, a.nome]), '', true);
   const historico = bloco('Histórico recente');
-  if (!resumo.ultimos.length) historico.append(listaVazia('Nenhum atendimento registrado.'));
-  else for (const i of resumo.ultimos) historico.append(elemento('p', [i.aluno.nome, i.unidade?.nome, i.motivo, dataLocal(i.criado_em)].filter(Boolean).join(' · ')));
+  const buscaHistorico = elemento('form', null, 'kd-form');
+  const buscaAluno = campo('busca', 'Pesquisar por aluno', 'search', '', true);
+  const dataDe = campo('de', 'De', 'date', '', true), dataAte = campo('ate', 'Até', 'date', '', true);
+  const filtrar = elemento('button', 'Filtrar histórico', 'kd-button'); filtrar.type = 'submit';
+  const estadoHistorico = elemento('p'); estadoHistorico.setAttribute('role', 'status');
+  buscaHistorico.append(buscaAluno, dataDe, dataAte, filtrar, estadoHistorico, historico);
+  async function carregarHistorico(filtros = {}) {
+    historico.replaceChildren(listaVazia('Carregando atendimentos…'));
+    estadoHistorico.textContent = '';
+    try {
+      const query = new URLSearchParams(Object.fromEntries(Object.entries(filtros).filter(([, v]) => v)));
+      const resumo = await ler('/recepcao' + (query.size ? '?' + query : ''));
+      estadoHistorico.textContent = '';
+      if (!resumo.ultimos.length) return historico.append(listaVazia('Nenhum atendimento nesse filtro.'));
+      for (const i of resumo.ultimos) historico.append(elemento('p', `Atendimento · ${[i.aluno.nome, i.unidade?.nome, i.motivo, dataLocal(i.criado_em)].filter(Boolean).join(' · ')}`));
+      estadoHistorico.textContent = `${resumo.ultimos.length} atendimentos encontrados. Cadastros e matrículas têm listas separadas; vínculos profissionais são gerenciados pelo administrador.`;
+    } catch (falha) { historico.replaceChildren(elemento('p', falha.message, 'kd-feedback')); }
+  }
+  buscaHistorico.addEventListener('submit', e => { e.preventDefault(); carregarHistorico({ busca: buscaAluno.querySelector('input').value, de: dataDe.querySelector('input').value, ate: dataAte.querySelector('input').value }); });
+  carregarHistorico();
   area.append(bloco('Registrar atendimento', formulario([seletor, unidade, campo('motivo', 'Motivo')], 'Registrar atendimento', async dados => {
     await salvar('/recepcao', dados);
     await renderizar();
-  })), historico);
+  })), buscaHistorico);
 }
 
 async function notificacoes(area) {

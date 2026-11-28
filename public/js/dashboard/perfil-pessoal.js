@@ -83,8 +83,12 @@ export function montarEditorPerfil(usuario, { aoAtualizarNome = () => {}, aoAtua
   const raiz = elemento('section', null, 'kd-card kd-perfil-pessoal');
   raiz.append(elemento('h2', 'Perfil pessoal'), elemento('p', 'Atualize seu nome de exibição e sua foto.'));
   const colunas = elemento('div', null, 'kd-grid kd-grid-dois');
-  const avatar = elemento('span', null, 'kd-avatar kd-perfil-avatar');
-  avatar.setAttribute('aria-hidden', 'true');
+  const avatar = elemento('button', null, 'kd-avatar kd-perfil-avatar');
+  avatar.type = 'button';
+  avatar.setAttribute('aria-label', 'Ampliar foto de perfil');
+  const ampliarFoto = elemento('button', 'Ampliar foto', 'kd-button kd-perfil-ampliar');
+  ampliarFoto.type = 'button';
+  ampliarFoto.setAttribute('aria-label', 'Ampliar foto de perfil');
   const acoesFoto = elemento('div', null, 'kd-perfil-acoes');
   const trocarFoto = elemento('button', 'Adicionar ou trocar foto', 'kd-button');
   trocarFoto.type = 'button';
@@ -93,7 +97,7 @@ export function montarEditorPerfil(usuario, { aoAtualizarNome = () => {}, aoAtua
   removerFoto.disabled = true;
   acoesFoto.append(trocarFoto, removerFoto);
   const fotoCard = elemento('div', null, 'kd-perfil-foto');
-  fotoCard.append(avatar, acoesFoto);
+  fotoCard.append(avatar, ampliarFoto, acoesFoto);
 
   const formulario = elemento('form', null, 'kd-form');
   const nomeLabel = elemento('label', 'Nome de exibição');
@@ -130,6 +134,10 @@ export function montarEditorPerfil(usuario, { aoAtualizarNome = () => {}, aoAtua
   arquivo.accept = 'image/jpeg,image/png';
   arquivo.required = true;
   labelFoto.append(arquivo);
+  const previa = elemento('img', null, 'kd-perfil-previa');
+  previa.alt = 'Prévia da nova foto de perfil';
+  previa.hidden = true;
+  formFoto.append(titulo, labelFoto, previa);
   const mensagemFoto = elemento('p', null, 'kd-feedback');
   mensagemFoto.setAttribute('role', 'status');
   const acoesDialogo = elemento('div', null, 'kd-perfil-acoes');
@@ -139,11 +147,13 @@ export function montarEditorPerfil(usuario, { aoAtualizarNome = () => {}, aoAtua
   cancelar.type = 'button';
   cancelar.addEventListener('click', () => dialogo.close());
   acoesDialogo.append(salvarFoto, cancelar);
-  formFoto.append(titulo, labelFoto, mensagemFoto, acoesDialogo);
+  formFoto.append(mensagemFoto, acoesDialogo);
   dialogo.append(formFoto);
   raiz.append(colunas, dialogo);
 
   let fotoUrl = null;
+  let previaUrl = null;
+  let fotoPreparada = null;
   function definirFoto(blob) {
     if (fotoUrl) URL.revokeObjectURL(fotoUrl);
     fotoUrl = blob ? URL.createObjectURL(blob) : null;
@@ -191,14 +201,40 @@ export function montarEditorPerfil(usuario, { aoAtualizarNome = () => {}, aoAtua
   });
   trocarFoto.addEventListener('click', () => {
     formFoto.reset();
+    fotoPreparada = null;
+    previa.hidden = true;
+    if (previaUrl) URL.revokeObjectURL(previaUrl);
+    previaUrl = null;
     feedback(mensagemFoto, '');
     dialogo.showModal();
+  });
+  function ampliar() { if (fotoUrl) { previa.src = fotoUrl; previa.hidden = false; dialogo.showModal(); cancelar.focus(); } }
+  avatar.addEventListener('click', ampliar);
+  ampliarFoto.addEventListener('click', ampliar);
+  arquivo.addEventListener('change', async () => {
+    fotoPreparada = null;
+    previa.hidden = true;
+    if (previaUrl) URL.revokeObjectURL(previaUrl);
+    previaUrl = null;
+    if (!arquivo.files[0]) return;
+    try {
+      fotoPreparada = await normalizarFoto(arquivo.files[0]);
+      previaUrl = URL.createObjectURL(fotoPreparada);
+      previa.src = previaUrl;
+      previa.hidden = false;
+      feedback(mensagemFoto, 'Prévia pronta. Confirme em Salvar foto.');
+    } catch (falha) { feedback(mensagemFoto, falha.message, true); }
+  });
+  dialogo.addEventListener('close', () => {
+    if (previaUrl) URL.revokeObjectURL(previaUrl);
+    previaUrl = null; fotoPreparada = null;
+    previa.removeAttribute('src'); previa.hidden = true;
   });
   formFoto.addEventListener('submit', async evento => {
     evento.preventDefault();
     salvarFoto.disabled = true;
     try {
-      const png = await normalizarFoto(arquivo.files[0]);
+      const png = fotoPreparada || await normalizarFoto(arquivo.files[0]);
       await api('/api/usuario/perfil/foto', { method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: png });
       const foto = await carregarFoto();
       await aoAtualizarFoto(foto);

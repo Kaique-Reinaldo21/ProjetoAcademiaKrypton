@@ -85,7 +85,7 @@ export function criarServicoDocumentos(db = prisma) {
           nome_arquivo: `documento-${Date.now()}.pdf`, origem: 'upload', situacao: 'disponivel',
           conteudo: buffer, sha256: hash(buffer), disponibilizado_em: new Date(),
         }, select: { id: true, titulo: true, tipo: true, situacao: true } });
-        await enfileirar(tx, 'documento_disponivel', `documento_disponivel:${documento.id}`, [alunoId]);
+        await enfileirar(tx, 'documento_disponivel', `documento_disponivel:${documento.id}`, [alunoId], { documento_tipo: ator.role });
         return documento;
       });
     },
@@ -128,7 +128,7 @@ export function criarServicoDocumentos(db = prisma) {
           origem: 'upload', ficha_id: null, chave_origem: null, situacao: 'disponivel', conteudo: buffer,
           sha256: hash(buffer), disponibilizado_em: new Date(),
         }, select: { id: true, titulo: true, tipo: true, situacao: true } });
-        await enfileirar(tx, 'documento_disponivel', `documento_disponivel:${atualizado.id}:${randomUUID()}`, [atual.aluno_id]);
+        await enfileirar(tx, 'documento_disponivel', `documento_disponivel:${atualizado.id}:${randomUUID()}`, [atual.aluno_id], { documento_tipo: ator.role });
         return atualizado;
       });
     },

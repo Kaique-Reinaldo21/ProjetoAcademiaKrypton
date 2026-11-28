@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 
-export function enfileirar(tx, tipo, idempotencia, destinatarios) {
+export function enfileirar(tx, tipo, idempotencia, destinatarios, contexto = {}) {
   return tx.jobs.createMany({
-    data: [{ idempotencia, tipo, payload: { destinatarios: [...new Set(destinatarios)] } }],
+    data: [{ idempotencia, tipo, payload: { destinatarios: [...new Set(destinatarios)], ...contexto } }],
     skipDuplicates: true,
   });
 }
