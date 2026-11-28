@@ -10,7 +10,6 @@ const abas = {
   inicio: ['Início', inicio],
   treinos: ['Treinos', modulo],
   'treinos-extras': ['Treinos extras', modulo],
-  avaliacoes: ['Avaliações', modulo],
   progresso: ['Meu progresso', modulo],
   nutricao: ['Nutrição', modulo],
   agendamentos: ['Agendamentos', agendamentos],

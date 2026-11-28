@@ -29,7 +29,13 @@ test('perfis, agenda, fichas e worker persistem em MySQL descartável', async t 
 
   const host = express();
   host.use(express.json());
-  host.use('/profissionais', criarRotasProfissionais({ checkoutDemo: criarServicoDemo(db, () => {}) }));
+  const checkoutRecepcao = criarServicoDemo(db, () => {});
+  host.use('/profissionais', criarRotasProfissionais({ checkoutDemo: checkoutRecepcao,
+    metodosCheckout: { iniciar: (usuarioId, tipo, unidade, metodo) => {
+      assert.equal(metodo, 'qr_krypton');
+      return checkoutRecepcao.iniciar(usuarioId, tipo, unidade);
+    } },
+    db }));
   host.use('/auth', authRoutes);
   const servidor = await new Promise(resolve => { const s = host.listen(0, '127.0.0.1', () => resolve(s)); });
   t.after(async () => {
@@ -67,6 +73,7 @@ test('perfis, agenda, fichas e worker persistem em MySQL descartável', async t 
   const a = cadastro.usuario;
   assert.equal(a.role, 'aluno');
   const b = await db.usuarios.create({ data: { nome: 'Outro aluno', email: 'outro@example.invalid' } });
+  const c = await db.usuarios.create({ data: { nome: 'Terceiro aluno', email: 'terceiro@example.invalid' } });
   const unidade = await db.unidades.create({ data: { nome: 'Unidade teste', endereco: 'Endereço fictício', cidade: 'Cidade teste' } });
   await db.planos.create({ data: { usuario_id: a.id, tipo: 'pro' } });
   await api(a, '/contas', 'POST', { nome: 'Negado' }, 403);
@@ -149,17 +156,28 @@ test('perfis, agenda, fichas e worker persistem em MySQL descartável', async t 
   await api(p, '/agenda/' + operacao.id, 'PATCH', { acao: 'concluir' });
   await api(r, '/recepcao', 'POST', { aluno_id: a.id, unidade_id: unidade.id, motivo: 'Atendimento fictício' }, 201);
   assert.equal((await api(r, '/recepcao')).ultimos.length, 1);
-  await api(r, '/recepcao/matricula-simulada', 'POST', { aluno_id: b.id, tipoPlano: 'basico', unidade_id: unidade.id }, 403);
-  const matricula = await api(r, '/recepcao/matricula-simulada', 'POST', { aluno_id: b.id, tipoPlano: 'basico', unidade_id: unidade.id, confirmacao: true }, 201);
+  await api(r, '/recepcao/matricula-simulada', 'POST', { aluno_id: b.id, tipoPlano: 'basico', unidade_id: unidade.id, metodo: 'qr_krypton', confirmacao: false }, 400);
+  const matricula = await api(r, '/recepcao/matricula-simulada', 'POST', { aluno_id: b.id, tipoPlano: 'basico', unidade_id: unidade.id, metodo: 'qr_krypton', confirmacao: true }, 201);
   assert.equal(matricula.origem, 'demo');
   const tentativaMatricula = await db.checkout_tentativas.findUnique({ where: { id: matricula.tentativaId } });
   const transacaoMatricula = await db.transacoes_pagamento.findFirst({ where: { tentativa_id: matricula.tentativaId } });
+  const auditoriaIniciada = await db.auditoria_contas.findFirst({ where: { usuario_id: b.id, evento: 'mat-' + matricula.tentativaId.replaceAll('-', '') } });
+  assert.equal(tentativaMatricula.status, 'pendente');
+  assert.equal(transacaoMatricula.status, 'pending');
+  assert.equal(await db.planos.count({ where: { usuario_id: b.id, ativo: true } }), 0);
+  const confirmacaoMatricula = await api(r, `/recepcao/matricula-simulada/${matricula.tentativaId}/confirmar`, 'POST', { acao: 'aprovar', confirmacao: true });
+  assert.equal(confirmacaoMatricula.status, 'approved');
   const auditoriaMatricula = await db.auditoria_contas.findFirst({ where: { usuario_id: b.id, evento: 'matricula_presencial_demo' } });
-  assert.equal(tentativaMatricula.status, 'confirmado');
-  assert.equal(transacaoMatricula.status, 'approved');
+  assert.equal((await db.checkout_tentativas.findUnique({ where: { id: matricula.tentativaId } })).status, 'confirmado');
+  assert.equal((await db.transacoes_pagamento.findFirst({ where: { tentativa_id: matricula.tentativaId } })).status, 'approved');
   assert.equal(transacaoMatricula.origem, 'demo');
+  assert.equal(auditoriaIniciada.autor_id, r.id);
   assert.equal(auditoriaMatricula.autor_id, r.id);
   assert.equal(auditoriaMatricula.usuario_id, b.id);
+  const matriculaRecusada = await api(r, '/recepcao/matricula-simulada', 'POST', { aluno_id: c.id, tipoPlano: 'pro', metodo: 'qr_krypton', confirmacao: true }, 201);
+  const recusada = await api(r, `/recepcao/matricula-simulada/${matriculaRecusada.tentativaId}/confirmar`, 'POST', { acao: 'recusar', confirmacao: true });
+  assert.equal(recusada.status, 'rejected');
+  assert.equal(await db.planos.count({ where: { usuario_id: c.id, ativo: true } }), 0);
   assert.deepEqual(await api(q, '/agenda'), []);
 
   const pendentes = await db.jobs.count();
@@ -198,7 +216,7 @@ test('perfis, agenda, fichas e worker persistem em MySQL descartável', async t 
     assert.ok(minhas.itens.some(i => i.categoria === categoria), categoria);
   }
   for (const categoria of ['treino_publicado', 'treino_atualizado']) {
-    assert.equal(minhas.itens.find(i => i.categoria === categoria).destino, '/dashboard.html#treinos-extras');
+    assert.equal(minhas.itens.find(i => i.categoria === categoria).destino, '/dashboard.html#treinos');
   }
   const legadoDocumento = await db.jobs.create({ data: {
     tipo: 'documento_disponivel', payload: { destinatarios: [a.id] }, situacao: 'processando', tentativas: 1, limite: 5,

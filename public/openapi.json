@@ -6691,8 +6691,8 @@
     "/api/profissionais/recepcao/matricula-simulada": {
       "post": {
         "tags": ["Recepção"],
-        "summary": "Registrar matrícula presencial simulada",
-        "description": "Somente recepção autenticada no PAYMENT_MODE=demo. Exige confirmação explícita do aluno e registra o operador na auditoria existente. Reutiliza a transação acadêmica simulada; não chama Mercado Pago nem cria cobrança real. Rejeita checkout pendente e matrícula idêntica já ativa.",
+        "summary": "Iniciar matrícula presencial simulada",
+        "description": "Somente recepção autenticada no PAYMENT_MODE=demo. Exige autorização explícita para criar uma tentativa pendente, registra o operador na auditoria existente e aceita apenas PIX Krypton ou Mercado Pago simulado local. Não chama a API externa nem cria cobrança real. Rejeita checkout pendente e matrícula idêntica já ativa.",
         "operationId": "recepcaoMatriculaPresencialSimulada",
         "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
         "requestBody": {
@@ -6702,11 +6702,12 @@
               "schema": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["aluno_id", "tipoPlano", "confirmacao"],
+                "required": ["aluno_id", "tipoPlano", "metodo", "confirmacao"],
                 "properties": {
                   "aluno_id": { "type": "integer", "minimum": 1 },
                   "tipoPlano": { "type": "string", "enum": ["basico", "pro", "elite"] },
                   "unidade_id": { "type": "integer", "minimum": 1, "description": "Obrigatória para o plano Básico." },
+                  "metodo": { "type": "string", "enum": ["qr_krypton", "mercadopago_simulado"] },
                   "confirmacao": { "type": "boolean", "const": true }
                 }
               }
@@ -6714,11 +6715,23 @@
           }
         },
         "responses": {
-          "201": { "description": "Matrícula acadêmica simulada confirmada; operador gravado na auditoria.", "content": { "application/json": { "schema": { "type": "object", "required": ["tentativaId", "status", "origem"], "properties": { "tentativaId": { "type": "string", "format": "uuid" }, "status": { "type": "string", "enum": ["approved"] }, "origem": { "type": "string", "enum": ["demo"] } } } } } },
+          "201": { "description": "Tentativa criada; matrícula permanece pendente até resposta explícita do simulador.", "content": { "application/json": { "schema": { "type": "object", "required": ["tentativaId", "status", "origem"], "properties": { "tentativaId": { "type": "string", "format": "uuid" }, "status": { "type": "string", "enum": ["pendente"] }, "origem": { "type": "string", "enum": ["demo", "demo_mercadopago"] } } } } } },
           "403": { "description": "Papel, origem ou modo de pagamento não autorizado." },
           "409": { "description": "Já existe checkout pendente ou matrícula idêntica ativa." },
           "400": { "description": "Plano, unidade ou confirmação inválidos." }
         }
+      }
+    },
+    "/api/profissionais/recepcao/matricula-simulada/{id}/confirmar": {
+      "post": {
+        "tags": ["Recepção"],
+        "summary": "Registrar resposta do pagamento simulado",
+        "description": "Exclusivo à recepção que iniciou a tentativa e ao simulador acadêmico. Respostas pendentes ou recusadas não ativam o plano; aprovação finaliza o checkout simulado local. Não chama API externa.",
+        "operationId": "confirmarMatriculaPresencialSimulada",
+        "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false, "required": ["acao", "confirmacao"], "properties": { "acao": { "type": "string", "enum": ["aprovar", "pendente", "recusar"] }, "confirmacao": { "type": "boolean", "const": true } } } } } },
+        "responses": { "200": { "description": "Estado simulado da tentativa." }, "403": { "description": "Papel, origem ou operador incompatível." }, "404": { "description": "Tentativa não encontrada." } }
       }
     },
     "/api/profissionais/documentos": {

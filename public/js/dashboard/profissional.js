@@ -1,5 +1,5 @@
 import { api } from './aluno-dados.js';
-import { configurarMenu, elemento } from './design-system.js';
+import { configurarMenu, elemento, itemAcaoConta } from './design-system.js';
 import { montarNotificacoes } from './notificacoes.js';
 import { criarIdentidadePainel, montarEditorPerfil } from './perfil-pessoal.js';
 import { acao, agendaPainel, bloco, campo, dataLocal, editor, fichaPublicada, formulario, escolha, ler, papeis, salvar } from './profissionais-views.js';
@@ -272,7 +272,7 @@ async function recepcaoInicio(area) {
 }
 
 async function novoAluno(area) {
-  titulo(area, 'Novo aluno', 'Cadastro presencial. O papel aluno é definido pelo servidor e nenhum plano é contratado aqui.');
+  titulo(area, 'Novo aluno', 'Cadastro presencial. O papel aluno é definido pelo servidor; a contratação simulada pode ser iniciada após o cadastro.');
   const senha = campo('senha', 'Senha escolhida pelo aluno', 'password');
   const entradaSenha = senha.querySelector('input');
   entradaSenha.minLength = 6;
@@ -321,24 +321,70 @@ async function formularioMatricula(alunos, unidades) {
   });
   const campoPlano = escolha('tipoPlano', 'Plano', [['basico', 'Básico'], ['pro', 'Pro'], ['elite', 'Elite']]);
   const campoUnidade = escolha('unidade_id', 'Unidade (obrigatória no Básico)', unidades.map(u => [u.id, u.nome]), '', true);
+  const campoMetodo = escolha('metodo', 'Forma de pagamento simulada', [['qr_krypton', 'PIX Krypton'], ['mercadopago_simulado', 'Mercado Pago simulado']]);
   const seletorUnidade = campoUnidade.querySelector('select');
   const alternarUnidade = () => { const exige = campoPlano.querySelector('select').value === 'basico'; seletorUnidade.required = exige; campoUnidade.hidden = !exige; };
   campoPlano.querySelector('select').addEventListener('change', alternarUnidade);
   alternarUnidade();
   const campos = [
     campoBusca, seletorAluno, statusBusca,
-    campoPlano, campoUnidade,
+    campoPlano, campoUnidade, campoMetodo,
   ];
-  const confirmar = elemento('input'); confirmar.type = 'checkbox'; confirmar.required = true; confirmar.name = 'confirmacao';
-  const confirmacao = elemento('label', 'Confirmo que o aluno autorizou esta contratação simulada. Nenhuma cobrança real será realizada.');
-  confirmacao.prepend(confirmar); campos.push(confirmacao);
-  return formulario(campos, 'Confirmar matrícula simulada', async dados => {
-    await salvar('/recepcao/matricula-simulada', {
+  let revisada = false;
+  let tentativaId = null;
+  const form = formulario(campos, 'Revisar contratação', async (dados, formularioAtual) => {
+    const submit = formularioAtual.querySelector('button[type="submit"]');
+    const status = formularioAtual.querySelector('[role="status"]');
+    if (!revisada) {
+      if (!dados.aluno_id || !dados.tipoPlano || (dados.tipoPlano === 'basico' && !dados.unidade_id)) throw Error('Selecione aluno, plano e unidade quando exigida.');
+      const aluno = alunos.find(item => String(item.id) === String(dados.aluno_id)) ||
+        (await ler('/alunos?busca=' + encodeURIComponent(entradaBusca.value.trim()))).find(item => String(item.id) === String(dados.aluno_id));
+      const nomes = { basico: 'Básico', pro: 'Pro', elite: 'Elite' };
+      const precos = { basico: 89, pro: 149, elite: 249 };
+      const unidadeNome = unidades.find(item => String(item.id) === String(dados.unidade_id))?.nome;
+      formularioAtual.append(bloco('Resumo da contratação', elemento('p', `Aluno: ${aluno?.nome || 'Aluno selecionado'}`),
+        elemento('p', `Plano: ${nomes[dados.tipoPlano]} · R$ ${precos[dados.tipoPlano].toFixed(2).replace('.', ',')} / mês`),
+        ...(dados.tipoPlano === 'basico' ? [elemento('p', 'Unidade: ' + unidadeNome)] : []),
+        elemento('p', `Forma de pagamento: ${dados.metodo === 'qr_krypton' ? 'PIX Krypton' : 'Mercado Pago'} simulado. Nenhuma cobrança real será realizada.`),
+        elemento('p', 'A tentativa permanecerá pendente até uma resposta simulada explícita. O plano só será ativado se aprovada.')));
+      const confirmar = elemento('input'); confirmar.type = 'checkbox'; confirmar.name = 'confirmar_pagamento'; confirmar.required = true;
+      const rotulo = elemento('label', 'Confirmo que o aluno autorizou o pagamento simulado e que devo ativar esta matrícula.');
+      rotulo.prepend(confirmar); formularioAtual.append(rotulo);
+      revisada = true;
+      submit.textContent = 'Criar tentativa de pagamento';
+      status.textContent = 'Revise o resumo, selecione a confirmação e crie a tentativa pendente.';
+      return false;
+    }
+    if (tentativaId) return false;
+    const confirmar = formularioAtual.querySelector('[name="confirmar_pagamento"]');
+    if (!confirmar?.checked) throw Error('Confirme explicitamente a autorização para criar o pagamento simulado.');
+    const tentativa = await salvar('/recepcao/matricula-simulada', {
       aluno_id: dados.aluno_id, tipoPlano: dados.tipoPlano, unidade_id: dados.unidade_id,
-      confirmacao: confirmar.checked,
+      metodo: dados.metodo, confirmacao: true,
     });
-    await renderizar();
+    tentativaId = tentativa.tentativaId;
+    submit.hidden = true;
+    confirmar.disabled = true;
+    const acoes = bloco('Confirmação do pagamento simulado', elemento('p', `Tentativa ${tentativaId} · status pendente. Os controles abaixo são exclusivos do simulador acadêmico.`));
+    const controles = elemento('div', null, 'kd-acoes-pagamento');
+    for (const [acaoPagamento, rotulo] of [['aprovar', 'Simular pagamento aprovado'], ['pendente', 'Manter pendente'], ['recusar', 'Simular pagamento recusado']]) {
+      controles.append(acao(rotulo, async botao => {
+        botao.target.disabled = true;
+        try {
+          const resultado = await api(`/api/profissionais/recepcao/matricula-simulada/${encodeURIComponent(tentativaId)}/confirmar`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acao: acaoPagamento, confirmacao: true }),
+          });
+          status.textContent = resultado.status === 'approved' ? 'Pagamento simulado aprovado e matrícula ativada.' : resultado.status === 'rejected' ? 'Pagamento recusado; a matrícula não foi ativada.' : 'Pagamento pendente; a matrícula não foi ativada.';
+          if (resultado.status === 'approved') setTimeout(renderizar, 700);
+          if (resultado.status !== 'pending') controles.querySelectorAll('button').forEach(item => { item.disabled = true; });
+        } catch (falha) { status.textContent = falha.message; botao.target.disabled = false; }
+      }));
+    }
+    acoes.append(controles); formularioAtual.append(acoes);
+    status.textContent = 'Tentativa criada e pendente. Escolha uma resposta no simulador.';
+    return false;
   });
+  return form;
 }
 
 async function planosRecepcao(area) {
@@ -383,6 +429,7 @@ async function atendimentos(area) {
       const query = new URLSearchParams(Object.fromEntries(Object.entries(filtros).filter(([, v]) => v)));
       const resumo = await ler('/recepcao' + (query.size ? '?' + query : ''));
       estadoHistorico.textContent = '';
+      historico.replaceChildren();
       if (!resumo.ultimos.length) return historico.append(listaVazia('Nenhum atendimento nesse filtro.'));
       for (const i of resumo.ultimos) historico.append(elemento('p', `Atendimento · ${[i.aluno.nome, i.unidade?.nome, i.motivo, dataLocal(i.criado_em)].filter(Boolean).join(' · ')}`));
       estadoHistorico.textContent = `${resumo.ultimos.length} atendimentos encontrados. Cadastros e matrículas têm listas separadas; vínculos profissionais são gerenciados pelo administrador.`;
@@ -454,7 +501,18 @@ async function renderizar() {
         aoAtualizarNome: nome => { identidade.atualizarNome(nome); document.getElementById('perfil').textContent = rotulos[usuario.role] + ' · ' + nome; },
         aoAtualizarFoto: foto => identidade.definirFoto(foto),
       }));
-      area.append(bloco('Segurança da conta', elemento('p', 'Altere ou recupere suas credenciais nas configurações de segurança.'), (() => { const a = elemento('a', 'Abrir configurações de segurança', 'kd-button'); a.href = '/configuracoes-conta.html'; return a; })()));
+      const acoes = elemento('div', null, 'kd-acoes-conta');
+      if (usuario.possuiSenhaLocal) {
+        const senha = elemento('a', 'Abrir', 'kd-button'); senha.href = '/configuracoes-conta.html#alterar';
+        acoes.append(itemAcaoConta('key', 'Alterar senha', 'Atualize a senha da sua conta.', senha));
+      }
+      if (usuario.podeVincularGoogle) {
+        const google = elemento('a', 'Vincular', 'kd-button'); google.href = '/configuracoes-conta.html#vincular-google';
+        acoes.append(itemAcaoConta('google', 'Vincular Google', 'Conecte sua conta Google com segurança.', google));
+      }
+      const sairConta = elemento('button', 'Encerrar sessão', 'kd-button'); sairConta.type = 'button'; sairConta.dataset.sair = '';
+      acoes.append(itemAcaoConta('box-arrow-right', 'Encerrar sessão', 'Finalize o acesso neste dispositivo.', sairConta));
+      area.append(bloco('Segurança da conta', acoes));
     } else if (pagina === 'visao-geral') {
       if (usuario.role === 'recepcao') await recepcaoInicio(area);
       else await visaoEspecialista(area);
@@ -485,6 +543,10 @@ document.getElementById('sair').addEventListener('click', async evento => {
     botao.disabled = false;
     raiz.prepend(elemento('p', `Não foi possível encerrar a sessão: ${falha.message}`, 'kd-estado'));
   }
+});
+document.addEventListener('click', evento => {
+  const botao = evento.target.closest('[data-sair]');
+  if (botao && botao.id !== 'sair') document.getElementById('sair').click();
 });
 window.addEventListener('hashchange', () => { fecharMenu(); renderizar(); });
 try {

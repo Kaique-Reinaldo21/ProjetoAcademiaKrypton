@@ -101,37 +101,6 @@ export function criarServicoDemo(db = prisma, validar = validarSimuladorCheckout
     }, { isolationLevel: 'ReadCommitted' });
   }
 
-  async function matriculaPresencial(ator, body) {
-    if (process.env.PAYMENT_MODE !== 'demo' || emTesteMercadoPago()) throw new ErroCheckout('Matrícula simulada disponível somente no modo acadêmico demo.', 403);
-    validar();
-    if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(chave => !['aluno_id', 'tipoPlano', 'unidade_id', 'confirmacao'].includes(chave))) throw new ErroCheckout('Confira os dados da matrícula.');
-    if (ator?.role !== 'recepcao' || body?.confirmacao !== true) throw new ErroCheckout('Confirme a matrícula simulada como recepção.', 403);
-    const usuarioId = Number(body.aluno_id), tipo = body.tipoPlano;
-    if (!Number.isSafeInteger(usuarioId) || usuarioId < 1 || !Object.hasOwn(planos, tipo)) throw new ErroCheckout('Selecione aluno e plano válidos.');
-    const unidade = tipo === 'basico' ? Number(body.unidade_id) : null;
-    if (tipo === 'basico' && (!Number.isSafeInteger(unidade) || unidade <= 0)) throw new ErroCheckout('Selecione uma unidade válida.');
-    const tentativaId = randomUUID();
-    return db.$transaction(async tx => {
-      await tx.$queryRaw`SELECT id FROM usuarios WHERE id = ${usuarioId} FOR UPDATE`;
-      const aluno = await tx.usuarios.findFirst({ where: { id: usuarioId, role: 'aluno' }, select: { id: true } });
-      const operador = await tx.usuarios.findFirst({ where: { id: Number(ator.id), role: 'recepcao', profissional_ativo: true }, select: { id: true } });
-      if (!aluno || !operador) throw new ErroCheckout('Aluno ou operador não autorizado.', 403);
-      if (unidade && !await tx.unidades.findUnique({ where: { id: unidade }, select: { id: true } })) throw new ErroCheckout('Unidade não encontrada.', 404);
-      if (await tx.checkout_tentativas.findFirst({ where: { usuario_id: usuarioId, status: { in: ['pendente', 'aguardando'] } }, select: { id: true } })) throw new ErroCheckout('Já existe um checkout em andamento para este aluno.', 409);
-      const hoje = new Date(); hoje.setUTCHours(0, 0, 0, 0);
-      const ativo = await tx.planos.findFirst({ where: { usuario_id: usuarioId, ativo: true,
-        OR: [{ vencimento: null }, { vencimento: { gte: hoje } }] }, orderBy: { id: 'desc' }, select: { tipo: true, unidade_id: true } });
-      if (ativo?.tipo === tipo && (tipo !== 'basico' || ativo.unidade_id === unidade)) throw new ErroCheckout('O aluno já possui esta matrícula ativa.', 409);
-      await tx.checkout_tentativas.create({ data: { id: tentativaId, usuario_id: usuarioId, tipo, unidade_id: unidade, status: 'pendente', metodo: 'qr_krypton' } });
-      const transacao = await tx.transacoes_pagamento.create({ data: { mp_payment_id: 'demo_' + tentativaId,
-        usuario_id: usuarioId, tentativa_id: tentativaId, valor_centavos: planos[tipo].centavos, moeda: 'BRL', status: 'pending', origem: 'demo' } });
-      const vinculada = await buscarTransacao(tx, usuarioId, tentativaId);
-      const resultado = await aplicarDecisao(tx, vinculada || { ...transacao, tentativa: { id: tentativaId, tipo, unidade_id: unidade } }, 'aprovar');
-      await tx.auditoria_contas.create({ data: { autor_id: operador.id, usuario_id: usuarioId, evento: 'matricula_presencial_demo' } });
-      return { tentativaId, status: resultado.status, origem: 'demo' };
-    }, { isolationLevel: 'ReadCommitted' });
-  }
-
   async function gerarQr(usuarioId, id) {
     validar();
     return db.$transaction(async tx => {
@@ -176,6 +145,6 @@ export function criarServicoDemo(db = prisma, validar = validarSimuladorCheckout
     validar();
     return db.transacoes_pagamento.findMany({ where: { usuario_id: Number(usuarioId) }, select: camposHistoricoPagamento, orderBy: { criado_em: 'desc' }, take: 100 });
   }
-  return { iniciar, consultar, decidir, historico, gerarQr, confirmarQr, matriculaPresencial };
+  return { iniciar, consultar, decidir, historico, gerarQr, confirmarQr };
 }
 export const servicoDemo = criarServicoDemo();

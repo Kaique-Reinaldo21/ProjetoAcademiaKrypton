@@ -19,7 +19,7 @@ test('notificações de PDF encaminham treino e alimentação para as áreas cor
   assert.equal((await destinoDocumento('nutricionista')).destino, '/dashboard.html#nutricao');
 });
 
-test('notificações de ficha de treino abrem Treinos extras', async () => {
+test('notificações de fichas estruturadas de treino abrem Treinos', async () => {
   for (const tipo of ['treino_publicado', 'treino_atualizado']) {
     let criadas;
     const tx = { jobs: { async updateMany() { return { count: 1 }; } },
@@ -27,7 +27,7 @@ test('notificações de ficha de treino abrem Treinos extras', async () => {
       notificacoes: { async createMany({ data }) { criadas = data; return { count: data.length }; } } };
     await processarNotificacao({ async $transaction(callback) { return callback(tx); } },
       { id: `job-${tipo}`, tipo, payload: { destinatarios: [12] }, bloqueio: 'lock', situacao: 'processando' });
-    assert.equal(criadas[0].destino, '/dashboard.html#treinos-extras');
+    assert.equal(criadas[0].destino, '/dashboard.html#treinos');
   }
 });
 

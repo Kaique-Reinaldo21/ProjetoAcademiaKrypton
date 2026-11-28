@@ -1,7 +1,7 @@
-import { agendaPainel, fichaPublicada } from './profissionais-views.js';
+import { agendaPainel, fichaChecklist, fichaPublicada } from './profissionais-views.js';
 import { api, dia, eliteAtivo, profissional, quando, reais } from './aluno-dados.js';
 import { calendarioTreinos, historicoTreinos, registrarTreino } from './aluno-treinos.js';
-import { badge, elemento, erro, estado, icone } from './design-system.js';
+import { badge, elemento, erro, estado, icone, itemAcaoConta } from './design-system.js';
 import { montarEditorPerfil } from './perfil-pessoal.js';
 
 const planos = { basico: 'Básico', pro: 'Pro', elite: 'Elite' };
@@ -15,8 +15,7 @@ const situacoesTransacao = {
 const situacoesDocumento = { processando: ['Processando', 'atencao'], disponivel: ['Disponível', 'positivo'], falhou: ['Falha no processamento', 'erro'] };
 const modulos = {
   treinos: ['Planos de treino e sessões da academia.', 'Nenhum treino registrado.', 'Sua rotina aparecerá aqui quando houver treinos cadastrados.', 'lightning-charge'],
-  avaliacoes: ['Resultados e registros de avaliações físicas.', 'Nenhuma avaliação disponível.', 'Quando uma avaliação for registrada, você poderá consultá-la aqui.', 'clipboard2-pulse'],
-  progresso: ['Acompanhe a frequência e suas medições.', 'Sem medições no momento.', 'Quando houver registros, eles aparecerão aqui.', 'graph-up-arrow'],
+  progresso: ['Acompanhe a frequência dos seus treinos.', 'Sem treinos registrados no momento.', 'Sua frequência registrada aparecerá aqui.', 'graph-up-arrow'],
   nutricao: ['Acompanhamento nutricional e agendamentos.', 'Nenhum acompanhamento disponível.', 'Orientações nutricionais aparecerão aqui quando forem disponibilizadas.', 'egg-fried'],
   arquivos: ['Documentos compartilhados com você.', 'Nenhum arquivo disponível.', 'Os documentos enviados pela academia aparecerão nesta seção.', 'folder2'],
 };
@@ -94,7 +93,7 @@ export function inicio(raiz, contexto) {
   const atalhos = elemento('div', null, 'kd-grid aluno-atalhos');
   for (const [hash, nome, desenho] of [
     ['treinos', 'Treinos', 'lightning-charge'], ['treinos-extras', 'Treinos extras', 'plus-square'],
-    ['avaliacoes', 'Avaliações', 'clipboard2-pulse'], ['progresso', 'Meu progresso', 'graph-up-arrow'],
+    ['progresso', 'Meu progresso', 'graph-up-arrow'],
     ['nutricao', 'Nutrição', 'egg-fried'], ['agendamentos', 'Agendamentos', 'calendar3'],
     ['faturas', 'Faturas', 'receipt'], ['arquivos', 'Documentos', 'file-earmark-pdf'],
   ]) {
@@ -121,25 +120,41 @@ export function inicio(raiz, contexto) {
 
 export function modulo(raiz, contexto, chave, nome) {
   if (chave === 'treinos-extras') {
-    titulo(raiz, nome, 'Fichas personalizadas e documentos do personal trainer.');
+    titulo(raiz, nome, 'PDFs complementares enviados ou gerados pelo personal trainer.');
     const area = elemento('div');
     raiz.append(area);
     carregar(area, contexto, 'plano', async p => {
       if (!eliteAtivo(p)) return area.replaceChildren(card('Materiais personalizados',
         elemento('p', 'Disponíveis para alunos com plano Elite ativo.'), botao('Consultar meu plano', '#faturas')));
-      await materiaisProfissionais(area, contexto, 'personal', 'Fichas personalizadas');
+      await materiaisProfissionais(area, contexto, 'personal', 'PDFs de treino', false);
     });
     return;
   }
   const [subtitulo, vazio, explicacao, desenho] = modulos[chave];
   titulo(raiz, nome, subtitulo);
   if (chave === 'treinos') {
-    raiz.append(card('Treino de hoje', registrarTreino()));
+    raiz.append(card('Frequência do treino', registrarTreino()));
+    const area = elemento('div');
+    raiz.append(area);
+    carregar(area, contexto, 'plano', async p => {
+      if (!eliteAtivo(p)) return area.replaceChildren(card('Fichas personalizadas',
+        elemento('p', 'As fichas profissionais estão disponíveis conforme a elegibilidade do plano Elite.'), botao('Consultar meu plano', '#faturas')));
+      area.replaceChildren(estado('Carregando fichas…'));
+      try {
+        const fichas = await api('/api/profissionais/fichas?tipo=personal');
+        area.replaceChildren();
+        if (!fichas.length) return area.append(estado('Nenhuma ficha estruturada disponível.', 'Quando seu personal publicar uma ficha, os exercícios aparecerão aqui.'));
+        for (const ficha of fichas) {
+          const material = fichaChecklist(ficha, contexto.usuario.id);
+          material.prepend(elemento('p', `${ficha.profissional?.nome || 'Personal trainer'} · Atualizada em ${dia(ficha.atualizado_em || ficha.criado_em)}`, 'kd-texto-suave'));
+          area.append(material);
+        }
+      } catch (falha) { erro(area, falha.message, () => modulo(raiz, contexto, chave, nome)); }
+    });
     return;
   }
   if (chave === 'progresso') {
-    raiz.append(card('Frequência semanal', calendarioTreinos()), card('Evolução da frequência', historicoTreinos()),
-      card('Peso, medidas e avaliações', estado(vazio, explicacao)));
+    raiz.append(card('Frequência semanal', calendarioTreinos()), card('Frequência recente', historicoTreinos()));
     return;
   }
   if (chave === 'nutricao') {
@@ -163,7 +178,7 @@ export function modulo(raiz, contexto, chave, nome) {
   raiz.append(bloco);
 }
 
-async function materiaisProfissionais(destino, contexto, tipo, tituloLista) {
+async function materiaisProfissionais(destino, contexto, tipo, tituloLista, incluirFichas = true) {
   const atualizar = elemento('button', 'Atualizar materiais', 'kd-button');
   atualizar.type = 'button';
   const lista = elemento('div');
@@ -171,7 +186,8 @@ async function materiaisProfissionais(destino, contexto, tipo, tituloLista) {
     lista.replaceChildren(estado('Carregando materiais…'));
     try {
       const [fichas, documentos] = await Promise.all([
-        api('/api/profissionais/fichas?tipo=' + tipo), api('/api/profissionais/documentos'),
+        incluirFichas ? api('/api/profissionais/fichas?tipo=' + tipo) : Promise.resolve([]),
+        api('/api/profissionais/documentos'),
       ]);
       lista.replaceChildren();
       const pdfs = documentos.filter(item => item.tipo === tipo);
@@ -402,13 +418,13 @@ export function faturas(raiz, contexto) {
 
 export function configuracoes(raiz, contexto) {
   titulo(raiz, 'Configurações', 'Gerencie seu perfil, sua foto e a segurança da conta.');
-  const acoes = elemento('div', null, 'aluno-acoes');
-  if (contexto.usuario.possuiSenhaLocal) acoes.append(botao('Alterar senha', '/configuracoes-conta.html#alterar'));
-  if (contexto.usuario.podeVincularGoogle) acoes.append(botao('Vincular Google', '/configuracoes-conta.html#vincular-google'));
+  const acoes = elemento('div', null, 'kd-acoes-conta');
+  if (contexto.usuario.possuiSenhaLocal) acoes.append(itemAcaoConta('key', 'Alterar senha', 'Atualize a senha da sua conta.', botao('Abrir', '/configuracoes-conta.html#alterar')));
+  if (contexto.usuario.podeVincularGoogle) acoes.append(itemAcaoConta('google', 'Vincular Google', 'Conecte sua conta Google com segurança.', botao('Vincular', '/configuracoes-conta.html#vincular-google')));
   const sair = elemento('button', 'Encerrar sessão', 'kd-button');
   sair.type = 'button';
   sair.dataset.sair = '';
-  acoes.append(sair);
+  acoes.append(itemAcaoConta('box-arrow-right', 'Encerrar sessão', 'Finalize o acesso neste dispositivo.', sair));
   const seguranca = card('Segurança da conta', contexto.usuario.possuiSenhaLocal ? acoes :
     elemento('p', 'A senha desta conta é gerenciada pelo Google.', 'kd-texto-suave'));
   if (!contexto.usuario.possuiSenhaLocal) seguranca.append(acoes);

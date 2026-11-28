@@ -17,6 +17,15 @@ export function badge(texto, tom) {
   return node;
 }
 
+export function itemAcaoConta(iconeNome, titulo, descricao, controle) {
+  const item = elemento('article', null, 'kd-acao-conta');
+  item.append(icone(iconeNome));
+  const texto = elemento('div');
+  texto.append(elemento('h3', titulo), elemento('p', descricao, 'kd-texto-suave'));
+  item.append(texto, controle);
+  return item;
+}
+
 export function estado(titulo, texto, tom) {
   const node = elemento('div', null, 'kd-estado');
   if (tom) node.dataset.tom = tom;
@@ -58,7 +67,7 @@ export function configurarMenu(botao, menu, fundo, workspace) {
 }
 
 export function graficoBarras(serie, titulo) {
-  if (!serie.length) return estado('Sem medições no momento.', 'Quando houver registros, eles aparecerão aqui.');
+  if (!serie.length) return estado('Sem registros neste período.', 'Os dados disponíveis aparecerão aqui quando houver atividade.');
   const max = Math.max(1, ...serie.map(ponto => ponto.valor));
   const lista = elemento('ul', null, 'kd-chart');
   lista.setAttribute('aria-label', titulo);

@@ -1,6 +1,6 @@
 import { gerirProfissionais } from './admin-profissionais.js';
 import { api, dia, profissional, quando } from './aluno-dados.js';
-import { badge, elemento, erro, estado, graficoBarras, icone } from './design-system.js';
+import { badge, elemento, erro, estado, graficoBarras, icone, itemAcaoConta } from './design-system.js';
 import { montarEditorPerfil } from './perfil-pessoal.js';
 
 const buscar = caminho => api('/api/admin/' + caminho);
@@ -302,13 +302,14 @@ function configuracoes(raiz, conta, identidade) {
     aoAtualizarNome: nome => identidade.atualizarNome(nome),
     aoAtualizarFoto: foto => identidade.definirFoto(foto),
   }));
-  const acoes = elemento('div', null, 'admin-paginacao');
-  if (conta.possuiSenhaLocal) acoes.append(link('Alterar senha', '/configuracoes-conta.html#alterar'),
-    link('Recuperação administrativa', '/configuracoes-conta.html#administracao'));
+  const acoes = elemento('div', null, 'kd-acoes-conta');
+  if (conta.possuiSenhaLocal) acoes.append(itemAcaoConta('key', 'Alterar senha', 'Atualize a senha da conta administrativa.', link('Abrir', '/configuracoes-conta.html#alterar')),
+    itemAcaoConta('shield-lock', 'Recuperação administrativa', 'Gerencie as opções protegidas de recuperação da conta.', link('Abrir', '/configuracoes-conta.html#administracao')));
+  if (conta.podeVincularGoogle) acoes.append(itemAcaoConta('google', 'Vincular Google', 'Conecte sua conta Google com segurança.', link('Vincular', '/configuracoes-conta.html#vincular-google')));
   const sair = elemento('button', 'Encerrar sessão', 'kd-button');
   sair.type = 'button';
   sair.dataset.sair = '';
-  acoes.append(sair);
+  acoes.append(itemAcaoConta('box-arrow-right', 'Encerrar sessão', 'Finalize o acesso neste dispositivo.', sair));
   raiz.append(cartao('Segurança da conta', acoes));
 }
 
