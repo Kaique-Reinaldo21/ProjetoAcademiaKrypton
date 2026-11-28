@@ -69,10 +69,23 @@ test('perfil altera somente o nome e foto pertence ao aluno autenticado', async 
 
     const agenda = u => chamar(u, '/agendamento', 'POST', 'application/json',
       JSON.stringify({ tipo: 'personal', data_hora: new Date(Date.now() + 60 * 60_000).toISOString() }));
+    await prisma.planos.create({ data: { usuario_id: b.id, tipo: 'elite', ativo: true, inicio: new Date(Date.now() + 2 * 86400000) } });
+    assert.equal((await chamar(b, '/treinos')).status, 403, 'cadastro sem matrícula não pode consultar frequência');
+    assert.equal((await chamar(b, '/treinos/hoje', 'PUT', 'application/json', '{}')).status, 403, 'checkout pulado não libera frequência');
+    assert.equal((await chamar(b, '/agendamentos')).status, 403, 'cadastro sem matrícula não pode consultar agenda');
     await prisma.planos.create({ data: { usuario_id: a.id, tipo: 'pro', ativo: true } });
+    assert.equal((await chamar(a, '/treinos')).status, 200, 'plano Pro vigente libera frequência');
+    assert.equal((await chamar(a, '/treinos/hoje', 'PUT', 'application/json', '{}')).status, 204);
+    assert.equal((await chamar(a, '/treinos/hoje', 'PUT', 'application/json', '{}')).status, 204);
+    assert.equal(await prisma.treinos_concluidos.count({ where: { usuario_id: a.id } }), 1, 'frequência diária é idempotente');
+    await prisma.planos.create({ data: { usuario_id: b.id, tipo: 'basico', ativo: true } });
+    assert.equal((await chamar(b, '/treinos')).status, 200, 'plano Básico vigente libera frequência geral');
+    await prisma.planos.updateMany({ where: { usuario_id: b.id, tipo: 'basico' }, data: { ativo: false } });
+    assert.equal((await chamar(b, '/treinos')).status, 403, 'pagamento não aprovado ou matrícula cancelada não libera benefício');
     assert.equal((await agenda(a)).status, 403);
     await prisma.planos.create({ data: { usuario_id: a.id, tipo: 'elite', ativo: true, vencimento: new Date('2025-01-01') } });
     assert.equal((await agenda(a)).status, 403);
+    assert.equal((await (await chamar(a, '/plano')).json()).plano.tipo, 'pro', 'plano anterior vigente permanece elegível durante contratação não aprovada');
     await prisma.planos.create({ data: { usuario_id: a.id, tipo: 'elite', ativo: true } });
     assert.equal((await agenda(a)).status, 400);
     const personal = await conta('personal');
@@ -82,7 +95,10 @@ test('perfil altera somente o nome e foto pertence ao aluno autenticado', async 
     assert.equal(minhaAgenda.length, 1);
     consulta = minhaAgenda[0].id;
     assert.equal((await prisma.agendamentos.findUnique({ where: { id: consulta } })).profissional_id, personal.id);
-    assert.equal((await (await chamar(b, '/agendamentos')).json()).agendamentos.length, 0);
+    assert.equal((await chamar(b, '/agendamentos')).status, 403);
+    await prisma.planos.updateMany({ where: { usuario_id: a.id, ativo: true }, data: { ativo: false } });
+    assert.equal((await chamar(a, '/treinos')).status, 403, 'plano cancelado remove os benefícios');
+    assert.equal((await chamar(a, '/agendamentos')).status, 403);
   } finally {
     servidor.close();
     if (consulta) {

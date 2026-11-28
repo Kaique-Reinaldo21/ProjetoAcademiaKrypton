@@ -68,8 +68,10 @@ export function gerirProfissionais(raiz) {
             }, 250);
           });
           const existentes = c.vinculos_profissional.map(({ aluno }) => {
-            const linha = elemento('p', aluno.nome, 'kd-vinculo-existente');
+            const linha = elemento('div', null, 'kd-vinculo-existente');
+            linha.append(elemento('span', aluno.nome));
             linha.append(acao('Remover vínculo', async botao => {
+              if (!confirm(`Remover o vínculo de ${aluno.nome} com ${c.nome}?`)) return;
               botao.target.disabled = true;
               try { await api(base + '/contas/' + c.id + '/alunos/' + aluno.id, { method: 'DELETE' }); avisosVinculos.set(c.id, 'Vínculo removido.'); await carregar(); }
               catch (falha) { statusVinculo.textContent = falha.message; botao.target.disabled = false; }

@@ -1,7 +1,7 @@
-import { agendaPainel, fichaPublicada } from './profissionais-views.js';
+import { agendaPainel, fichaChecklist, fichaPublicada } from './profissionais-views.js';
 import { api, dia, eliteAtivo, profissional, quando, reais } from './aluno-dados.js';
 import { calendarioTreinos, historicoTreinos, registrarTreino } from './aluno-treinos.js';
-import { badge, elemento, erro, estado, icone } from './design-system.js';
+import { badge, elemento, erro, estado, icone, itemAcaoConta } from './design-system.js';
 import { montarEditorPerfil } from './perfil-pessoal.js';
 
 const planos = { basico: 'Básico', pro: 'Pro', elite: 'Elite' };
@@ -15,8 +15,7 @@ const situacoesTransacao = {
 const situacoesDocumento = { processando: ['Processando', 'atencao'], disponivel: ['Disponível', 'positivo'], falhou: ['Falha no processamento', 'erro'] };
 const modulos = {
   treinos: ['Planos de treino e sessões da academia.', 'Nenhum treino registrado.', 'Sua rotina aparecerá aqui quando houver treinos cadastrados.', 'lightning-charge'],
-  avaliacoes: ['Resultados e registros de avaliações físicas.', 'Nenhuma avaliação disponível.', 'Quando uma avaliação for registrada, você poderá consultá-la aqui.', 'clipboard2-pulse'],
-  progresso: ['Acompanhe a frequência e suas medições.', 'Sem medições no momento.', 'Quando houver registros, eles aparecerão aqui.', 'graph-up-arrow'],
+  progresso: ['Acompanhe a frequência dos seus treinos.', 'Sem treinos registrados no momento.', 'Sua frequência registrada aparecerá aqui.', 'graph-up-arrow'],
   nutricao: ['Acompanhamento nutricional e agendamentos.', 'Nenhum acompanhamento disponível.', 'Orientações nutricionais aparecerão aqui quando forem disponibilizadas.', 'egg-fried'],
   arquivos: ['Documentos compartilhados com você.', 'Nenhum arquivo disponível.', 'Os documentos enviados pela academia aparecerão nesta seção.', 'folder2'],
 };
@@ -69,10 +68,12 @@ export function inicio(raiz, contexto) {
   const resumo = elemento('div', null, 'kd-grid aluno-resumo');
   const plano = elemento('div', null, 'aluno-resumo-plano');
   const agenda = elemento('div', null, 'aluno-resumo-agenda');
-  const frequencia = card('Frequência semanal', calendarioTreinos());
+  const frequencia = card('Frequência semanal', estado('Verificando matrícula…'));
   frequencia.classList.add('aluno-resumo-frequencia');
   resumo.append(plano, frequencia, agenda);
   raiz.append(resumo);
+  const matricula = elemento('div');
+  raiz.append(matricula);
   carregar(plano, contexto, 'plano', p => {
     const item = card('Plano atual', elemento('strong', p?.nome || 'Sem plano', 'aluno-plano-nome'));
     item.dataset.plano = p?.tipo || '';
@@ -83,18 +84,44 @@ export function inicio(raiz, contexto) {
     }
     item.append(botao('Ver assinatura', '#faturas'));
     plano.replaceChildren(item);
-  });
-  carregar(agenda, contexto, 'agenda', itens => {
-    const proximo = itens.find(item => new Date(item.data_hora) >= new Date());
-    agenda.replaceChildren(metricas('calendar-event', 'Próximo agendamento', proximo ? profissional(proximo.tipo) : 'Sem agendamento',
-      proximo ? quando(proximo.data_hora) : 'As próximas sessões aparecem aqui.'));
+    const ativo = p?.elegivel === true || p?.status === 'ativo';
+    for (const itemAtalho of linksAtalho) {
+      const requerElite = ['treinos-extras', 'nutricao', 'agendamentos', 'arquivos'].includes(itemAtalho.hash);
+      const bloqueado = itemAtalho.hash !== 'faturas' && (!ativo || (requerElite && !eliteAtivo(p)));
+      if (bloqueado) {
+        const exigencia = ativo ? 'Plano Elite' : 'Matrícula ativa';
+        itemAtalho.link.dataset.bloqueado = '';
+        itemAtalho.link.append(elemento('small', `Bloqueado · ${exigencia}`, 'kd-texto-suave'));
+        itemAtalho.link.setAttribute('aria-label', `${itemAtalho.nome}. Bloqueado; exige ${exigencia.toLowerCase()}.`);
+      }
+    }
+    if (!ativo) {
+      matricula.replaceChildren(card('Matrícula não ativa',
+        elemento('p', 'Você ainda não possui uma matrícula ativa e vigente. Contrate ou renove um plano para liberar os serviços da academia.'),
+        botao('Contratar ou renovar plano', '/escolher-plano.html', true)));
+      frequencia.replaceChildren(elemento('h2', 'Frequência semanal'), estado('Bloqueado até a ativação de um plano vigente.'));
+      agenda.replaceChildren(metricas('calendar-event', 'Agendamentos', 'Bloqueado', 'Disponível conforme a elegibilidade do plano.'));
+      return;
+    }
+    matricula.replaceChildren();
+    frequencia.replaceChildren(elemento('h2', 'Frequência semanal'), calendarioTreinos());
+    if (!eliteAtivo(p)) {
+      agenda.replaceChildren(metricas('calendar-event', 'Agendamentos', 'Plano Elite', 'Consultas com especialistas exigem plano Elite vigente.'));
+      return;
+    }
+    carregar(agenda, contexto, 'agenda', itens => {
+      const proximo = itens.find(item => new Date(item.data_hora) >= new Date());
+      agenda.replaceChildren(metricas('calendar-event', 'Próximo agendamento', proximo ? profissional(proximo.tipo) : 'Sem agendamento',
+        proximo ? quando(proximo.data_hora) : 'As próximas sessões aparecem aqui.'));
+    });
   });
 
   const area = elemento('section', null, 'aluno-area');
   const atalhos = elemento('div', null, 'kd-grid aluno-atalhos');
+  const linksAtalho = [];
   for (const [hash, nome, desenho] of [
     ['treinos', 'Treinos', 'lightning-charge'], ['treinos-extras', 'Treinos extras', 'plus-square'],
-    ['avaliacoes', 'Avaliações', 'clipboard2-pulse'], ['progresso', 'Meu progresso', 'graph-up-arrow'],
+    ['progresso', 'Meu progresso', 'graph-up-arrow'],
     ['nutricao', 'Nutrição', 'egg-fried'], ['agendamentos', 'Agendamentos', 'calendar3'],
     ['faturas', 'Faturas', 'receipt'], ['arquivos', 'Documentos', 'file-earmark-pdf'],
   ]) {
@@ -102,6 +129,7 @@ export function inicio(raiz, contexto) {
     link.href = '#' + hash;
     link.append(icone(desenho), elemento('h3', nome));
     atalhos.append(link);
+    linksAtalho.push({ hash, nome, link });
   }
   area.append(elemento('h2', 'Acesso rápido'), atalhos);
   raiz.append(area);
@@ -121,25 +149,53 @@ export function inicio(raiz, contexto) {
 
 export function modulo(raiz, contexto, chave, nome) {
   if (chave === 'treinos-extras') {
-    titulo(raiz, nome, 'Fichas personalizadas e documentos do personal trainer.');
+    titulo(raiz, nome, 'PDFs complementares enviados ou gerados pelo personal trainer.');
     const area = elemento('div');
     raiz.append(area);
     carregar(area, contexto, 'plano', async p => {
       if (!eliteAtivo(p)) return area.replaceChildren(card('Materiais personalizados',
         elemento('p', 'Disponíveis para alunos com plano Elite ativo.'), botao('Consultar meu plano', '#faturas')));
-      await materiaisProfissionais(area, contexto, 'personal', 'Fichas personalizadas');
+      await materiaisProfissionais(area, contexto, 'personal', 'PDFs de treino', false);
     });
     return;
   }
   const [subtitulo, vazio, explicacao, desenho] = modulos[chave];
   titulo(raiz, nome, subtitulo);
   if (chave === 'treinos') {
-    raiz.append(card('Treino de hoje', registrarTreino()));
+    const frequencia = elemento('div');
+    raiz.append(frequencia);
+    const area = elemento('div');
+    raiz.append(area);
+    carregar(area, contexto, 'plano', async p => {
+      if (!(p?.elegivel === true || p?.status === 'ativo')) {
+        frequencia.replaceChildren(card('Frequência do treino', estado('Bloqueado até a ativação de um plano vigente.')));
+        return area.replaceChildren(card('Matrícula necessária', elemento('p', 'Contrate ou renove um plano para acessar os serviços da academia.'), botao('Consultar planos', '/escolher-plano.html', true)));
+      }
+      frequencia.replaceChildren(card('Frequência do treino', registrarTreino()));
+      if (!eliteAtivo(p)) return area.replaceChildren(card('Fichas personalizadas',
+        elemento('p', 'Fichas profissionais e acompanhamento personalizado exigem plano Elite vigente.'), botao('Conhecer o Elite', '#faturas')));
+      area.replaceChildren(estado('Carregando fichas…'));
+      try {
+        const fichas = await api('/api/profissionais/fichas?tipo=personal');
+        area.replaceChildren();
+        if (!fichas.length) return area.append(estado('Nenhuma ficha estruturada disponível.', 'Quando seu personal publicar uma ficha, os exercícios aparecerão aqui.'));
+        for (const ficha of fichas) {
+          const material = fichaChecklist(ficha, contexto.usuario.id);
+          material.prepend(elemento('p', `${ficha.profissional?.nome || 'Personal trainer'} · Atualizada em ${dia(ficha.atualizado_em || ficha.criado_em)}`, 'kd-texto-suave'));
+          area.append(material);
+        }
+      } catch (falha) { erro(area, falha.message, () => modulo(raiz, contexto, chave, nome)); }
+    });
     return;
   }
   if (chave === 'progresso') {
-    raiz.append(card('Frequência semanal', calendarioTreinos()), card('Evolução da frequência', historicoTreinos()),
-      card('Peso, medidas e avaliações', estado(vazio, explicacao)));
+    const area = elemento('div');
+    raiz.append(area);
+    carregar(area, contexto, 'plano', p => {
+      if (!(p?.elegivel === true || p?.status === 'ativo')) return area.replaceChildren(card('Matrícula necessária',
+        elemento('p', 'A frequência fica disponível enquanto houver um plano ativo e vigente.'), botao('Contratar ou renovar plano', '/escolher-plano.html', true)));
+      area.replaceChildren(card('Frequência semanal', calendarioTreinos()), card('Frequência recente', historicoTreinos()));
+    });
     return;
   }
   if (chave === 'nutricao') {
@@ -163,7 +219,7 @@ export function modulo(raiz, contexto, chave, nome) {
   raiz.append(bloco);
 }
 
-async function materiaisProfissionais(destino, contexto, tipo, tituloLista) {
+async function materiaisProfissionais(destino, contexto, tipo, tituloLista, incluirFichas = true) {
   const atualizar = elemento('button', 'Atualizar materiais', 'kd-button');
   atualizar.type = 'button';
   const lista = elemento('div');
@@ -171,7 +227,8 @@ async function materiaisProfissionais(destino, contexto, tipo, tituloLista) {
     lista.replaceChildren(estado('Carregando materiais…'));
     try {
       const [fichas, documentos] = await Promise.all([
-        api('/api/profissionais/fichas?tipo=' + tipo), api('/api/profissionais/documentos'),
+        incluirFichas ? api('/api/profissionais/fichas?tipo=' + tipo) : Promise.resolve([]),
+        api('/api/profissionais/documentos'),
       ]);
       lista.replaceChildren();
       const pdfs = documentos.filter(item => item.tipo === tipo);
@@ -274,6 +331,14 @@ export function agendamentos(raiz, contexto) {
     const conteudo = elemento('div');
     try {
       const plano = await contexto.dados.ler('plano');
+      if (!(plano?.elegivel === true || plano?.status === 'ativo')) {
+        area.replaceChildren(card('Matrícula necessária', elemento('p', 'Agendamentos e serviços da academia exigem plano ativo e vigente.'), botao('Contratar ou renovar plano', '/escolher-plano.html', true)));
+        return;
+      }
+      if (!eliteAtivo(plano)) {
+        area.replaceChildren(card('Benefício do plano Elite', elemento('p', 'Consultas com personal trainer e nutricionista estão disponíveis para alunos com plano Elite vigente.'), botao('Consultar planos', '#faturas')));
+        return;
+      }
       await agendaPainel(conteudo, contexto.usuario, atualizar, eliteAtivo(plano));
       area.replaceChildren(conteudo);
     } catch { erro(area, 'Não foi possível consultar a agenda.', atualizar); }
@@ -402,13 +467,13 @@ export function faturas(raiz, contexto) {
 
 export function configuracoes(raiz, contexto) {
   titulo(raiz, 'Configurações', 'Gerencie seu perfil, sua foto e a segurança da conta.');
-  const acoes = elemento('div', null, 'aluno-acoes');
-  if (contexto.usuario.possuiSenhaLocal) acoes.append(botao('Alterar senha', '/configuracoes-conta.html#alterar'));
-  if (contexto.usuario.podeVincularGoogle) acoes.append(botao('Vincular Google', '/configuracoes-conta.html#vincular-google'));
+  const acoes = elemento('div', null, 'kd-acoes-conta');
+  if (contexto.usuario.possuiSenhaLocal) acoes.append(itemAcaoConta('key', 'Alterar senha', 'Atualize a senha da sua conta.', botao('Abrir', '/configuracoes-conta.html#alterar')));
+  if (contexto.usuario.podeVincularGoogle) acoes.append(itemAcaoConta('google', 'Vincular Google', 'Conecte sua conta Google com segurança.', botao('Vincular', '/configuracoes-conta.html#vincular-google')));
   const sair = elemento('button', 'Encerrar sessão', 'kd-button');
   sair.type = 'button';
   sair.dataset.sair = '';
-  acoes.append(sair);
+  acoes.append(itemAcaoConta('box-arrow-right', 'Encerrar sessão', 'Finalize o acesso neste dispositivo.', sair));
   const seguranca = card('Segurança da conta', contexto.usuario.possuiSenhaLocal ? acoes :
     elemento('p', 'A senha desta conta é gerenciada pelo Google.', 'kd-texto-suave'));
   if (!contexto.usuario.possuiSenhaLocal) seguranca.append(acoes);

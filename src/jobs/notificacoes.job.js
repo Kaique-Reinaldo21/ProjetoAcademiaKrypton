@@ -16,6 +16,7 @@ function destino(role, tipo, tipoDocumento) {
   if (role === 'admin') return '/admin.html';
   if (role !== 'aluno') return '/profissional.html';
   if (tipo.startsWith('consulta')) return '/dashboard.html#agendamentos';
+  if (tipo === 'treino_publicado' || tipo === 'treino_atualizado') return '/dashboard.html#treinos';
   if (tipo.startsWith('treino')) return '/dashboard.html#treinos-extras';
   if (tipo === 'documento_disponivel') {
     if (tipoDocumento === 'personal') return '/dashboard.html#treinos-extras';

@@ -3,6 +3,7 @@ import prisma from '../lib/prisma.js';
 import { enfileirar } from '../queues/notificacoes.queue.js';
 import { ErroProfissional, id } from './perfis-profissionais.service.js';
 import { validarPdf } from '../lib/pdf-profissional.js';
+import { criarServicoElegibilidadeAluno } from './elegibilidade-aluno.service.js';
 
 const especiais = ['personal', 'nutricionista'];
 const recusar = (status, mensagem) => { throw new ErroProfissional(status, mensagem); };
@@ -10,12 +11,9 @@ const hash = buffer => createHash('sha256').update(buffer).digest('hex');
 const resultadoPublico = ({ conteudo, sha256, ficha_id, chave_origem, ...documento }) => documento;
 
 export function criarServicoDocumentos(db = prisma) {
+  const elegibilidade = criarServicoElegibilidadeAluno(db);
   async function planoElite(tx, alunoId) {
-    const plano = await tx.planos.findFirst({ where: { usuario_id: alunoId, ativo: true }, orderBy: { id: 'desc' }, select: { tipo: true, ativo: true, vencimento: true } });
-    const hoje = new Date(); hoje.setUTCHours(0, 0, 0, 0);
-    if (plano?.tipo !== 'elite' || !plano.ativo || (plano.vencimento && plano.vencimento < hoje)) {
-      recusar(403, 'Documentos profissionais estão disponíveis para alunos com plano Elite ativo.');
-    }
+    if (!await criarServicoElegibilidadeAluno(tx).exigirElite(alunoId)) recusar(403, 'Documentos profissionais exigem plano Elite ativo e vigente.');
   }
 
   async function exigirVinculo(tx, profissionalId, alunoId, tipo) {
@@ -49,7 +47,7 @@ export function criarServicoDocumentos(db = prisma) {
   return {
     async listar(ator) {
       if (ator.role === 'aluno') {
-        await planoElite(db, ator.id);
+        if (!await elegibilidade.exigirElite(ator.id)) recusar(403, 'Documentos profissionais exigem plano Elite ativo e vigente.');
         const itens = await db.documentos_profissionais.findMany({ where: { aluno_id: ator.id }, orderBy: [{ criado_em: 'desc' }, { id: 'desc' }],
           select: { id: true, titulo: true, nome_arquivo: true, tipo: true, origem: true, situacao: true, criado_em: true,
             disponibilizado_em: true, profissional: { select: { nome: true, role: true } } } });

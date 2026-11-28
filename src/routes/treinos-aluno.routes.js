@@ -1,5 +1,6 @@
 import express from 'express';
 import prisma from '../lib/prisma.js';
+import { exigirPlanoAtivo } from '../services/elegibilidade-aluno.service.js';
 
 const formatoDia = new Intl.DateTimeFormat('en', {
   timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -20,7 +21,7 @@ router.use('/treinos', (req, res, next) => {
     return res.status(403).json({ erro: 'Solicitação inválida.' });
   }
   next();
-});
+}, exigirPlanoAtivo());
 
 router.get('/treinos', async (req, res) => {
   const semanas = req.query.semanas ?? '0';

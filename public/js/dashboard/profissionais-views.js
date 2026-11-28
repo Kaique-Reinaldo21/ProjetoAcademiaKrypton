@@ -46,7 +46,7 @@ export function formulario(campos, texto, executar) {
     evento.preventDefault();
     submit.disabled = true;
     status.textContent = 'Salvando…';
-    try { await executar(Object.fromEntries(new FormData(form)), form); status.textContent = 'Operação concluída.'; }
+    try { const resultado = await executar(Object.fromEntries(new FormData(form)), form); if (resultado !== false) status.textContent = 'Operação concluída.'; }
     catch (e) { status.textContent = e.message; }
     finally { submit.disabled = false; }
   });
@@ -73,12 +73,75 @@ const definicao = tipo => tipo === 'personal' ? treino : alimentacao;
 export function fichaPublicada(ficha) {
   const lista = elemento('ul');
   for (const item of ficha.itens) {
-    const valores = definicao(ficha.tipo).filter(([chave]) => item[chave] != null)
-      .map(([chave, rotulo]) => rotulo + ': ' + item[chave]);
-    lista.append(elemento('li', valores.join(' · ')));
+    const linha = elemento('li', null, 'kd-ficha-item');
+    for (const [chave, rotulo] of definicao(ficha.tipo)) {
+      if (item[chave] == null || item[chave] === '') continue;
+      const detalhe = elemento('p', null, chave === 'orientacoes' ? 'kd-ficha-orientacao' : '');
+      detalhe.append(elemento('strong', rotulo + ': '), document.createTextNode(String(item[chave])));
+      linha.append(detalhe);
+    }
+    lista.append(linha);
   }
   const card = bloco(ficha.titulo, lista);
-  if (ficha.orientacoes) card.append(elemento('p', ficha.orientacoes));
+  if (ficha.orientacoes) card.append(elemento('p', 'Orientações gerais: ' + ficha.orientacoes, 'kd-ficha-orientacao-geral'));
+  return card;
+}
+
+export function fichaChecklist(ficha, usuarioId) {
+  const card = fichaPublicada(ficha);
+  const hoje = new Date().toLocaleDateString('en-CA');
+  const versao = String(ficha.atualizado_em || ficha.criado_em || '') + JSON.stringify(ficha.itens || []);
+  const chave = `krypton:treino:${usuarioId}:${ficha.id}:${hoje}`;
+  let dados = null;
+  try { dados = JSON.parse(localStorage.getItem(chave) || 'null'); } catch { /* inicia sem estado local inválido */ }
+  const status = elemento('p', '', 'kd-feedback');
+  status.setAttribute('role', 'status');
+  if (dados?.versao && dados.versao !== versao) {
+    dados = null;
+    status.textContent = 'Esta ficha foi atualizada; o checklist de hoje foi reiniciado.';
+  }
+  const concluidos = new Set(Array.isArray(dados?.itens) ? dados.itens : []);
+  const tarefas = elemento('div', null, 'kd-checklist-exercicios');
+  const progresso = elemento('progress');
+  progresso.max = Math.max(1, ficha.itens?.length || 0);
+  progresso.value = concluidos.size;
+  progresso.setAttribute('aria-label', 'Progresso dos exercícios');
+  const resumo = elemento('p', '', 'kd-texto-suave');
+  const concluir = elemento('button', 'Concluir treino', 'kd-button kd-button-primario');
+  concluir.type = 'button';
+  concluir.disabled = !ficha.itens?.length || concluidos.size !== ficha.itens.length;
+  function salvarEstado() {
+    const valores = { versao, itens: [...concluidos] };
+    try { localStorage.setItem(chave, JSON.stringify(valores)); } catch { status.textContent = 'O navegador não permitiu salvar o andamento local.'; }
+    progresso.value = concluidos.size;
+    resumo.textContent = `${concluidos.size} de ${ficha.itens.length} exercícios concluídos.`;
+    concluir.disabled = !ficha.itens.length || concluidos.size !== ficha.itens.length;
+  }
+  for (const [indice, item] of (ficha.itens || []).entries()) {
+    const label = elemento('label', null, 'kd-checklist-exercicio');
+    const checkbox = elemento('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = concluidos.has(indice);
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) concluidos.add(indice); else concluidos.delete(indice);
+      salvarEstado();
+    });
+    label.append(checkbox, elemento('span', `${item.divisao ? item.divisao + ' · ' : ''}${item.nome || item.refeicao || 'Item da ficha'}`));
+    tarefas.append(label);
+  }
+  concluir.addEventListener('click', async () => {
+    concluir.disabled = true;
+    try {
+      await api('/api/usuario/treinos/hoje', { method: 'PUT' });
+      status.textContent = 'Treino concluído e frequência de hoje registrada.';
+    } catch (falha) {
+      status.textContent = falha.status === 403 ? 'A conclusão é exclusiva do aluno.' : 'Não foi possível registrar a frequência. Tente novamente.';
+      concluir.disabled = false;
+    }
+  });
+  card.append(elemento('h3', 'Checklist do treino'), tarefas, progresso, resumo,
+    elemento('p', 'O andamento parcial fica armazenado neste navegador e não sincroniza entre dispositivos.', 'kd-texto-suave'), concluir, status);
+  salvarEstado();
   return card;
 }
 
@@ -120,15 +183,17 @@ export function editor(alunos, tipo, ficha, concluir) {
   return formulario([
     escolha('aluno_id', 'Aluno', alunos.map(a => [a.id, a.nome]), ficha?.aluno_id),
     campo('titulo', 'Título', 'text', ficha?.titulo),
-    campo('orientacoes', 'Orientações gerais', 'text', ficha?.orientacoes, true),
+    campo('orientacoes_gerais', 'Orientações gerais', 'text', ficha?.orientacoes, true),
     itens, acao('Adicionar item', () => { if (itens.children.length < 40) adicionar(); }),
   ], ficha ? 'Salvar alterações' : 'Publicar', async dados => {
     const lista = [...itens.children].map(grupo => Object.fromEntries([...grupo.querySelectorAll('input')].map(input => [input.name, input.value])));
-    await salvar(ficha ? '/fichas/' + ficha.id : '/fichas', {
-      aluno_id: dados.aluno_id, titulo: dados.titulo, orientacoes: dados.orientacoes, itens: lista,
-    }, ficha ? 'PUT' : 'POST');
+    await salvar(ficha ? '/fichas/' + ficha.id : '/fichas', payloadFicha(dados, lista), ficha ? 'PUT' : 'POST');
     await concluir();
   });
+}
+
+export function payloadFicha(dados, itens) {
+  return { aluno_id: dados.aluno_id, titulo: dados.titulo, orientacoes: dados.orientacoes_gerais, itens };
 }
 
 export async function agendaPainel(destino, usuario, recarregar, criar = false) {

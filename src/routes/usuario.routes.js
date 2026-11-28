@@ -6,9 +6,12 @@ import prisma from '../lib/prisma.js';
 import authMiddleware from '../middleware/auth.js';
 import adminMiddleware from '../middleware/admin.js';
 import perfilAlunoRoutes from './perfil-aluno.routes.js';
+import { criarServicoElegibilidadeAluno, dataHojeAcademia, exigirPlanoAtivo } from '../services/elegibilidade-aluno.service.js';
 
 import treinosAlunoRoutes from './treinos-aluno.routes.js';
 const router = express.Router();
+const elegibilidadeAluno = criarServicoElegibilidadeAluno();
+const exigirElite = exigirPlanoAtivo({ elite: true });
 
 router.use(authMiddleware);
 router.use(perfilAlunoRoutes);
@@ -139,23 +142,10 @@ router.post('/assinar-plano', (_req, res) => {
 // GET /api/usuario/plano
 router.get('/plano', async (req, res) => {
   try {
-    const plano = await prisma.planos.findFirst({
-      where: {
-        usuario_id: req.usuario.id,
-      },
-
-      orderBy: {
-        id: 'desc',
-      },
-
-      select: {
-        id: true,
-        tipo: true,
-        ativo: true,
-        inicio: true,
-        vencimento: true,
-        unidade_id: true,
-      },
+    const planoAtual = await elegibilidadeAluno.planoAtivo(req.usuario.id);
+    const plano = planoAtual || await prisma.planos.findFirst({
+      where: { usuario_id: req.usuario.id }, orderBy: { id: 'desc' },
+      select: { id: true, tipo: true, ativo: true, inicio: true, vencimento: true, unidade_id: true },
     });
 
     if (!plano) {
@@ -164,14 +154,9 @@ router.get('/plano', async (req, res) => {
       });
     }
 
-    let status = 'ativo';
+    let status = planoAtual ? 'ativo' : 'inativo';
 
-    if (!plano.ativo) {
-      status = 'inativo';
-    } else if (
-      plano.vencimento &&
-      new Date(plano.vencimento) < new Date()
-    ) {
+    if (!planoAtual && plano.ativo && plano.vencimento && new Date(plano.vencimento).toISOString().slice(0, 10) < dataHojeAcademia().toISOString().slice(0, 10)) {
       status = 'vencido';
 
       await prisma.planos.update({
@@ -242,6 +227,7 @@ router.get('/plano', async (req, res) => {
         vencimento: formatarData(plano.vencimento),
         beneficios: info.beneficios,
         mostra_agendamento: info.mostra_agendamento,
+        elegivel: status === 'ativo',
         mostra_todas_unidades:
           info.mostra_todas_unidades,
 
@@ -264,13 +250,13 @@ router.get('/plano', async (req, res) => {
 
 // Compatibilidade com o formulário antigo, usando a mesma validação e fila da agenda.
 const servicoProfissionais = criarServicoProfissionais();
-router.post('/agendamento', permitirPapeis('aluno'), responder(async (usuario, body) => {
+router.post('/agendamento', permitirPapeis('aluno'), exigirElite, responder(async (usuario, body) => {
   await servicoProfissionais.agendar(usuario, body);
   return { mensagem: 'Agendamento realizado com sucesso!' };
 }, 201));
 
 // GET /api/usuario/agendamentos
-router.get('/agendamentos', async (req, res) => {
+router.get('/agendamentos', exigirElite, async (req, res) => {
   try {
     const agendamentos =
       await prisma.agendamentos.findMany({
