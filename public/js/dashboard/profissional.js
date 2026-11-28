@@ -31,6 +31,26 @@ let usuario, versao = 0, identidade;
 const hojeISO = () => new Date().toLocaleDateString('en-CA');
 const rotaAluno = busca => '/alunos' + (busca ? '?' + new URLSearchParams(busca) : '');
 
+function controlesPagamentoSimulado(tentativaId, destino, aoAprovar = () => {}) {
+  const status = elemento('p', `Tentativa ${tentativaId} · pagamento pendente.`, 'kd-texto-suave');
+  status.setAttribute('role', 'status');
+  const controles = elemento('div', null, 'kd-acoes-pagamento');
+  for (const [acaoPagamento, rotulo] of [['aprovar', 'Simular pagamento aprovado'], ['pendente', 'Manter pendente'], ['recusar', 'Simular pagamento recusado']]) {
+    controles.append(acao(rotulo, async botao => {
+      botao.target.disabled = true;
+      try {
+        const resultado = await api(`/api/profissionais/recepcao/matricula-simulada/${encodeURIComponent(tentativaId)}/confirmar`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acao: acaoPagamento, confirmacao: true }),
+        });
+        status.textContent = resultado.status === 'approved' ? 'Pagamento simulado aprovado e matrícula ativada.' : resultado.status === 'rejected' ? 'Pagamento recusado; matrícula não ativada.' : 'Pagamento pendente; matrícula não ativada.';
+        if (resultado.status !== 'pending') controles.querySelectorAll('button').forEach(item => { item.disabled = true; });
+        if (resultado.status === 'approved') aoAprovar();
+      } catch (falha) { status.textContent = falha.message; botao.target.disabled = false; }
+    }));
+  }
+  destino.append(status, controles);
+}
+
 function titulo(area, titulo, subtitulo) {
   const topo = elemento('header', null, 'kd-pagina-topo');
   topo.append(elemento('h1', titulo), elemento('p', subtitulo, 'kd-texto-suave'));
@@ -332,24 +352,38 @@ async function formularioMatricula(alunos, unidades) {
   ];
   let revisada = false;
   let tentativaId = null;
+  let dadosRevistos = null;
+  let resumoContratacao = null;
   const form = formulario(campos, 'Revisar contratação', async (dados, formularioAtual) => {
     const submit = formularioAtual.querySelector('button[type="submit"]');
     const status = formularioAtual.querySelector('[role="status"]');
     if (!revisada) {
       if (!dados.aluno_id || !dados.tipoPlano || (dados.tipoPlano === 'basico' && !dados.unidade_id)) throw Error('Selecione aluno, plano e unidade quando exigida.');
-      const aluno = alunos.find(item => String(item.id) === String(dados.aluno_id)) ||
-        (await ler('/alunos?busca=' + encodeURIComponent(entradaBusca.value.trim()))).find(item => String(item.id) === String(dados.aluno_id));
+      dadosRevistos = { aluno_id: dados.aluno_id, tipoPlano: dados.tipoPlano, unidade_id: dados.unidade_id || '', metodo: dados.metodo };
+      const confirmacaoRevisao = await salvar('/recepcao/matricula-simulada/revisar', dadosRevistos);
+      dadosRevistos.revisao = confirmacaoRevisao.revisao;
+      const aluno = alunos.find(item => String(item.id) === String(dadosRevistos.aluno_id)) ||
+        (await ler('/alunos?busca=' + encodeURIComponent(entradaBusca.value.trim()))).find(item => String(item.id) === String(dadosRevistos.aluno_id));
       const nomes = { basico: 'Básico', pro: 'Pro', elite: 'Elite' };
-      const precos = { basico: 89, pro: 149, elite: 249 };
-      const unidadeNome = unidades.find(item => String(item.id) === String(dados.unidade_id))?.nome;
-      formularioAtual.append(bloco('Resumo da contratação', elemento('p', `Aluno: ${aluno?.nome || 'Aluno selecionado'}`),
-        elemento('p', `Plano: ${nomes[dados.tipoPlano]} · R$ ${precos[dados.tipoPlano].toFixed(2).replace('.', ',')} / mês`),
-        ...(dados.tipoPlano === 'basico' ? [elemento('p', 'Unidade: ' + unidadeNome)] : []),
-        elemento('p', `Forma de pagamento: ${dados.metodo === 'qr_krypton' ? 'PIX Krypton' : 'Mercado Pago'} simulado. Nenhuma cobrança real será realizada.`),
-        elemento('p', 'A tentativa permanecerá pendente até uma resposta simulada explícita. O plano só será ativado se aprovada.')));
+      const precoMensal = (confirmacaoRevisao.resumo.valor_centavos / 100).toFixed(2).replace('.', ',');
+      const unidadeNome = unidades.find(item => String(item.id) === String(dadosRevistos.unidade_id))?.nome;
+      resumoContratacao = bloco('Resumo da contratação', elemento('p', `Aluno: ${aluno?.nome || 'Aluno selecionado'}`),
+        elemento('p', `Plano: ${nomes[dadosRevistos.tipoPlano]} · R$ ${precoMensal} / mês`),
+        ...(dadosRevistos.tipoPlano === 'basico' ? [elemento('p', 'Unidade: ' + unidadeNome)] : []),
+        elemento('p', `Forma de pagamento: ${dadosRevistos.metodo === 'qr_krypton' ? 'PIX Krypton' : 'Mercado Pago'} simulado. Nenhuma cobrança real será realizada.`),
+        elemento('p', 'A tentativa permanecerá pendente até uma resposta simulada explícita. O plano só será ativado se aprovada.'));
+      formularioAtual.append(resumoContratacao);
       const confirmar = elemento('input'); confirmar.type = 'checkbox'; confirmar.name = 'confirmar_pagamento'; confirmar.required = true;
       const rotulo = elemento('label', 'Confirmo que o aluno autorizou o pagamento simulado e que devo ativar esta matrícula.');
       rotulo.prepend(confirmar); formularioAtual.append(rotulo);
+      for (const campo of formularioAtual.querySelectorAll('input:not([name="confirmar_pagamento"]), select')) campo.disabled = true;
+      formularioAtual.append(acao('Editar dados da contratação', () => {
+        formularioAtual.querySelectorAll('input:not([name="confirmar_pagamento"]), select').forEach(campo => { campo.disabled = false; });
+        confirmar.remove(); rotulo.remove(); resumoContratacao.remove();
+        revisada = false; dadosRevistos = null; resumoContratacao = null;
+        submit.textContent = 'Revisar contratação';
+        status.textContent = 'Altere os dados e revise novamente antes de confirmar.';
+      }));
       revisada = true;
       submit.textContent = 'Criar tentativa de pagamento';
       status.textContent = 'Revise o resumo, selecione a confirmação e crie a tentativa pendente.';
@@ -359,28 +393,14 @@ async function formularioMatricula(alunos, unidades) {
     const confirmar = formularioAtual.querySelector('[name="confirmar_pagamento"]');
     if (!confirmar?.checked) throw Error('Confirme explicitamente a autorização para criar o pagamento simulado.');
     const tentativa = await salvar('/recepcao/matricula-simulada', {
-      aluno_id: dados.aluno_id, tipoPlano: dados.tipoPlano, unidade_id: dados.unidade_id,
-      metodo: dados.metodo, confirmacao: true,
+      ...dadosRevistos, confirmacao: true,
     });
     tentativaId = tentativa.tentativaId;
     submit.hidden = true;
     confirmar.disabled = true;
-    const acoes = bloco('Confirmação do pagamento simulado', elemento('p', `Tentativa ${tentativaId} · status pendente. Os controles abaixo são exclusivos do simulador acadêmico.`));
-    const controles = elemento('div', null, 'kd-acoes-pagamento');
-    for (const [acaoPagamento, rotulo] of [['aprovar', 'Simular pagamento aprovado'], ['pendente', 'Manter pendente'], ['recusar', 'Simular pagamento recusado']]) {
-      controles.append(acao(rotulo, async botao => {
-        botao.target.disabled = true;
-        try {
-          const resultado = await api(`/api/profissionais/recepcao/matricula-simulada/${encodeURIComponent(tentativaId)}/confirmar`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acao: acaoPagamento, confirmacao: true }),
-          });
-          status.textContent = resultado.status === 'approved' ? 'Pagamento simulado aprovado e matrícula ativada.' : resultado.status === 'rejected' ? 'Pagamento recusado; a matrícula não foi ativada.' : 'Pagamento pendente; a matrícula não foi ativada.';
-          if (resultado.status === 'approved') setTimeout(renderizar, 700);
-          if (resultado.status !== 'pending') controles.querySelectorAll('button').forEach(item => { item.disabled = true; });
-        } catch (falha) { status.textContent = falha.message; botao.target.disabled = false; }
-      }));
-    }
-    acoes.append(controles); formularioAtual.append(acoes);
+    const acoes = bloco('Confirmação do pagamento simulado', elemento('p', 'Os controles abaixo pertencem exclusivamente ao simulador acadêmico.'));
+    controlesPagamentoSimulado(tentativaId, acoes, () => setTimeout(renderizar, 700));
+    formularioAtual.append(acoes);
     status.textContent = 'Tentativa criada e pendente. Escolha uma resposta no simulador.';
     return false;
   });
@@ -398,7 +418,17 @@ async function planosRecepcao(area) {
   const { unidades } = await api('/api/unidades');
   const matriculas = bloco('Matrículas e situação atual');
   renderAlunos(matriculas, alunos, unidades);
-  area.append(cards, matriculas, bloco('Matrícula presencial', elemento('p', 'A recepção permanece autenticada na própria conta. A contratação abaixo é exclusivamente simulada, exige confirmação explícita e registra a pessoa responsável; fora do modo acadêmico demo a API recusa a operação.'),
+  const pendentes = bloco('Pagamentos simulados pendentes');
+  const { tentativas = [] } = await ler('/recepcao/matricula-simulada/pendentes');
+  if (!tentativas.length) pendentes.append(listaVazia('Nenhum pagamento pendente iniciado por esta conta.'));
+  for (const tentativa of tentativas) {
+    const nomes = { basico: 'Básico', pro: 'Pro', elite: 'Elite' };
+    const item = bloco(`${tentativa.aluno?.nome || 'Aluno'} · ${nomes[tentativa.tipo] || tentativa.tipo}`,
+      elemento('p', `${tentativa.metodo === 'qr_krypton' ? 'PIX Krypton' : 'Mercado Pago'} simulado · iniciado em ${dataLocal(tentativa.created_at)} · pendente.`));
+    controlesPagamentoSimulado(tentativa.id, item, () => setTimeout(renderizar, 700));
+    pendentes.append(item);
+  }
+  area.append(cards, matriculas, pendentes, bloco('Matrícula presencial', elemento('p', 'A recepção permanece autenticada na própria conta. A contratação abaixo é exclusivamente simulada, exige confirmação explícita e registra a pessoa responsável; fora do modo acadêmico demo a API recusa a operação.'),
     await formularioMatricula(alunos, unidades)));
 }
 

@@ -68,10 +68,12 @@ export function inicio(raiz, contexto) {
   const resumo = elemento('div', null, 'kd-grid aluno-resumo');
   const plano = elemento('div', null, 'aluno-resumo-plano');
   const agenda = elemento('div', null, 'aluno-resumo-agenda');
-  const frequencia = card('Frequência semanal', calendarioTreinos());
+  const frequencia = card('Frequência semanal', estado('Verificando matrícula…'));
   frequencia.classList.add('aluno-resumo-frequencia');
   resumo.append(plano, frequencia, agenda);
   raiz.append(resumo);
+  const matricula = elemento('div');
+  raiz.append(matricula);
   carregar(plano, contexto, 'plano', p => {
     const item = card('Plano atual', elemento('strong', p?.nome || 'Sem plano', 'aluno-plano-nome'));
     item.dataset.plano = p?.tipo || '';
@@ -82,15 +84,41 @@ export function inicio(raiz, contexto) {
     }
     item.append(botao('Ver assinatura', '#faturas'));
     plano.replaceChildren(item);
-  });
-  carregar(agenda, contexto, 'agenda', itens => {
-    const proximo = itens.find(item => new Date(item.data_hora) >= new Date());
-    agenda.replaceChildren(metricas('calendar-event', 'Próximo agendamento', proximo ? profissional(proximo.tipo) : 'Sem agendamento',
-      proximo ? quando(proximo.data_hora) : 'As próximas sessões aparecem aqui.'));
+    const ativo = p?.elegivel === true || p?.status === 'ativo';
+    for (const itemAtalho of linksAtalho) {
+      const requerElite = ['treinos-extras', 'nutricao', 'agendamentos', 'arquivos'].includes(itemAtalho.hash);
+      const bloqueado = itemAtalho.hash !== 'faturas' && (!ativo || (requerElite && !eliteAtivo(p)));
+      if (bloqueado) {
+        const exigencia = ativo ? 'Plano Elite' : 'Matrícula ativa';
+        itemAtalho.link.dataset.bloqueado = '';
+        itemAtalho.link.append(elemento('small', `Bloqueado · ${exigencia}`, 'kd-texto-suave'));
+        itemAtalho.link.setAttribute('aria-label', `${itemAtalho.nome}. Bloqueado; exige ${exigencia.toLowerCase()}.`);
+      }
+    }
+    if (!ativo) {
+      matricula.replaceChildren(card('Matrícula não ativa',
+        elemento('p', 'Você ainda não possui uma matrícula ativa e vigente. Contrate ou renove um plano para liberar os serviços da academia.'),
+        botao('Contratar ou renovar plano', '/escolher-plano.html', true)));
+      frequencia.replaceChildren(elemento('h2', 'Frequência semanal'), estado('Bloqueado até a ativação de um plano vigente.'));
+      agenda.replaceChildren(metricas('calendar-event', 'Agendamentos', 'Bloqueado', 'Disponível conforme a elegibilidade do plano.'));
+      return;
+    }
+    matricula.replaceChildren();
+    frequencia.replaceChildren(elemento('h2', 'Frequência semanal'), calendarioTreinos());
+    if (!eliteAtivo(p)) {
+      agenda.replaceChildren(metricas('calendar-event', 'Agendamentos', 'Plano Elite', 'Consultas com especialistas exigem plano Elite vigente.'));
+      return;
+    }
+    carregar(agenda, contexto, 'agenda', itens => {
+      const proximo = itens.find(item => new Date(item.data_hora) >= new Date());
+      agenda.replaceChildren(metricas('calendar-event', 'Próximo agendamento', proximo ? profissional(proximo.tipo) : 'Sem agendamento',
+        proximo ? quando(proximo.data_hora) : 'As próximas sessões aparecem aqui.'));
+    });
   });
 
   const area = elemento('section', null, 'aluno-area');
   const atalhos = elemento('div', null, 'kd-grid aluno-atalhos');
+  const linksAtalho = [];
   for (const [hash, nome, desenho] of [
     ['treinos', 'Treinos', 'lightning-charge'], ['treinos-extras', 'Treinos extras', 'plus-square'],
     ['progresso', 'Meu progresso', 'graph-up-arrow'],
@@ -101,6 +129,7 @@ export function inicio(raiz, contexto) {
     link.href = '#' + hash;
     link.append(icone(desenho), elemento('h3', nome));
     atalhos.append(link);
+    linksAtalho.push({ hash, nome, link });
   }
   area.append(elemento('h2', 'Acesso rápido'), atalhos);
   raiz.append(area);
@@ -133,12 +162,18 @@ export function modulo(raiz, contexto, chave, nome) {
   const [subtitulo, vazio, explicacao, desenho] = modulos[chave];
   titulo(raiz, nome, subtitulo);
   if (chave === 'treinos') {
-    raiz.append(card('Frequência do treino', registrarTreino()));
+    const frequencia = elemento('div');
+    raiz.append(frequencia);
     const area = elemento('div');
     raiz.append(area);
     carregar(area, contexto, 'plano', async p => {
+      if (!(p?.elegivel === true || p?.status === 'ativo')) {
+        frequencia.replaceChildren(card('Frequência do treino', estado('Bloqueado até a ativação de um plano vigente.')));
+        return area.replaceChildren(card('Matrícula necessária', elemento('p', 'Contrate ou renove um plano para acessar os serviços da academia.'), botao('Consultar planos', '/escolher-plano.html', true)));
+      }
+      frequencia.replaceChildren(card('Frequência do treino', registrarTreino()));
       if (!eliteAtivo(p)) return area.replaceChildren(card('Fichas personalizadas',
-        elemento('p', 'As fichas profissionais estão disponíveis conforme a elegibilidade do plano Elite.'), botao('Consultar meu plano', '#faturas')));
+        elemento('p', 'Fichas profissionais e acompanhamento personalizado exigem plano Elite vigente.'), botao('Conhecer o Elite', '#faturas')));
       area.replaceChildren(estado('Carregando fichas…'));
       try {
         const fichas = await api('/api/profissionais/fichas?tipo=personal');
@@ -154,7 +189,13 @@ export function modulo(raiz, contexto, chave, nome) {
     return;
   }
   if (chave === 'progresso') {
-    raiz.append(card('Frequência semanal', calendarioTreinos()), card('Frequência recente', historicoTreinos()));
+    const area = elemento('div');
+    raiz.append(area);
+    carregar(area, contexto, 'plano', p => {
+      if (!(p?.elegivel === true || p?.status === 'ativo')) return area.replaceChildren(card('Matrícula necessária',
+        elemento('p', 'A frequência fica disponível enquanto houver um plano ativo e vigente.'), botao('Contratar ou renovar plano', '/escolher-plano.html', true)));
+      area.replaceChildren(card('Frequência semanal', calendarioTreinos()), card('Frequência recente', historicoTreinos()));
+    });
     return;
   }
   if (chave === 'nutricao') {
@@ -290,6 +331,14 @@ export function agendamentos(raiz, contexto) {
     const conteudo = elemento('div');
     try {
       const plano = await contexto.dados.ler('plano');
+      if (!(plano?.elegivel === true || plano?.status === 'ativo')) {
+        area.replaceChildren(card('Matrícula necessária', elemento('p', 'Agendamentos e serviços da academia exigem plano ativo e vigente.'), botao('Contratar ou renovar plano', '/escolher-plano.html', true)));
+        return;
+      }
+      if (!eliteAtivo(plano)) {
+        area.replaceChildren(card('Benefício do plano Elite', elemento('p', 'Consultas com personal trainer e nutricionista estão disponíveis para alunos com plano Elite vigente.'), botao('Consultar planos', '#faturas')));
+        return;
+      }
       await agendaPainel(conteudo, contexto.usuario, atualizar, eliteAtivo(plano));
       area.replaceChildren(conteudo);
     } catch { erro(area, 'Não foi possível consultar a agenda.', atualizar); }

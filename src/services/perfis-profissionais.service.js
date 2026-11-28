@@ -4,6 +4,7 @@ import prisma from '../lib/prisma.js';
 import { normalizarEmail } from './contas.service.js';
 import { erroNovaSenha, gerarHashSenha } from './politica-senha.js';
 import { enfileirar } from '../queues/notificacoes.queue.js';
+import { criarServicoElegibilidadeAluno } from './elegibilidade-aluno.service.js';
 
 export class ErroProfissional extends Error {
   constructor(status, mensagem) {
@@ -41,10 +42,6 @@ function dataFutura(valor) {
   if (data.getTime() <= Date.now()) recusar(400, 'Informe um horário futuro.');
   return data;
 }
-function planoElite(plano) {
-  const hoje = new Date().toISOString().slice(0, 10);
-  return plano?.tipo === 'elite' && plano.ativo && (!plano.vencimento || plano.vencimento.toISOString().slice(0, 10) >= hoje);
-}
 function fichaEntrada(body, tipo) {
   if (!Array.isArray(body.itens) || body.itens.length < 1 || body.itens.length > 40) recusar(400, 'Informe de 1 a 40 itens.');
   const itens = body.itens.map(item => {
@@ -69,17 +66,15 @@ function fichaEntrada(body, tipo) {
 }
 
 export function criarServicoProfissionais(db = prisma) {
+  const elegibilidade = criarServicoElegibilidadeAluno(db);
   async function aluno(tx, alunoId) {
     const encontrado = await tx.usuarios.findFirst({ where: { id: alunoId, role: 'aluno' }, select: alunoPublico });
     if (!encontrado) recusar(404, 'Aluno não encontrado.');
     return encontrado;
   }
-  function plano(tx, alunoId) {
-    return tx.planos.findFirst({ where: { usuario_id: alunoId, ativo: true }, orderBy: { id: 'desc' }, select: planoPublico });
-  }
   async function exigirElite(tx, alunoId) {
-    const atual = await plano(tx, alunoId);
-    if (!planoElite(atual)) recusar(403, 'Disponível para alunos com plano Elite ativo.');
+    const atual = await criarServicoElegibilidadeAluno(tx).exigirElite(alunoId);
+    if (!atual) recusar(403, 'Disponível para alunos com plano Elite ativo e vigente.');
     return atual;
   }
   async function exigirVinculo(tx, alunoId, profissionalId, tipo) {
@@ -191,8 +186,8 @@ export function criarServicoProfissionais(db = prisma) {
       return db.unidades.findMany({ select: { id: true, nome: true }, orderBy: { nome: 'asc' } });
     },
     async opcoes(alunoId) {
-      const atual = await plano(db, alunoId);
-      if (!planoElite(atual)) return [];
+      const atual = await elegibilidade.exigirElite(alunoId);
+      if (!atual) recusar(403, 'Disponível para alunos com plano Elite ativo e vigente.');
       return db.vinculos_profissionais.findMany({ where: {
         aluno_id: alunoId, profissional: { profissional_ativo: true, role: { in: especialistas } },
       }, select: { profissional: { select: pessoa } } });
@@ -302,7 +297,7 @@ export function criarServicoProfissionais(db = prisma) {
     async listarFichas(ator, tipo) {
       if (ator.role === 'aluno') {
         if (!especialistas.includes(tipo)) recusar(400, 'Tipo inválido.');
-        if (!planoElite(await plano(db, ator.id))) return [];
+        if (!await elegibilidade.exigirElite(ator.id)) recusar(403, 'Fichas profissionais exigem plano Elite ativo e vigente.');
         return db.fichas_profissionais.findMany({ where: { aluno_id: ator.id, tipo }, orderBy: { atualizado_em: 'desc' }, take: 100,
           include: { profissional: { select: { nome: true } } } });
       }

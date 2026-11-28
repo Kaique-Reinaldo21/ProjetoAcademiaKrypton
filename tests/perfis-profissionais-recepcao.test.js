@@ -50,18 +50,28 @@ test('somente recepcao pode chamar o endpoint de cadastro presencial', async () 
 
 test('matrícula simulada inicia pendente e exige operador, origem e confirmação separada', async t => {
   const anterior = process.env.PAYMENT_MODE;
+  const segredoAnterior = process.env.JWT_SECRET;
   process.env.PAYMENT_MODE = 'demo';
-  t.after(() => { if (anterior === undefined) delete process.env.PAYMENT_MODE; else process.env.PAYMENT_MODE = anterior; });
+  process.env.JWT_SECRET = 'segredo-ficticio-apenas-teste';
+  t.after(() => {
+    if (anterior === undefined) delete process.env.PAYMENT_MODE; else process.env.PAYMENT_MODE = anterior;
+    if (segredoAnterior === undefined) delete process.env.JWT_SECRET; else process.env.JWT_SECRET = segredoAnterior;
+  });
   let evento, decisoes = 0, matriculaExiste = false;
   const tentativa = { id: '11111111-1111-4111-8111-111111111111', usuario_id: 20, metodo: 'qr_krypton', status: 'pendente' };
   const db = {
     usuarios: { async findFirst({ where }) { return where.role === 'recepcao' && where.id === 4 ? { id: 4 } : where.role === 'aluno' && where.id === 20 ? { id: 20 } : null; } },
+    unidades: { async findUnique() { return { id: 1 }; } },
     planos: { async findFirst() { return matriculaExiste ? { id: 44 } : null; } },
-    auditoria_contas: { async create({ data }) { evento = data; }, async findFirst({ where }) { return where.autor_id === 4 && where.usuario_id === 20 && where.evento === 'mat-' + tentativa.id.replaceAll('-', '') ? { id: 1 } : null; } },
-    checkout_tentativas: { async findUnique() { return tentativa; } },
+    auditoria_contas: {
+      async create({ data }) { evento = data; },
+      async findFirst({ where }) { return where.autor_id === 4 && where.usuario_id === 20 && where.evento.in.includes(evento?.evento) ? { id: 1, evento: evento.evento } : null; },
+      async updateMany({ where, data }) { if (evento?.evento === where.evento) { evento.evento = data.evento; return { count: 1 }; } return { count: 0 }; },
+    },
+    checkout_tentativas: { async findUnique() { return { ...tentativa }; } },
   };
   const router = criarRotasProfissionais({ autenticar: (_req, _res, next) => next(), servico: {}, db,
-    metodosCheckout: { async iniciar() { return { tentativaId: tentativa.id, url: '/checkout-demo.html' }; }, async simularResposta() { decisoes++; return { status: 'approved' }; } },
+    metodosCheckout: { async resumo(tipo) { return { tipo, valor_centavos: 24900 }; }, async iniciar() { return { tentativaId: tentativa.id, url: '/checkout-demo.html' }; }, async simularResposta() { decisoes++; return { status: 'approved' }; } },
     checkoutDemo: { async decidir(_id, _tentativa, acao) { decisoes++; tentativa.status = acao === 'aprovar' ? 'confirmado' : 'recusado'; return { status: acao === 'aprovar' ? 'approved' : 'rejected' }; } },
     notificacoes: { listar: async () => ({}), marcar: async () => true },
   });
@@ -77,10 +87,15 @@ test('matrícula simulada inicia pendente e exige operador, origem e confirmaç�
     await run(); return respostaCompleta;
   }
   const startPath = '/recepcao/matricula-simulada';
+  const reviewPath = '/recepcao/matricula-simulada/revisar';
   const confirmPath = '/recepcao/matricula-simulada/:id/confirmar';
   assert.equal((await request(startPath, 'aluno', {})).statusCode, 403);
   assert.equal((await request(startPath, 'recepcao', {}, 'https://malicioso.example')).statusCode, 403);
-  assert.equal((await request(startPath, 'recepcao', { confirmacao: true, metodo: 'qr_krypton', aluno_id: 20, tipoPlano: 'elite' })).statusCode, 201);
+  const revisao = await request(reviewPath, 'recepcao', { metodo: 'qr_krypton', aluno_id: 20, tipoPlano: 'elite' });
+  assert.equal(revisao.statusCode, 200, JSON.stringify(revisao.body));
+  assert.equal((await request(startPath, 'recepcao', { confirmacao: true, revisao: revisao.body.revisao, metodo: 'qr_krypton', aluno_id: 20, tipoPlano: 'pro' })).statusCode, 409,
+    'a alteração do plano exige nova revisão');
+  assert.equal((await request(startPath, 'recepcao', { confirmacao: true, revisao: revisao.body.revisao, metodo: 'qr_krypton', aluno_id: 20, tipoPlano: 'elite' })).statusCode, 201);
   assert.match(evento.evento, /^mat-/);
   assert.equal(evento.autor_id, 4);
   assert.equal(decisoes, 0, 'criar tentativa não ativa matrícula');
@@ -88,9 +103,10 @@ test('matrícula simulada inicia pendente e exige operador, origem e confirmaç�
   const aprovado = await request(confirmPath, 'recepcao', { acao: 'aprovar', confirmacao: true });
   assert.equal(aprovado.statusCode, 200, JSON.stringify(aprovado.body));
   assert.equal(aprovado.body.status, 'approved');
+  assert.equal(evento.evento, 'mat-ok:' + tentativa.id.replaceAll('-', ''));
   assert.equal(decisoes, 1);
   matriculaExiste = true;
-  const duplicada = await request(startPath, 'recepcao', { confirmacao: true, metodo: 'qr_krypton', aluno_id: 20, tipoPlano: 'elite' });
+  const duplicada = await request(startPath, 'recepcao', { confirmacao: true, revisao: revisao.body.revisao, metodo: 'qr_krypton', aluno_id: 20, tipoPlano: 'elite' });
   assert.equal(duplicada.statusCode, 409);
   assert.equal(decisoes, 1);
 });
@@ -102,7 +118,7 @@ test('matrícula Mercado Pago simulado usa somente o simulador local e não apro
   const tentativa = { id: '22222222-2222-4222-8222-222222222222', usuario_id: 30, metodo: 'mercadopago_simulado', status: 'aguardando' };
   let simulacao = 0;
   const db = { usuarios: { async findFirst({ where }) { return where.role === 'aluno' ? { id: 30 } : { id: 4 }; } }, planos: { async findFirst() { return null; } },
-    auditoria_contas: { async create() {}, async findFirst() { return { id: 2 }; } },
+    auditoria_contas: { async create() {}, async findFirst() { return { id: 2 }; }, async updateMany() { return { count: 1 }; } },
     checkout_tentativas: { async findUnique() { return tentativa; } } };
   const router = criarRotasProfissionais({ autenticar: (_req, _res, next) => next(), servico: {}, db,
     metodosCheckout: { async iniciar() { return { tentativaId: tentativa.id }; }, async simularResposta(_id, _tentativa, acao) { simulacao++; return { status: acao === 'aprovar' ? 'approved' : 'pending' }; } },

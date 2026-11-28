@@ -2601,7 +2601,7 @@
           "Agenda"
         ],
         "summary": "Listar os próprios agendamentos",
-        "description": "Retorna apenas agendamentos do usuário autenticado.",
+        "description": "Agenda própria do aluno autenticado. Exige plano Elite ativo e vigente; a elegibilidade é consultada no banco.",
         "operationId": "Agenda_24",
         "responses": {
           "200": {
@@ -2776,7 +2776,7 @@
           "Aluno"
         ],
         "summary": "Consultar treinos concluídos",
-        "description": "Somente aluno; retorna histórico vinculado à conta autenticada.",
+        "description": "Frequência do aluno autenticado. Exige matrícula com plano ativo e dentro da validade; a elegibilidade é consultada no banco em cada requisição.",
         "operationId": "Aluno_26",
         "responses": {
           "200": {
@@ -2886,7 +2886,7 @@
           "Aluno"
         ],
         "summary": "Registrar treino concluído hoje",
-        "description": "Somente aluno; grava para a própria conta e é idempotente por dia.",
+        "description": "Registra uma conclusão diária idempotente para o aluno autenticado. Exige plano ativo e vigente, validado no banco.",
         "operationId": "Aluno_27",
         "responses": {
           "204": {
@@ -6688,11 +6688,22 @@
         }
       }
     },
+    "/api/profissionais/recepcao/matricula-simulada/revisar": {
+      "post": {
+        "tags": ["Recepção"],
+        "summary": "Revisar matrícula presencial simulada",
+        "description": "Somente recepção autenticada em PAYMENT_MODE=demo. Retorna resumo e token assinado de curta duração vinculado ao operador, aluno, plano, unidade e método; qualquer alteração exige nova revisão.",
+        "operationId": "revisarMatriculaPresencialSimulada",
+        "security": [{"cookieAuth": []}, {"bearerAuth": []}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "additionalProperties": false, "required": ["aluno_id", "tipoPlano", "metodo"], "properties": {"aluno_id": {"type": "integer", "minimum": 1}, "tipoPlano": {"type": "string", "enum": ["basico", "pro", "elite"]}, "unidade_id": {"type": "integer", "minimum": 1}, "metodo": {"type": "string", "enum": ["qr_krypton", "mercadopago_simulado"]}}}}}},
+        "responses": {"200": {"description": "Resumo e confirmação de revisão temporária."}, "403": {"description": "Papel, origem ou modo não autorizado."}, "409": {"description": "Matrícula duplicada."}}
+      }
+    },
     "/api/profissionais/recepcao/matricula-simulada": {
       "post": {
         "tags": ["Recepção"],
         "summary": "Iniciar matrícula presencial simulada",
-        "description": "Somente recepção autenticada no PAYMENT_MODE=demo. Exige autorização explícita para criar uma tentativa pendente, registra o operador na auditoria existente e aceita apenas PIX Krypton ou Mercado Pago simulado local. Não chama a API externa nem cria cobrança real. Rejeita checkout pendente e matrícula idêntica já ativa.",
+        "description": "Somente recepção autenticada no PAYMENT_MODE=demo. Exige token de revisão assinado e autorização explícita para criar tentativa pendente, registra o operador na auditoria existente e aceita apenas PIX Krypton ou Mercado Pago simulado local. Não chama a API externa nem cria cobrança real. Rejeita checkout pendente e matrícula idêntica já ativa.",
         "operationId": "recepcaoMatriculaPresencialSimulada",
         "security": [{ "cookieAuth": [] }, { "bearerAuth": [] }],
         "requestBody": {
@@ -6702,13 +6713,14 @@
               "schema": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["aluno_id", "tipoPlano", "metodo", "confirmacao"],
+                "required": ["aluno_id", "tipoPlano", "metodo", "confirmacao", "revisao"],
                 "properties": {
                   "aluno_id": { "type": "integer", "minimum": 1 },
                   "tipoPlano": { "type": "string", "enum": ["basico", "pro", "elite"] },
                   "unidade_id": { "type": "integer", "minimum": 1, "description": "Obrigatória para o plano Básico." },
                   "metodo": { "type": "string", "enum": ["qr_krypton", "mercadopago_simulado"] },
-                  "confirmacao": { "type": "boolean", "const": true }
+                  "confirmacao": { "type": "boolean", "const": true },
+                  "revisao": { "type": "string", "description": "Token assinado retornado por /revisar; expira em cinco minutos e vincula a tentativa aos dados revisados." }
                 }
               }
             }
@@ -6720,6 +6732,16 @@
           "409": { "description": "Já existe checkout pendente ou matrícula idêntica ativa." },
           "400": { "description": "Plano, unidade ou confirmação inválidos." }
         }
+      }
+    },
+    "/api/profissionais/recepcao/matricula-simulada/pendentes": {
+      "get": {
+        "tags": ["Recepção"],
+        "summary": "Recuperar pagamentos simulados pendentes",
+        "description": "Somente a conta de recepção autenticada. Retorna tentativas pendentes iniciadas pelo próprio operador para continuar após recarregar a página. Não aciona pagamentos externos.",
+        "operationId": "listarMatriculasSimuladasPendentes",
+        "security": [{"cookieAuth": []}, {"bearerAuth": []}],
+        "responses": {"200": {"description": "Tentativas pendentes do operador."}, "403": {"description": "Papel ou modo de pagamento não autorizado."}}
       }
     },
     "/api/profissionais/recepcao/matricula-simulada/{id}/confirmar": {
